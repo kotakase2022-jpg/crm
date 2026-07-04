@@ -1,0 +1,6 @@
+{
+  "data": null,
+  "error": {
+    "message": "duplicate key value violates unique constraint"
+  }
+}

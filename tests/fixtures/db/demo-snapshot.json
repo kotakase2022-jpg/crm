@@ -1,0 +1,11 @@
+{
+  "organization_id": "org-test",
+  "user": {
+    "id": "user-test",
+    "role": "admin"
+  },
+  "company": {
+    "id": "company-test-001",
+    "name": "Sample Construction"
+  }
+}
