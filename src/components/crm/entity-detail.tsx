@@ -17,6 +17,7 @@ import { formatValue } from "@/lib/crm/format";
 import type { CrmRecord, EntityConfig, EntitySlug, RelationOptions } from "@/lib/crm/types";
 import type { RelatedSection } from "@/lib/crm/data";
 import { getEntityConfig } from "@/lib/crm/entities";
+import { canWriteTable } from "@/lib/crm/access";
 import { fieldLabel } from "./entity-table";
 
 function sectionFields(section: RelatedSection) {
@@ -111,6 +112,11 @@ function relatedCreateLabel(entity: EntitySlug) {
   return `${getEntityConfig(entity)?.singular ?? "関連データ"}を追加`;
 }
 
+function canCreateRelatedEntity(role: string, entity: EntitySlug) {
+  const config = getEntityConfig(entity);
+  return config ? canWriteTable(role, config.table) : false;
+}
+
 function RelatedTable({ section, relations }: { section: RelatedSection; relations: RelationOptions }) {
   const fields = sectionFields(section);
 
@@ -157,8 +163,8 @@ function RelatedTable({ section, relations }: { section: RelatedSection; relatio
   );
 }
 
-function ActivityQuickForm({ entity, id }: { entity: EntitySlug; id: string }) {
-  if (!["leads", "companies", "contacts", "deals"].includes(entity)) return null;
+function ActivityQuickForm({ entity, id, canCreate }: { entity: EntitySlug; id: string; canCreate: boolean }) {
+  if (!canCreate || !["leads", "companies", "contacts", "deals"].includes(entity)) return null;
 
   const action = createActivityAction.bind(null, entity, id);
 
@@ -221,16 +227,20 @@ export function EntityDetail({
   record,
   relations,
   relatedSections,
+  role,
 }: {
   config: EntityConfig;
   record: CrmRecord;
   relations: RelationOptions;
   relatedSections: RelatedSection[];
+  role: string;
 }) {
   const deleteAction = deleteEntityAction.bind(null, config.slug, String(record.id));
   const convertAction = convertLeadAction.bind(null, String(record.id));
   const completeAction = completeTaskAction.bind(null, String(record.id));
   const reopenAction = reopenTaskAction.bind(null, String(record.id));
+  const canWriteCurrent = canWriteTable(role, config.table);
+  const canCreateActivities = canWriteTable(role, "activities");
 
   return (
     <div className="grid gap-5">
@@ -245,7 +255,7 @@ export function EntityDetail({
               <h2 className="text-2xl font-bold tracking-normal text-slate-950">{String(record[config.primaryField] ?? record.id)}</h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              {config.slug === "leads" && !record.converted_deal_id ? (
+              {canWriteCurrent && config.slug === "leads" && !record.converted_deal_id ? (
                 <form action={convertAction}>
                   <Button variant="secondary">
                     <GitBranchPlus className="h-4 w-4" aria-hidden />
@@ -253,7 +263,7 @@ export function EntityDetail({
                   </Button>
                 </form>
               ) : null}
-              {config.slug === "tasks" && record.status !== "完了" ? (
+              {canWriteCurrent && config.slug === "tasks" && record.status !== "完了" ? (
                 <form action={completeAction}>
                   <Button variant="secondary">
                     <CheckCircle2 className="h-4 w-4" aria-hidden />
@@ -261,7 +271,7 @@ export function EntityDetail({
                   </Button>
                 </form>
               ) : null}
-              {config.slug === "tasks" && record.status === "完了" ? (
+              {canWriteCurrent && config.slug === "tasks" && record.status === "完了" ? (
                 <form action={reopenAction}>
                   <Button variant="secondary">
                     <RotateCcw className="h-4 w-4" aria-hidden />
@@ -269,16 +279,20 @@ export function EntityDetail({
                   </Button>
                 </form>
               ) : null}
-              <Link href={`/${config.slug}/${record.id}/edit`} className={buttonClassName("secondary")}>
-                <Pencil className="h-4 w-4" aria-hidden />
-                編集
-              </Link>
-              <form action={deleteAction}>
-                <ConfirmSubmitButton confirmMessage={`この${config.singular}を削除しますか？一覧から非表示になります。`}>
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                  削除
-                </ConfirmSubmitButton>
-              </form>
+              {canWriteCurrent ? (
+                <>
+                  <Link href={`/${config.slug}/${record.id}/edit`} className={buttonClassName("secondary")}>
+                    <Pencil className="h-4 w-4" aria-hidden />
+                    編集
+                  </Link>
+                  <form action={deleteAction}>
+                    <ConfirmSubmitButton confirmMessage={`この${config.singular}を削除しますか？一覧から非表示になります。`}>
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                      削除
+                    </ConfirmSubmitButton>
+                  </form>
+                </>
+              ) : null}
             </div>
           </div>
         </CardHeader>
@@ -294,12 +308,12 @@ export function EntityDetail({
         </CardContent>
       </Card>
 
-      <ActivityQuickForm entity={config.slug} id={String(record.id)} />
+      <ActivityQuickForm entity={config.slug} id={String(record.id)} canCreate={canCreateActivities} />
 
       <div className="grid gap-5">
         {relatedSections.map((section) => {
           const relatedEntity = section.entity;
-          const createHref = relatedEntity ? relatedCreateHref(config.slug, record, relatedEntity) : null;
+          const createHref = relatedEntity && canCreateRelatedEntity(role, relatedEntity) ? relatedCreateHref(config.slug, record, relatedEntity) : null;
 
           return (
             <Card key={section.title}>

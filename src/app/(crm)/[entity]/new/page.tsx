@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import { EntityForm } from "@/components/crm/entity-form";
 import { PageHeader } from "@/components/crm/page-header";
+import { PermissionNotice } from "@/components/crm/permission-notice";
 import { createEntityAction } from "@/lib/crm/actions";
-import { getRelationOptions } from "@/lib/crm/data";
+import { canWriteTable } from "@/lib/crm/access";
+import { getCrmContext, getRelationOptions } from "@/lib/crm/data";
 import { getEntityConfig } from "@/lib/crm/entities";
 import type { CrmRecord, EntityConfig } from "@/lib/crm/types";
 
@@ -50,14 +52,15 @@ export default async function EntityNewPage({
   const config = getEntityConfig(entity);
   if (!config) notFound();
 
-  const relations = await getRelationOptions();
+  const [context, relations] = await Promise.all([getCrmContext(), getRelationOptions()]);
   const action = createEntityAction.bind(null, config.slug);
   const prefillRecord = prefillRecordFromSearchParams(config, resolvedSearchParams);
+  const canCreate = canWriteTable(context.role, config.table);
 
   return (
     <>
       <PageHeader title={`${config.singular}作成`} description="必須項目を入力して保存してください。" />
-      <EntityForm config={config} record={prefillRecord} relations={relations} action={action} />
+      {canCreate ? <EntityForm config={config} record={prefillRecord} relations={relations} action={action} /> : <PermissionNotice action="作成" />}
     </>
   );
 }

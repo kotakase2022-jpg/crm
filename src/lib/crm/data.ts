@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { buildAlerts } from "./alerts";
+import { assertCanWriteTable } from "./access";
 import { addDemoRow, demoStore, getDemoRows, newDemoId, nowIso, updateDemoRow } from "./demo-data";
 import { entityConfigs } from "./entities";
 import { daysUntil, recordTitle } from "./format";
@@ -41,21 +42,8 @@ const relationTableByKey: Record<RelationKey, TableName> = {
   tickets: "support_tickets",
 };
 
-const writeScopes: Record<string, "all" | TableName[]> = {
-  admin: "all",
-  sales_manager: ["leads", "companies", "contacts", "deals", "activities", "tasks", "trials"],
-  sales: ["leads", "companies", "contacts", "deals", "activities", "tasks", "trials"],
-  cs_manager: ["companies", "contacts", "activities", "tasks", "trials", "subscriptions", "product_usage", "support_tickets", "health_scores"],
-  cs: ["companies", "contacts", "activities", "tasks", "trials", "subscriptions", "product_usage", "support_tickets", "health_scores"],
-  support: ["support_tickets", "tasks", "activities", "companies", "contacts"],
-  finance: ["subscriptions", "billing_records", "companies", "tasks", "activities"],
-  viewer: [],
-};
-
 function assertCanWrite(ctx: CrmContext, table: TableName) {
-  const scope = writeScopes[ctx.role] ?? [];
-  if (scope === "all" || scope.includes(table)) return;
-  throw new Error("この権限では更新できません。");
+  assertCanWriteTable(ctx.role, table);
 }
 
 function isMissingAuthPath(pathname = "/dashboard") {

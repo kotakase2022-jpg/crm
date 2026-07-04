@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { EntityFilterBar, EntityTable } from "@/components/crm/entity-table";
 import { PageHeader } from "@/components/crm/page-header";
 import { StageBoard } from "@/components/crm/stage-board";
-import { getRelationOptions, listRecords } from "@/lib/crm/data";
+import { canWriteTable } from "@/lib/crm/access";
+import { getCrmContext, getRelationOptions, listRecords } from "@/lib/crm/data";
 import { getEntityConfig } from "@/lib/crm/entities";
 import type { QueryState } from "@/lib/crm/types";
 
@@ -29,11 +30,17 @@ export default async function EntityListPage({
     direction: first(rawQuery.direction) === "asc" ? "asc" : "desc",
     view: first(rawQuery.view),
   };
-  const [rows, allRows, relations] = await Promise.all([listRecords(config, query), listRecords(config), getRelationOptions()]);
+  const [context, rows, allRows, relations] = await Promise.all([getCrmContext(), listRecords(config, query), listRecords(config), getRelationOptions()]);
+  const canCreate = canWriteTable(context.role, config.table);
 
   return (
     <>
-      <PageHeader title={`${config.plural}一覧`} description={config.description} actionHref={`/${config.slug}/new`} actionLabel={`${config.singular}作成`} />
+      <PageHeader
+        title={`${config.plural}一覧`}
+        description={config.description}
+        actionHref={canCreate ? `/${config.slug}/new` : undefined}
+        actionLabel={canCreate ? `${config.singular}作成` : undefined}
+      />
       {config.slug === "deals" ? <StageBoard deals={allRows} /> : null}
       <EntityFilterBar config={config} rows={allRows} query={query} />
       <EntityTable config={config} rows={rows} relations={relations} />
