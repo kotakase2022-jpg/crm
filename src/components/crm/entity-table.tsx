@@ -52,7 +52,7 @@ export function EntityFilterBar({
   return (
     <Card className="mb-4">
       <CardContent className="p-4">
-        <form className="grid gap-3 md:grid-cols-[1fr_180px_180px_140px_auto]">
+        <form className="grid gap-3 md:grid-cols-[1fr_180px_180px_140px_auto]" data-testid="entity-filter-form">
           <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden />
             <Input name="q" defaultValue={query.q} placeholder={`${config.plural}を検索`} className="pl-9" />

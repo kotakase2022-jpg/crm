@@ -6,7 +6,7 @@ import type { CrmRecord } from "@/lib/crm/types";
 
 export function StageBoard({ deals }: { deals: CrmRecord[] }) {
   return (
-    <div className="mb-5 overflow-x-auto pb-2">
+    <div className="mb-5 overflow-x-auto pb-2" aria-label="商談ステージボード" data-testid="deal-stage-board">
       <div className="grid min-w-[1100px] grid-cols-10 gap-3">
         {dealStages.map((stage) => {
           const stageDeals = deals.filter((deal) => deal.stage === stage);
@@ -14,7 +14,7 @@ export function StageBoard({ deals }: { deals: CrmRecord[] }) {
           const hiddenCount = Math.max(0, stageDeals.length - 4);
 
           return (
-            <section key={stage} className="rounded-lg border border-slate-200 bg-white">
+            <section key={stage} className="rounded-lg border border-slate-200 bg-white" data-testid="deal-stage-column">
               <div className="border-b border-slate-100 p-3">
                 <Badge tone={toneForValue(stage)}>{stage}</Badge>
                 <p className="mt-2 text-xs text-slate-500">

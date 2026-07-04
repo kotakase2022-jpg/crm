@@ -184,6 +184,24 @@ test("list search filters results and can be cleared", async ({ page }) => {
   await strict.expectClean();
 });
 
+test("deal stage board keeps the full pipeline overview while the list is filtered", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/deals");
+  await expect(page.locator('select[name="filter"]')).toBeVisible();
+  const stageColumns = page.getByTestId("deal-stage-column");
+  const initialStageCount = await stageColumns.count();
+  expect(initialStageCount).toBeGreaterThan(5);
+
+  await page.locator('select[name="filter"]').selectOption({ index: 1 });
+  await page.getByTestId("entity-filter-form").locator("button").click();
+
+  await expect(page).toHaveURL(/\/deals\?.*filter=/);
+  await expect(stageColumns).toHaveCount(initialStageCount);
+  await expect(page.locator("main")).toBeVisible();
+  await strict.expectClean();
+});
+
 test("activity history can be added from a company detail page", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const subject = `E2E activity ${Date.now()}`;

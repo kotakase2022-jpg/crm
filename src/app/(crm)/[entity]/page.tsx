@@ -29,13 +29,13 @@ export default async function EntityListPage({
     direction: first(rawQuery.direction) === "asc" ? "asc" : "desc",
     view: first(rawQuery.view),
   };
-  const [rows, relations] = await Promise.all([listRecords(config, query), getRelationOptions()]);
+  const [rows, allRows, relations] = await Promise.all([listRecords(config, query), listRecords(config), getRelationOptions()]);
 
   return (
     <>
       <PageHeader title={`${config.plural}一覧`} description={config.description} actionHref={`/${config.slug}/new`} actionLabel={`${config.singular}作成`} />
-      {config.slug === "deals" ? <StageBoard deals={rows} /> : null}
-      <EntityFilterBar config={config} rows={rows} query={query} />
+      {config.slug === "deals" ? <StageBoard deals={allRows} /> : null}
+      <EntityFilterBar config={config} rows={allRows} query={query} />
       <EntityTable config={config} rows={rows} relations={relations} />
     </>
   );
