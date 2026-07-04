@@ -11,6 +11,7 @@ export function StageBoard({ deals }: { deals: CrmRecord[] }) {
         {dealStages.map((stage) => {
           const stageDeals = deals.filter((deal) => deal.stage === stage);
           const amount = stageDeals.reduce((sum, deal) => sum + Number(deal.expected_mrr ?? 0), 0);
+          const hiddenCount = Math.max(0, stageDeals.length - 4);
 
           return (
             <section key={stage} className="rounded-lg border border-slate-200 bg-white">
@@ -27,6 +28,11 @@ export function StageBoard({ deals }: { deals: CrmRecord[] }) {
                     <p className="mt-1 text-slate-500">{formatCurrency(deal.expected_mrr)}</p>
                   </Link>
                 ))}
+                {hiddenCount > 0 ? (
+                  <Link href={`/deals?filter=${encodeURIComponent(stage)}`} className="rounded-md border border-dashed border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700">
+                    さらに{hiddenCount}件を一覧で確認
+                  </Link>
+                ) : null}
               </div>
             </section>
           );

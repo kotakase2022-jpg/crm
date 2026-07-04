@@ -1,5 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { attachStrictPageChecks } from "./strict-page";
+
+async function selectFirstRealOption(page: Page, name: string) {
+  await page.locator(`select[name="${name}"]`).selectOption({ index: 1 });
+}
 
 test("initial dashboard and main navigation load without browser errors", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
@@ -16,6 +20,88 @@ test("initial dashboard and main navigation load without browser errors", async 
 
   await strict.expectClean();
 });
+
+const createScenarios = [
+  {
+    entity: "companies",
+    visibleMarkerPrefix: "E2E Company",
+    fill: async (page, marker: string) => {
+      await page.locator('input[name="name"]').fill(marker);
+    },
+  },
+  {
+    entity: "contacts",
+    visibleMarkerPrefix: "E2E Contact",
+    fill: async (page, marker: string) => {
+      await selectFirstRealOption(page, "company_id");
+      await page.locator('input[name="name"]').fill(marker);
+    },
+  },
+  {
+    entity: "deals",
+    visibleMarkerPrefix: "E2E Deal",
+    fill: async (page, marker: string) => {
+      await page.locator('input[name="name"]').fill(marker);
+      await page.locator('input[name="expected_mrr"]').fill("32000");
+    },
+  },
+  {
+    entity: "tasks",
+    visibleMarkerPrefix: "E2E Task",
+    fill: async (page, marker: string) => {
+      await page.locator('input[name="title"]').fill(marker);
+      await page.locator('input[name="due_date"]').fill("2026-07-10");
+    },
+  },
+  {
+    entity: "trials",
+    visibleMarkerPrefix: "E2E Trial",
+    fill: async (page, marker: string) => {
+      await selectFirstRealOption(page, "company_id");
+      await page.locator('input[name="start_date"]').fill("2026-07-04");
+      await page.locator('input[name="end_date"]').fill("2026-07-18");
+      await page.locator('textarea[name="notes"]').fill(marker);
+    },
+  },
+  {
+    entity: "contracts",
+    visibleMarkerPrefix: "E2E Contract",
+    fill: async (page, marker: string) => {
+      await selectFirstRealOption(page, "company_id");
+      await selectFirstRealOption(page, "plan");
+      await page.locator('input[name="mrr"]').fill("48000");
+      await page.locator('input[name="started_on"]').fill("2026-07-04");
+      await page.locator('textarea[name="notes"]').fill(marker);
+    },
+  },
+  {
+    entity: "tickets",
+    visibleMarkerPrefix: "E2E Ticket",
+    fill: async (page, marker: string) => {
+      await selectFirstRealOption(page, "company_id");
+      await page.locator('input[name="title"]').fill(marker);
+    },
+  },
+] satisfies Array<{
+  entity: string;
+  visibleMarkerPrefix: string;
+  fill: (page: Page, marker: string) => Promise<void>;
+}>;
+
+for (const scenario of createScenarios) {
+  test(`${scenario.entity} creation persists to its detail page`, async ({ page }) => {
+    const strict = attachStrictPageChecks(page);
+    const marker = `${scenario.visibleMarkerPrefix} ${Date.now()}`;
+
+    await page.goto(`/${scenario.entity}/new`);
+    await scenario.fill(page, marker);
+    await page.getByRole("button", { name: "保存" }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/${scenario.entity}/[^/]+\\?toast=created$`));
+    await expect(page.locator("body")).toContainText(marker);
+    await strict.expectClean();
+  });
+}
 
 test("lead creation persists to the detail page and converts into a deal", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
@@ -60,6 +146,90 @@ test("task completion and reopen actions change state without crashing", async (
   await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=reopened$/);
   await expect(page.locator("body")).toContainText("ID:");
 
+  await strict.expectClean();
+});
+
+test("record editing persists updated notes on the detail page", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const note = `E2E updated note ${Date.now()}`;
+
+  await page.goto("/leads");
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/leads\/[^/]+$/);
+
+  await page.getByRole("link", { name: "編集" }).click();
+  await expect(page).toHaveURL(/\/leads\/[^/]+\/edit$/);
+  await page.locator('textarea[name="notes"]').fill(note);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/leads\/[^/]+\?toast=updated$/);
+  await expect(page.locator("body")).toContainText(note);
+  await strict.expectClean();
+});
+
+test("list search filters results and can be cleared", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/leads");
+  await page.locator('input[name="q"]').fill("lead1@example.com");
+  await page.locator('input[name="q"]').press("Enter");
+
+  await expect(page).toHaveURL(/\/leads\?q=lead1%40example\.com/);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.getByRole("link", { name: "条件クリア" })).toBeVisible();
+
+  await page.getByRole("link", { name: "条件クリア" }).click();
+  await expect(page).toHaveURL(/\/leads$/);
+  await expect(page.locator("tbody tr").first()).toBeVisible();
+  await strict.expectClean();
+});
+
+test("activity history can be added from a company detail page", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const subject = `E2E activity ${Date.now()}`;
+
+  await page.goto("/companies");
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+$/);
+
+  await page.locator('input[name="subject"]').fill(subject);
+  await page.locator('textarea[name="content"]').fill("E2E activity content");
+  await page.getByRole("button", { name: "活動を追加" }).click();
+
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=activity$/);
+  await expect(page.locator("body")).toContainText(subject);
+  await strict.expectClean();
+});
+
+test("delete confirmation prevents accidental deletion and then soft deletes after approval", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const leadName = `E2E Delete Lead ${unique}`;
+
+  await page.goto("/leads/new");
+  await page.locator('input[name="name"]').fill(leadName);
+  await page.locator('input[name="company_name"]').fill(`E2E Delete Construction ${unique}`);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/leads\/[^/]+\?toast=created$/);
+  await expect(page.locator("body")).toContainText(leadName);
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("削除");
+    await dialog.dismiss();
+  });
+  await page.getByRole("button", { name: "削除" }).click();
+  await expect(page.locator("body")).toContainText(leadName);
+  await expect(page).toHaveURL(/\/leads\/[^/]+\?toast=created$/);
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("削除");
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "削除" }).click();
+
+  await expect(page).toHaveURL(/\/leads\?toast=deleted$/);
+  await expect(page.locator("body")).not.toContainText(leadName);
   await strict.expectClean();
 });
 

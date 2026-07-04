@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpDown, Search } from "lucide-react";
 import { Badge, toneForValue } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
 import type { CrmRecord, EntityConfig, QueryState, RelationOptions } from "@/lib/crm/types";
@@ -42,6 +42,12 @@ export function EntityFilterBar({
   query: QueryState;
 }) {
   const options = filterOptions(config, rows);
+  const hasActiveQuery =
+    Boolean(query.q) ||
+    Boolean(query.filter) ||
+    Boolean(query.view) ||
+    (query.sort && query.sort !== config.sortFields[0]) ||
+    (query.direction && query.direction !== "desc");
 
   return (
     <Card className="mb-4">
@@ -78,6 +84,11 @@ export function EntityFilterBar({
             <ArrowUpDown className="h-4 w-4" aria-hidden />
             適用
           </Button>
+          {hasActiveQuery ? (
+            <Link href={`/${config.slug}`} className={buttonClassName("ghost", "w-full md:w-auto")}>
+              条件クリア
+            </Link>
+          ) : null}
         </form>
         {config.slug === "tasks" ? (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">

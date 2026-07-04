@@ -3,6 +3,7 @@ import { CheckCircle2, GitBranchPlus, History, Pencil, RotateCcw, Trash2 } from 
 import { Badge, toneForValue } from "@/components/ui/badge";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ConfirmSubmitButton } from "@/components/crm/form-buttons";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import {
   completeTaskAction,
@@ -15,6 +16,7 @@ import { activityTypes } from "@/lib/crm/options";
 import { formatValue } from "@/lib/crm/format";
 import type { CrmRecord, EntityConfig, EntitySlug, RelationOptions } from "@/lib/crm/types";
 import type { RelatedSection } from "@/lib/crm/data";
+import { getEntityConfig } from "@/lib/crm/entities";
 import { fieldLabel } from "./entity-table";
 
 function sectionFields(section: RelatedSection) {
@@ -31,6 +33,38 @@ function sectionFields(section: RelatedSection) {
   return ["type", "subject", "occurred_at", "has_next_action"];
 }
 
+const relatedFieldLabels: Record<string, string> = {
+  type: "種別",
+  subject: "件名",
+  content: "内容",
+  occurred_at: "実施日時",
+  has_next_action: "次回アクション",
+  next_action_date: "次回アクション日",
+  period_start: "期間開始",
+  period_end: "期間終了",
+  login_count: "ログイン回数",
+  documents_created: "帳票作成数",
+  active_users_count: "利用ユーザー数",
+  measured_on: "測定日",
+  total_score: "ヘルススコア",
+  health_status: "状態",
+  churn_risk: "解約リスク",
+  upsell_candidate: "アップセル候補",
+  billing_month: "請求月",
+  amount: "金額",
+  status: "ステータス",
+  due_on: "支払期限",
+  from_stage: "変更前",
+  to_stage: "変更後",
+  changed_at: "変更日時",
+};
+
+function relatedFieldLabel(section: RelatedSection, field: string) {
+  const config = section.entity ? getEntityConfig(section.entity) : null;
+  if (config) return fieldLabel(config, field);
+  return relatedFieldLabels[field] ?? field;
+}
+
 function RelatedTable({ section, relations }: { section: RelatedSection; relations: RelationOptions }) {
   const fields = sectionFields(section);
 
@@ -45,7 +79,7 @@ function RelatedTable({ section, relations }: { section: RelatedSection; relatio
           <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
             {fields.map((field) => (
               <th key={field} className="w-40 px-3 py-2 font-semibold">
-                {field}
+                {relatedFieldLabel(section, field)}
               </th>
             ))}
           </tr>
@@ -194,10 +228,10 @@ export function EntityDetail({
                 編集
               </Link>
               <form action={deleteAction}>
-                <Button variant="danger">
+                <ConfirmSubmitButton confirmMessage={`この${config.singular}を削除しますか？一覧から非表示になります。`}>
                   <Trash2 className="h-4 w-4" aria-hidden />
                   削除
-                </Button>
+                </ConfirmSubmitButton>
               </form>
             </div>
           </div>
