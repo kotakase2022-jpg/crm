@@ -368,6 +368,39 @@ test("automation task generation runs and reports a success state", async ({ pag
   await strict.expectClean();
 });
 
+test("dashboards, reports, and settings expose operational decision signals", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/dashboard");
+  await expect(page.locator("main")).toContainText("MRR");
+  await expect(page.locator("main")).toContainText("CS");
+  await expect(page.locator("main a[href^=\"/tasks/\"]").first()).toBeVisible();
+
+  await page.goto("/reports");
+  await expect(page.locator("main")).toContainText("ARR");
+  await expect(page.locator("main")).toContainText("CS KPI");
+
+  await page.goto("/settings");
+  await expect(page.locator("main")).toContainText("NEXT_PUBLIC_SUPABASE_URL");
+  await expect(page.locator("main")).toContainText("admin");
+  await expect(page.locator("main")).toContainText("viewer");
+  await strict.expectClean();
+});
+
+test("tablet viewport keeps dashboards and dense lists within the page width", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  await page.setViewportSize({ width: 900, height: 1000 });
+
+  for (const path of ["/dashboard", "/deals", "/companies", "/reports"]) {
+    await page.goto(path);
+    await expect(page.locator("main")).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(5);
+  }
+
+  await strict.expectClean();
+});
+
 test("invalid form input is blocked by browser validation and does not create a crash", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
 
