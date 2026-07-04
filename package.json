@@ -15,7 +15,8 @@
     "test": "npm run test:guard && vitest run",
     "test:coverage": "npm run test:guard && vitest run --coverage",
     "test:e2e": "playwright test",
-    "quality": "npm run typecheck && npm run lint && npm run test && npm run test:coverage && npm run test:e2e && npm run build"
+    "quality": "npm run typecheck && npm run lint && npm run test && npm run test:coverage && npm run test:e2e && npm run build",
+    "prepare": "husky"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.0",
@@ -37,6 +38,7 @@
     "@vitest/coverage-v8": "4.1.9",
     "eslint": "9.39.2",
     "eslint-config-next": "16.2.10",
+    "husky": "9.1.7",
     "tailwindcss": "4.1.18",
     "typescript": "5.9.3",
     "vitest": "4.1.9"

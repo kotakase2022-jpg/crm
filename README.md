@@ -126,3 +126,5 @@ npm run quality
 ```
 
 GitHub branch protection should require the `quality-gate / typecheck-lint-test-e2e-build` workflow before merging to `main`.
+
+All ongoing development should use pull requests. Do not push directly to `main`; Vercel production deployments should come from `main` only after the GitHub Actions `quality-gate` workflow has passed. Codex, Cursor, and human contributors should not consider work complete until `npm run quality` and CI are green.
