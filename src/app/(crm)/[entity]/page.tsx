@@ -41,7 +41,7 @@ export default async function EntityListPage({
         actionHref={canCreate ? `/${config.slug}/new` : undefined}
         actionLabel={canCreate ? `${config.singular}作成` : undefined}
       />
-      {config.slug === "deals" ? <StageBoard deals={allRows} /> : null}
+      {config.slug === "deals" ? <StageBoard deals={rows} query={query} /> : null}
       <EntityFilterBar config={config} rows={allRows} query={query} />
       <EntityTable config={config} rows={rows} relations={relations} />
     </>

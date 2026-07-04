@@ -2,9 +2,21 @@ import Link from "next/link";
 import { Badge, toneForValue } from "@/components/ui/badge";
 import { dealStages } from "@/lib/crm/options";
 import { formatCurrency } from "@/lib/crm/format";
-import type { CrmRecord } from "@/lib/crm/types";
+import type { CrmRecord, QueryState } from "@/lib/crm/types";
 
-export function StageBoard({ deals }: { deals: CrmRecord[] }) {
+function stageListHref(stage: string, query: QueryState) {
+  const params = new URLSearchParams();
+
+  if (query.q) params.set("q", query.q);
+  params.set("filter", stage);
+  if (query.sort) params.set("sort", query.sort);
+  if (query.direction) params.set("direction", query.direction);
+  if (query.view) params.set("view", query.view);
+
+  return `/deals?${params.toString()}`;
+}
+
+export function StageBoard({ deals, query }: { deals: CrmRecord[]; query: QueryState }) {
   return (
     <div className="mb-5 overflow-x-auto pb-2" aria-label="商談ステージボード" data-testid="deal-stage-board">
       <div className="grid min-w-[1100px] grid-cols-10 gap-3">
@@ -12,6 +24,7 @@ export function StageBoard({ deals }: { deals: CrmRecord[] }) {
           const stageDeals = deals.filter((deal) => deal.stage === stage);
           const amount = stageDeals.reduce((sum, deal) => sum + Number(deal.expected_mrr ?? 0), 0);
           const hiddenCount = Math.max(0, stageDeals.length - 4);
+          const listHref = stageListHref(stage, query);
 
           return (
             <section key={stage} className="rounded-lg border border-slate-200 bg-white" data-testid="deal-stage-column">
@@ -29,7 +42,7 @@ export function StageBoard({ deals }: { deals: CrmRecord[] }) {
                   </Link>
                 ))}
                 {hiddenCount > 0 ? (
-                  <Link href={`/deals?filter=${encodeURIComponent(stage)}`} className="rounded-md border border-dashed border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700">
+                  <Link href={listHref} className="rounded-md border border-dashed border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700">
                     さらに{hiddenCount}件を一覧で確認
                   </Link>
                 ) : null}

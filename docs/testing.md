@@ -85,7 +85,7 @@ The E2E suite verifies:
 - lead conversion into a deal
 - record editing and persisted detail updates
 - search filtering and condition clearing
-- deal stage board visibility while the list is filtered
+- deal stage board search behavior and query-preserving stage drill-down
 - task completion and reopen flow
 - activity history creation from a customer detail page
 - related-record creation with parent company/deal prefilled

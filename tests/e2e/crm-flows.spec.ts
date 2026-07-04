@@ -184,21 +184,31 @@ test("list search filters results and can be cleared", async ({ page }) => {
   await strict.expectClean();
 });
 
-test("deal stage board keeps the full pipeline overview while the list is filtered", async ({ page }) => {
+test("deal stage board follows search results and preserves query when drilling into a stage", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
+  const marker = `E2E Stage Drill ${Date.now()}`;
 
-  await page.goto("/deals");
+  for (let index = 1; index <= 5; index += 1) {
+    await page.goto("/deals/new");
+    await page.locator('input[name="name"]').fill(`${marker} ${index}`);
+    await page.locator('input[name="expected_mrr"]').fill("18000");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+  }
+
+  await page.goto(`/deals?q=${encodeURIComponent(marker)}`);
   await expect(page.locator('select[name="filter"]')).toBeVisible();
   const stageColumns = page.getByTestId("deal-stage-column");
-  const initialStageCount = await stageColumns.count();
-  expect(initialStageCount).toBeGreaterThan(5);
+  await expect(stageColumns).toHaveCount(10);
+  await expect(page.locator("tbody tr")).toHaveCount(5);
 
-  await page.locator('select[name="filter"]').selectOption({ index: 1 });
-  await page.getByTestId("entity-filter-form").locator("button").click();
+  await page.getByRole("link", { name: /さらに1件/ }).click();
 
-  await expect(page).toHaveURL(/\/deals\?.*filter=/);
-  await expect(stageColumns).toHaveCount(initialStageCount);
-  await expect(page.locator("main")).toBeVisible();
+  await expect(page).toHaveURL(/\/deals\?.*q=.*filter=/);
+  const url = new URL(page.url());
+  expect(url.searchParams.get("q")).toBe(marker);
+  expect(url.searchParams.get("filter")).toBeTruthy();
+  await expect(page.locator("tbody tr")).toHaveCount(5);
   await strict.expectClean();
 });
 
