@@ -61,10 +61,12 @@ Vitest covers CRM domain logic under `src/lib/crm`:
 
 - amount and ARR/MRR calculations
 - date and formatter behavior
+- role-based write access rules
 - CSV parsing
 - entity input validation
 - API response shaping and fallback behavior
 - persistence payload shaping before Supabase writes
+- Supabase migration invariants for `organization_id`, RLS policy coverage, and authenticated profile bootstrap
 - sales funnel, dashboard KPI, CS KPI, and alert logic
 - empty data, invalid data, and boundary values
 
@@ -78,10 +80,22 @@ The E2E suite verifies:
 
 - initial dashboard rendering
 - main CRM navigation
+- entity creation and detail rendering for companies, contacts, deals, tasks, trials, contracts, and tickets
 - lead creation and detail rendering
 - lead conversion into a deal
+- record editing and persisted detail updates
+- search filtering and condition clearing
+- deal stage board visibility while the list is filtered
 - task completion and reopen flow
+- activity history creation from a customer detail page
+- related-record creation with parent company/deal prefilled
+- deal stage and probability updates
+- trial usage metric updates
+- contract ARR calculation from MRR
+- delete confirmation and soft delete behavior
 - automation task generation
+- dashboard, report, and settings operational decision signals
+- tablet-width layout overflow checks for dense pages
 - invalid form input without crash
 - controlled route-level 404 behavior
 - `console.error`, `pageerror`, failed local requests, unexpected local 4xx/5xx responses, hydration signals, and React runtime errors
