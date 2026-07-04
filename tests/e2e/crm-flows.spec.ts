@@ -201,6 +201,57 @@ test("activity history can be added from a company detail page", async ({ page }
   await strict.expectClean();
 });
 
+test("company related create action prefills the parent company on a new contact", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const contactName = `E2E Related Contact ${Date.now()}`;
+
+  await page.goto("/companies");
+  const companyName = (await page.locator("tbody a").first().textContent())?.trim() ?? "";
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+$/);
+
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.getByRole("link", { name: /担当者を追加/ }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/contacts/new\\?company_id=${companyId}$`));
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('select[name="company_id"] option:checked')).toContainText(companyName);
+
+  await page.locator('input[name="name"]').fill(contactName);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/contacts\/[^/]+\?toast=created$/);
+  await expect(page.locator("body")).toContainText(contactName);
+  await expect(page.locator("body")).toContainText(companyName);
+  await strict.expectClean();
+});
+
+test("deal related task creation keeps the deal relationship through save", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const taskTitle = `E2E Deal Task ${Date.now()}`;
+
+  await page.goto("/deals");
+  const dealName = (await page.locator("tbody a").first().textContent())?.trim() ?? "";
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/deals\/[^/]+$/);
+
+  const dealId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.getByRole("link", { name: /タスクを追加/ }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/tasks/new\\?.*deal_id=${dealId}`));
+  await expect(page.locator('select[name="deal_id"]')).toHaveValue(dealId);
+
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  await expect(page.locator("body")).toContainText(taskTitle);
+  await expect(page.locator("body")).toContainText(dealName);
+  await strict.expectClean();
+});
+
 test("delete confirmation prevents accidental deletion and then soft deletes after approval", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();

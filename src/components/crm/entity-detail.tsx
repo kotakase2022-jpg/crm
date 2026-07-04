@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, GitBranchPlus, History, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { CheckCircle2, GitBranchPlus, History, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Badge, toneForValue } from "@/components/ui/badge";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -63,6 +63,52 @@ function relatedFieldLabel(section: RelatedSection, field: string) {
   const config = section.entity ? getEntityConfig(section.entity) : null;
   if (config) return fieldLabel(config, field);
   return relatedFieldLabels[field] ?? field;
+}
+
+function stringValue(record: CrmRecord, field: string) {
+  const value = record[field];
+  return typeof value === "string" && value ? value : null;
+}
+
+function relatedCreateHref(parentEntity: EntitySlug, record: CrmRecord, childEntity: EntitySlug) {
+  const params = new URLSearchParams();
+  const parentId = String(record.id);
+
+  if (parentEntity === "companies") {
+    params.set("company_id", parentId);
+  }
+
+  if (parentEntity === "contacts") {
+    params.set("contact_id", parentId);
+    const companyId = stringValue(record, "company_id");
+    if (companyId) params.set("company_id", companyId);
+  }
+
+  if (parentEntity === "leads" && ["deals", "tasks"].includes(childEntity)) {
+    params.set("lead_id", parentId);
+  }
+
+  if (parentEntity === "deals" && ["tasks", "trials"].includes(childEntity)) {
+    params.set("deal_id", parentId);
+    const companyId = stringValue(record, "company_id");
+    const contactId = stringValue(record, "contact_id");
+    if (companyId) params.set("company_id", companyId);
+    if (childEntity === "tasks" && contactId) params.set("contact_id", contactId);
+  }
+
+  if (parentEntity === "tickets" && childEntity === "tasks") {
+    params.set("support_ticket_id", parentId);
+    const companyId = stringValue(record, "company_id");
+    const contactId = stringValue(record, "contact_id");
+    if (companyId) params.set("company_id", companyId);
+    if (contactId) params.set("contact_id", contactId);
+  }
+
+  return params.size > 0 ? `/${childEntity}/new?${params.toString()}` : `/${childEntity}/new`;
+}
+
+function relatedCreateLabel(entity: EntitySlug) {
+  return `${getEntityConfig(entity)?.singular ?? "関連データ"}を追加`;
 }
 
 function RelatedTable({ section, relations }: { section: RelatedSection; relations: RelationOptions }) {
@@ -251,19 +297,32 @@ export function EntityDetail({
       <ActivityQuickForm entity={config.slug} id={String(record.id)} />
 
       <div className="grid gap-5">
-        {relatedSections.map((section) => (
-          <Card key={section.title}>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-slate-950">{section.title}</h3>
-                <Badge tone="slate">{section.rows.length}件</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <RelatedTable section={section} relations={relations} />
-            </CardContent>
-          </Card>
-        ))}
+        {relatedSections.map((section) => {
+          const relatedEntity = section.entity;
+          const createHref = relatedEntity ? relatedCreateHref(config.slug, record, relatedEntity) : null;
+
+          return (
+            <Card key={section.title}>
+              <CardHeader>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <h3 className="font-semibold text-slate-950">{section.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {relatedEntity && createHref ? (
+                      <Link href={createHref} className={buttonClassName("secondary", "h-9 px-3 text-xs")}>
+                        <Plus className="h-4 w-4" aria-hidden />
+                        {relatedCreateLabel(relatedEntity)}
+                      </Link>
+                    ) : null}
+                    <Badge tone="slate">{section.rows.length}件</Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <RelatedTable section={section} relations={relations} />
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

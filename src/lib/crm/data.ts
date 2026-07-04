@@ -521,6 +521,8 @@ export async function getRelatedSections(entity: EntitySlug, idValue: string): P
     return [
       { title: "担当者", entity: "contacts", rows: contacts.filter((row) => row.company_id === idValue) },
       { title: "商談", entity: "deals", rows: deals.filter((row) => row.company_id === idValue) },
+      { title: "タスク", entity: "tasks", rows: tasks.filter((row) => row.company_id === idValue) },
+      { title: "トライアル", entity: "trials", rows: trials.filter((row) => row.company_id === idValue) },
       { title: "契約情報", entity: "contracts", rows: contracts.filter((row) => row.company_id === idValue) },
       { title: "利用状況", rows: usage.filter((row) => row.company_id === idValue) },
       { title: "問い合わせ/チケット", entity: "tickets", rows: tickets.filter((row) => row.company_id === idValue) },
@@ -540,6 +542,7 @@ export async function getRelatedSections(entity: EntitySlug, idValue: string): P
   if (entity === "contacts") {
     return [
       { title: "商談", entity: "deals", rows: deals.filter((row) => row.contact_id === idValue) },
+      { title: "タスク", entity: "tasks", rows: tasks.filter((row) => row.contact_id === idValue) },
       { title: "問い合わせ/チケット", entity: "tickets", rows: tickets.filter((row) => row.contact_id === idValue) },
       { title: "活動履歴", rows: activities.filter((row) => row.contact_id === idValue) },
     ];
