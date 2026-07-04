@@ -252,6 +252,79 @@ test("deal related task creation keeps the deal relationship through save", asyn
   await strict.expectClean();
 });
 
+test("deal stage editing persists stage and probability changes", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const dealName = `E2E Stage Deal ${Date.now()}`;
+
+  await page.goto("/deals/new");
+  await page.locator('input[name="name"]').fill(dealName);
+  await page.locator('input[name="expected_mrr"]').fill("15000");
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+  await page.getByRole("link", { name: "編集" }).click();
+  await expect(page).toHaveURL(/\/deals\/[^/]+\/edit$/);
+
+  const stageSelect = page.locator('select[name="stage"]');
+  await stageSelect.selectOption({ index: 4 });
+  const selectedStage = (await stageSelect.locator("option:checked").textContent())?.trim() ?? "";
+  await page.locator('input[name="probability"]').fill("65");
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=updated$/);
+  await expect(page.locator("body")).toContainText(dealName);
+  await expect(page.locator("body")).toContainText(selectedStage);
+  await expect(page.locator("body")).toContainText("65");
+  await strict.expectClean();
+});
+
+test("trial usage metrics can be edited and remain visible on detail", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/trials/new");
+  await selectFirstRealOption(page, "company_id");
+  await page.locator('input[name="start_date"]').fill("2026-07-04");
+  await page.locator('input[name="end_date"]').fill("2026-07-18");
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/trials\/[^/]+\?toast=created$/);
+  await page.getByRole("link", { name: "編集" }).click();
+
+  await page.locator('input[name="login_count"]').fill("12");
+  await page.locator('input[name="documents_created"]').fill("35");
+  await page.locator('input[name="estimates_created"]').fill("8");
+  await page.locator('input[name="invoices_created"]').fill("3");
+  await page.locator('input[name="invited_users_count"]').fill("4");
+  await page.locator('input[name="setup_completion_rate"]').fill("100");
+  await page.locator('input[name="activation_level"]').fill("7");
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/trials\/[^/]+\?toast=updated$/);
+  await expect(page.locator("body")).toContainText("12");
+  await expect(page.locator("body")).toContainText("35");
+  await expect(page.locator("body")).toContainText("Lv7");
+  await strict.expectClean();
+});
+
+test("contract creation calculates ARR from MRR", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const marker = `E2E ARR Contract ${Date.now()}`;
+
+  await page.goto("/contracts/new");
+  await selectFirstRealOption(page, "company_id");
+  await selectFirstRealOption(page, "plan");
+  await page.locator('input[name="mrr"]').fill("50000");
+  await page.locator('input[name="started_on"]').fill("2026-07-04");
+  await page.locator('textarea[name="notes"]').fill(marker);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/contracts\/[^/]+\?toast=created$/);
+  await expect(page.locator("body")).toContainText(marker);
+  await expect(page.locator("body")).toContainText("￥50,000");
+  await expect(page.locator("body")).toContainText("￥600,000");
+  await strict.expectClean();
+});
+
 test("delete confirmation prevents accidental deletion and then soft deletes after approval", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();
