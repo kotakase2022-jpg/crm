@@ -136,7 +136,7 @@ begin
       (array['田島','森','石井','原田','近藤'])[((i - 1) % 5) + 1] || ' 様',
       'lead' || i || '@example.com',
       '050-3000-' || lpad(i::text, 4, '0'),
-      (array['新規','未接触','接触済み','商談化','失注'])[((i - 1) % 5) + 1],
+      (array['未設定','新規（広告経由）','新規（広告以外）','未接触','接触済み','商談化','失注'])[((i - 1) % 7) + 1],
       (array['Web問い合わせ','紹介','展示会','資料DL','広告','既存顧客紹介'])[((i - 1) % 6) + 1],
       array[issue_tags[((i - 1) % array_length(issue_tags, 1)) + 1], issue_tags[(i % array_length(issue_tags, 1)) + 1]],
       industries[((i - 1) % array_length(industries, 1)) + 1],

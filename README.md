@@ -119,6 +119,28 @@ npm run build
 
 Strict local and CI quality checks are documented in `docs/testing.md`.
 
+## Spreadsheet Lead Import
+
+リード一覧の「スプレッドシート取込設定」から、公開CSVまたはGoogleスプレッドシートURLを設定できます。
+
+- Google Sheets URLはCSV export URLへ自動変換します。
+- 12時間ごとにVercel Cronが `/api/cron/lead-imports` を呼び出します。
+- 取込リードのデフォルトステータスは `新規（広告経由）` です。
+- 手動作成リードのデフォルトステータスは `新規（広告以外）` です。
+- 取込済み行はメール、電話、または会社名+リード名から作る安定キーで重複作成を避けます。
+
+Production Vercel env vars:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+CRON_SECRET=...
+NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=...
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` are server-only. Never expose them as `NEXT_PUBLIC_` variables.
+
 Run the full gate before handoff:
 
 ```bash

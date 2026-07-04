@@ -1,4 +1,7 @@
+import { Settings2 } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 import { EntityFilterBar, EntityTable } from "@/components/crm/entity-table";
 import { PageHeader } from "@/components/crm/page-header";
 import { StageBoard } from "@/components/crm/stage-board";
@@ -40,7 +43,14 @@ export default async function EntityListPage({
         description={config.description}
         actionHref={canCreate ? `/${config.slug}/new` : undefined}
         actionLabel={canCreate ? `${config.singular}作成` : undefined}
-      />
+      >
+        {config.slug === "leads" && canCreate ? (
+          <Link href="/leads/import-settings" className={buttonClassName("secondary")}>
+            <Settings2 className="h-4 w-4" aria-hidden />
+            スプレッドシート取込設定
+          </Link>
+        ) : null}
+      </PageHeader>
       {config.slug === "deals" ? <StageBoard deals={rows} query={query} /> : null}
       <EntityFilterBar config={config} rows={allRows} query={query} />
       <EntityTable config={config} rows={rows} relations={relations} />

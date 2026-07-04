@@ -85,6 +85,7 @@ The E2E suite verifies:
 - lead conversion into a deal
 - record editing and persisted detail updates
 - search filtering and condition clearing
+- lead spreadsheet import settings navigation and persistence
 - deal stage board search behavior and query-preserving stage drill-down
 - task completion and reopen flow
 - activity history creation from a customer detail page
@@ -114,6 +115,7 @@ Fixtures are stored in `tests/fixtures`:
 - `tests/fixtures/csv/leads.empty.csv`
 - `tests/fixtures/csv/leads.invalid.csv`
 - `tests/fixtures/csv/leads.boundary.csv`
+- `tests/fixtures/csv/leads.spreadsheet-ja.csv`
 - `tests/fixtures/api/supabase-insert-success.json`
 - `tests/fixtures/api/supabase-insert-error.json`
 - `tests/fixtures/db/demo-snapshot.json`
@@ -128,6 +130,8 @@ Required production/runtime variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` for server-side Vercel Cron lead imports
+- `CRON_SECRET` for authenticated Vercel Cron requests
 - `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`
 
 Optional test variables:

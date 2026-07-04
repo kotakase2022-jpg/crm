@@ -1,9 +1,13 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migrationPath = path.join(process.cwd(), "supabase/migrations/20260702174454_crm_initial_schema.sql");
-const migrationSql = readFileSync(migrationPath, "utf8");
+const migrationsDir = path.join(process.cwd(), "supabase/migrations");
+const migrationSql = readdirSync(migrationsDir)
+  .filter((fileName) => fileName.endsWith(".sql"))
+  .sort()
+  .map((fileName) => readFileSync(path.join(migrationsDir, fileName), "utf8"))
+  .join("\n");
 
 const tenantTables = [
   "tags",
@@ -23,6 +27,8 @@ const tenantTables = [
   "lead_tags",
   "company_tags",
   "audit_logs",
+  "lead_import_settings",
+  "lead_import_runs",
 ];
 
 function tableDefinition(tableName: string) {
@@ -37,14 +43,16 @@ describe("Supabase tenant isolation schema", () => {
     }
   });
 
-  it("enables RLS for all tenant-owned CRM tables through the policy loop", () => {
+  it("enables RLS for all tenant-owned CRM tables", () => {
     const rlsLoop = migrationSql.match(
       /foreach table_name in array array\[([\s\S]+?)\]\s+loop\s+execute format\('alter table public\.%I enable row level security'([\s\S]+?)end loop;/,
     );
 
     expect(rlsLoop?.[0]).toContain("enable row level security");
     for (const tableName of tenantTables) {
-      expect(rlsLoop?.[1], `${tableName} should be included in the RLS loop`).toContain(`'${tableName}'`);
+      const hasExplicitRls = migrationSql.includes(`alter table public.${tableName} enable row level security`);
+      const hasLoopRls = rlsLoop?.[1].includes(`'${tableName}'`) ?? false;
+      expect(hasExplicitRls || hasLoopRls, `${tableName} should enable RLS`).toBe(true);
     }
   });
 

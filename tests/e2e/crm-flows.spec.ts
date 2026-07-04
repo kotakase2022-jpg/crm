@@ -184,6 +184,23 @@ test("list search filters results and can be cleared", async ({ page }) => {
   await strict.expectClean();
 });
 
+test("lead spreadsheet import settings can be opened from leads and saved", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/leads");
+  await page.getByRole("link", { name: "スプレッドシート取込設定" }).click();
+
+  await expect(page).toHaveURL(/\/leads\/import-settings$/);
+  await expect(page.locator('select[name="default_status"]')).toHaveValue("新規（広告経由）");
+
+  await page.locator('input[name="spreadsheet_url"]').fill("https://docs.google.com/spreadsheets/d/e2e-sheet-id/edit#gid=0");
+  await page.getByRole("button", { name: "設定を保存" }).click();
+
+  await expect(page).toHaveURL(/\/leads\/import-settings\?toast=settings-saved$/);
+  await expect(page.locator('input[name="spreadsheet_url"]')).toHaveValue("https://docs.google.com/spreadsheets/d/e2e-sheet-id/edit#gid=0");
+  await strict.expectClean();
+});
+
 test("deal stage board follows search results and preserves query when drilling into a stage", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const marker = `E2E Stage Drill ${Date.now()}`;

@@ -2,7 +2,7 @@ import type { TableName } from "./types";
 
 const writeScopes: Record<string, "all" | TableName[]> = {
   admin: "all",
-  sales_manager: ["leads", "companies", "contacts", "deals", "activities", "tasks", "trials"],
+  sales_manager: ["leads", "companies", "contacts", "deals", "activities", "tasks", "trials", "lead_import_settings", "lead_import_runs"],
   sales: ["leads", "companies", "contacts", "deals", "activities", "tasks", "trials"],
   cs_manager: ["companies", "contacts", "activities", "tasks", "trials", "subscriptions", "product_usage", "support_tickets", "health_scores"],
   cs: ["companies", "contacts", "activities", "tasks", "trials", "subscriptions", "product_usage", "support_tickets", "health_scores"],

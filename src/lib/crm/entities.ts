@@ -81,7 +81,7 @@ export const entityConfigs = {
       ...constructionFields,
       { name: "notes", label: "メモ", type: "textarea", grid: "full" },
     ],
-    defaultValues: { status: "新規", issue_tags: [] },
+    defaultValues: { status: "新規（広告以外）", issue_tags: [] },
   },
   companies: {
     slug: "companies",

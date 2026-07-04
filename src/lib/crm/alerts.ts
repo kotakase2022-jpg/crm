@@ -29,7 +29,7 @@ export function buildAlerts(snapshot: DashboardSnapshot): CrmAlert[] {
   const alerts: CrmAlert[] = [];
 
   snapshot.leads
-    .filter((lead) => ["新規", "未接触"].includes(String(lead.status)))
+    .filter((lead) => ["未設定", "新規", "新規（広告経由）", "新規（広告以外）", "未接触"].includes(String(lead.status)))
     .forEach((lead) => {
       const hasContact = snapshot.activities.some((activity) => activity.lead_id === lead.id);
       if (!hasContact) {
