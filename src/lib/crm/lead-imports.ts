@@ -6,6 +6,7 @@ import { parseCsv } from "./csv";
 import { getCrmContext } from "./data";
 import { addDemoRow, getDemoRows, newDemoId, nowIso, updateDemoRow } from "./demo-data";
 import {
+  assertTrustedSpreadsheetCsvUrl,
   defaultLeadImportStatus,
   importSourceId,
   normalizeLeadImportRow,
@@ -40,21 +41,35 @@ function valueAsString(value: unknown) {
 }
 
 async function fetchCsv(rawUrl: string) {
-  const csvUrl = spreadsheetUrlToCsvUrl(rawUrl);
+  let csvUrl = spreadsheetUrlToCsvUrl(rawUrl);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
 
   try {
-    const response = await fetch(csvUrl, {
-      cache: "no-store",
-      signal: controller.signal,
-    });
+    for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
+      const response = await fetch(csvUrl, {
+        cache: "no-store",
+        redirect: "manual",
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      throw new Error(`CSV fetch failed with HTTP ${response.status}`);
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get("location");
+        if (!location) {
+          throw new Error("CSV fetch redirect did not include a location header.");
+        }
+        csvUrl = assertTrustedSpreadsheetCsvUrl(new URL(location, csvUrl).toString());
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`CSV fetch failed with HTTP ${response.status}`);
+      }
+
+      return await response.text();
     }
 
-    return await response.text();
+    throw new Error("CSV fetch exceeded the redirect limit.");
   } finally {
     clearTimeout(timeout);
   }

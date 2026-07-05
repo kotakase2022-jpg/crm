@@ -2,7 +2,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseCsv } from "@/lib/crm/csv";
-import { defaultLeadImportStatus, normalizeLeadImportRow, spreadsheetUrlToCsvUrl } from "@/lib/crm/lead-import-utils";
+import {
+  assertTrustedSpreadsheetCsvUrl,
+  defaultLeadImportStatus,
+  normalizeLeadImportRow,
+  spreadsheetUrlToCsvUrl,
+} from "@/lib/crm/lead-import-utils";
 
 function fixture(name: string) {
   return readFileSync(path.join(process.cwd(), "tests/fixtures/csv", name), "utf8");
@@ -19,6 +24,21 @@ describe("lead spreadsheet imports", () => {
     const url = "https://docs.google.com/spreadsheets/d/e/pub?output=csv";
 
     expect(spreadsheetUrlToCsvUrl(url)).toBe(url);
+  });
+
+  it("rejects arbitrary external CSV URLs before server-side fetch", () => {
+    expect(() => spreadsheetUrlToCsvUrl("https://example.com/leads.csv")).toThrow(
+      "Spreadsheet imports only support Google Sheets CSV URLs.",
+    );
+  });
+
+  it("rejects link-local and non-HTTPS import URLs", () => {
+    expect(() => assertTrustedSpreadsheetCsvUrl("http://169.254.169.254/latest/meta-data.csv")).toThrow(
+      "Spreadsheet import URLs must use HTTPS.",
+    );
+    expect(() => assertTrustedSpreadsheetCsvUrl("https://169.254.169.254/latest/meta-data.csv")).toThrow(
+      "Spreadsheet imports only support Google Sheets CSV URLs.",
+    );
   });
 
   it("normalizes Japanese spreadsheet headers into a valid lead payload", () => {

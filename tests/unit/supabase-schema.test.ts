@@ -70,4 +70,10 @@ describe("Supabase tenant isolation schema", () => {
     expect(migrationSql).toContain("grant execute on function public.ensure_user_profile(text) to authenticated");
     expect(migrationSql).toContain("v_user_id uuid := auth.uid()");
   });
+
+  it("restricts spreadsheet import writes to admin and sales manager roles", () => {
+    expect(migrationSql).toContain("drop policy if exists lead_import_settings_org_insert");
+    expect(migrationSql).toContain("drop policy if exists lead_import_runs_org_insert");
+    expect(migrationSql).toContain("private.current_user_role(organization_id) in ('admin', 'sales_manager')");
+  });
 });

@@ -44,11 +44,37 @@ export function safeLeadImportStatus(status: string, fallback = defaultLeadImpor
   return leadStatuses.includes(status as (typeof leadStatuses)[number]) ? status : fallback;
 }
 
+function isTrustedSpreadsheetHost(hostname: string) {
+  return (
+    hostname === "docs.google.com" ||
+    hostname === "googleusercontent.com" ||
+    hostname.endsWith(".googleusercontent.com")
+  );
+}
+
+export function assertTrustedSpreadsheetCsvUrl(rawUrl: string) {
+  const url = new URL(rawUrl);
+
+  if (url.protocol !== "https:") {
+    throw new Error("Spreadsheet import URLs must use HTTPS.");
+  }
+
+  if (!isTrustedSpreadsheetHost(url.hostname)) {
+    throw new Error("Spreadsheet imports only support Google Sheets CSV URLs.");
+  }
+
+  if (url.hostname === "docs.google.com" && !url.pathname.includes("/spreadsheets/d/")) {
+    throw new Error("Spreadsheet imports only support Google Sheets CSV URLs.");
+  }
+
+  return url.toString();
+}
+
 export function spreadsheetUrlToCsvUrl(rawUrl: string) {
   const url = new URL(rawUrl);
 
   if (url.searchParams.get("output") === "csv" || url.pathname.endsWith(".csv")) {
-    return url.toString();
+    return assertTrustedSpreadsheetCsvUrl(url.toString());
   }
 
   const match = url.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
@@ -57,10 +83,10 @@ export function spreadsheetUrlToCsvUrl(rawUrl: string) {
     exportUrl.searchParams.set("format", "csv");
     const gid = url.searchParams.get("gid") ?? new URLSearchParams(url.hash.replace(/^#/, "")).get("gid");
     if (gid) exportUrl.searchParams.set("gid", gid);
-    return exportUrl.toString();
+    return assertTrustedSpreadsheetCsvUrl(exportUrl.toString());
   }
 
-  return url.toString();
+  throw new Error("Spreadsheet imports only support Google Sheets CSV URLs.");
 }
 
 export function normalizeLeadImportRow(row: CsvRow, defaultStatus = defaultLeadImportStatus) {
