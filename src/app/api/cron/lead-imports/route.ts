@@ -16,13 +16,16 @@ export async function GET(request: Request) {
     const skipped = results.reduce((sum, result) => sum + result.skippedCount, 0);
     const failed = results.filter((result) => result.status === "failed").length;
 
-    return Response.json({
-      ok: failed === 0,
-      imported,
-      skipped,
-      failed,
-      results,
-    });
+    return Response.json(
+      {
+        ok: failed === 0,
+        imported,
+        skipped,
+        failed,
+        results,
+      },
+      { status: failed === 0 ? 200 : 500 },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown cron error";
     return Response.json({ ok: false, error: message }, { status: 500 });

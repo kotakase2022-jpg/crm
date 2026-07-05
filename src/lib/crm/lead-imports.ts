@@ -13,6 +13,7 @@ import {
   safeLeadImportStatus,
   spreadsheetUrlToCsvUrl,
 } from "./lead-import-utils";
+import { priorities, taskStatuses } from "./options";
 import { prepareRecordForPersistence } from "./persistence";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CrmRecord } from "./types";
@@ -141,6 +142,18 @@ async function existingSourceIdsInSupabase(supabase: SupabaseClient, setting: Cr
   return new Set((data ?? []).map((row) => String(row.external_source_id)).filter(Boolean));
 }
 
+function leadFirstCallTask(leadId: string) {
+  return {
+    title: "初回架電",
+    description: "スプレッドシート取込後の自動タスクです。",
+    status: taskStatuses[0],
+    priority: priorities[2],
+    due_date: new Date().toISOString().slice(0, 10),
+    lead_id: leadId,
+    automation_key: `lead-first-call-${leadId}`,
+  };
+}
+
 async function insertLeadInSupabase(supabase: SupabaseClient, setting: CrmRecord, userId: string | null, values: Record<string, unknown>, sourceId: string) {
   const payload = prepareRecordForPersistence("leads", {
     ...values,
@@ -150,14 +163,28 @@ async function insertLeadInSupabase(supabase: SupabaseClient, setting: CrmRecord
     imported_at: nowIso(),
   });
 
-  const { error } = await supabase.from("leads").insert({
+  const { data, error } = await supabase
+    .from("leads")
+    .insert({
+      organization_id: setting.organization_id,
+      created_by: userId,
+      updated_by: userId,
+      ...payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+  const leadId = String(data.id);
+
+  const { error: taskError } = await supabase.from("tasks").insert({
     organization_id: setting.organization_id,
     created_by: userId,
     updated_by: userId,
-    ...payload,
+    ...leadFirstCallTask(leadId),
   });
 
-  if (error) throw new Error(error.message);
+  if (taskError) throw new Error(taskError.message);
 }
 
 async function importWithPersistence({
@@ -186,20 +213,25 @@ async function importWithPersistence({
     const knownSourceIds = await existingSourceIds();
 
     for (const row of parsed.rows) {
-      try {
-        const values = normalizeLeadImportRow(row, settingInfo.defaultStatus);
-        const sourceId = importSourceId(values);
-        if (knownSourceIds.has(sourceId)) {
-          skippedCount += 1;
-          continue;
-        }
+      let values: Record<string, unknown>;
+      let sourceId: string;
 
-        await insertLead(values, sourceId);
-        knownSourceIds.add(sourceId);
-        importedCount += 1;
+      try {
+        values = normalizeLeadImportRow(row, settingInfo.defaultStatus);
+        sourceId = importSourceId(values);
       } catch {
         skippedCount += 1;
+        continue;
       }
+
+      if (knownSourceIds.has(sourceId)) {
+        skippedCount += 1;
+        continue;
+      }
+
+      await insertLead(values, sourceId);
+      knownSourceIds.add(sourceId);
+      importedCount += 1;
     }
 
     const message = `${importedCount}件を取り込み、${skippedCount}件をスキップしました。`;
@@ -268,8 +300,9 @@ async function importDemoSetting(setting: CrmRecord) {
     existingSourceIds: async () => existingSourceIds,
     insertLead: async (values, sourceId) => {
       const timestamp = nowIso();
+      const leadId = newDemoId("lead");
       addDemoRow("leads", {
-        id: newDemoId("lead"),
+        id: leadId,
         organization_id: setting.organization_id,
         created_at: timestamp,
         updated_at: timestamp,
@@ -280,6 +313,15 @@ async function importDemoSetting(setting: CrmRecord) {
         external_source: "spreadsheet",
         external_source_id: sourceId,
         imported_at: timestamp,
+      });
+      addDemoRow("tasks", {
+        id: newDemoId("task"),
+        organization_id: setting.organization_id,
+        created_at: timestamp,
+        updated_at: timestamp,
+        created_by: "demo-user",
+        updated_by: "demo-user",
+        ...leadFirstCallTask(leadId),
       });
     },
   });

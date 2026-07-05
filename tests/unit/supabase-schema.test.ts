@@ -76,4 +76,10 @@ describe("Supabase tenant isolation schema", () => {
     expect(migrationSql).toContain("drop policy if exists lead_import_runs_org_insert");
     expect(migrationSql).toContain("private.current_user_role(organization_id) in ('admin', 'sales_manager')");
   });
+
+  it("rewrites qualified and unqualified RLS helper calls before revoking public helpers", () => {
+    expect(migrationSql).toContain("~ '(^|[^.])is_organization_member\\('");
+    expect(migrationSql).toContain("regexp_replace(new_qual, '(^|[^.])is_organization_member\\('");
+    expect(migrationSql).toContain("revoke execute on function public.current_user_role(uuid) from authenticated");
+  });
 });
