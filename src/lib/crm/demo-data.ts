@@ -425,6 +425,8 @@ function createStore(): DemoStore {
     health_scores: healthScores,
     billing_records: billing,
     deal_stage_history: stageHistory,
+    lead_import_settings: [],
+    lead_import_runs: [],
   };
 }
 

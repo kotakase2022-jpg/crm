@@ -12,6 +12,9 @@ const messages: Record<string, string> = {
   converted: "リードを会社・担当者・商談へ変換しました。",
   activity: "活動履歴を追加しました。",
   automation: "自動タスク生成を実行しました。",
+  "settings-saved": "スプレッドシート取込設定を保存しました。",
+  "import-success": "スプレッドシートからリードを取り込みました。",
+  "import-failed": "スプレッドシート取込に失敗しました。",
   demo: "Supabase未設定のためローカルデモデータで表示しています。",
 };
 

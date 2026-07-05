@@ -15,6 +15,7 @@ import {
   updateRecord,
 } from "./data";
 import { getEntityConfig } from "./entities";
+import { runLeadImportSetting, saveLeadImportSetting } from "./lead-imports";
 import type { EntityConfig, EntitySlug, FieldConfig } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -179,6 +180,22 @@ export async function runAutomationAction() {
   revalidatePath("/dashboard");
   revalidatePath("/tasks");
   redirect(`/dashboard?toast=automation&count=${count}`);
+}
+
+export async function saveLeadImportSettingAction(formData: FormData) {
+  await saveLeadImportSetting(formData);
+  revalidatePath("/leads/import-settings");
+  revalidatePath("/leads");
+  redirect("/leads/import-settings?toast=settings-saved");
+}
+
+export async function runLeadImportSettingAction(settingId: string) {
+  const result = await runLeadImportSetting(settingId);
+  revalidatePath("/leads/import-settings");
+  revalidatePath("/leads");
+  redirect(
+    `/leads/import-settings?toast=import-${result.status}&imported=${result.importedCount}&skipped=${result.skippedCount}`,
+  );
 }
 
 export async function signInAction(formData: FormData) {

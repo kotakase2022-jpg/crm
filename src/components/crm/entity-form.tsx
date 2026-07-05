@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Save } from "lucide-react";
-import { Button, buttonClassName } from "@/components/ui/button";
+import { buttonClassName } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SaveSubmitButton } from "@/components/crm/form-buttons";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { dateInputValue, dateTimeInputValue } from "@/lib/crm/format";
 import type { CrmRecord, EntityConfig, FieldConfig, RelationOptions } from "@/lib/crm/types";
@@ -134,10 +134,7 @@ export function EntityForm({
             <Link href={`/${config.slug}`} className={buttonClassName("secondary")}>
               キャンセル
             </Link>
-            <Button>
-              <Save className="h-4 w-4" aria-hidden />
-              保存
-            </Button>
+            <SaveSubmitButton />
           </div>
         </form>
       </CardContent>

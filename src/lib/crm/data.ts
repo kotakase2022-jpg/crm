@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { buildAlerts } from "./alerts";
+import { assertCanWriteTable } from "./access";
 import { addDemoRow, demoStore, getDemoRows, newDemoId, nowIso, updateDemoRow } from "./demo-data";
 import { entityConfigs } from "./entities";
 import { daysUntil, recordTitle } from "./format";
@@ -41,21 +42,8 @@ const relationTableByKey: Record<RelationKey, TableName> = {
   tickets: "support_tickets",
 };
 
-const writeScopes: Record<string, "all" | TableName[]> = {
-  admin: "all",
-  sales_manager: ["leads", "companies", "contacts", "deals", "activities", "tasks", "trials"],
-  sales: ["leads", "companies", "contacts", "deals", "activities", "tasks", "trials"],
-  cs_manager: ["companies", "contacts", "activities", "tasks", "trials", "subscriptions", "product_usage", "support_tickets", "health_scores"],
-  cs: ["companies", "contacts", "activities", "tasks", "trials", "subscriptions", "product_usage", "support_tickets", "health_scores"],
-  support: ["support_tickets", "tasks", "activities", "companies", "contacts"],
-  finance: ["subscriptions", "billing_records", "companies", "tasks", "activities"],
-  viewer: [],
-};
-
 function assertCanWrite(ctx: CrmContext, table: TableName) {
-  const scope = writeScopes[ctx.role] ?? [];
-  if (scope === "all" || scope.includes(table)) return;
-  throw new Error("この権限では更新できません。");
+  assertCanWriteTable(ctx.role, table);
 }
 
 function isMissingAuthPath(pathname = "/dashboard") {
@@ -521,6 +509,8 @@ export async function getRelatedSections(entity: EntitySlug, idValue: string): P
     return [
       { title: "担当者", entity: "contacts", rows: contacts.filter((row) => row.company_id === idValue) },
       { title: "商談", entity: "deals", rows: deals.filter((row) => row.company_id === idValue) },
+      { title: "タスク", entity: "tasks", rows: tasks.filter((row) => row.company_id === idValue) },
+      { title: "トライアル", entity: "trials", rows: trials.filter((row) => row.company_id === idValue) },
       { title: "契約情報", entity: "contracts", rows: contracts.filter((row) => row.company_id === idValue) },
       { title: "利用状況", rows: usage.filter((row) => row.company_id === idValue) },
       { title: "問い合わせ/チケット", entity: "tickets", rows: tickets.filter((row) => row.company_id === idValue) },
@@ -540,6 +530,7 @@ export async function getRelatedSections(entity: EntitySlug, idValue: string): P
   if (entity === "contacts") {
     return [
       { title: "商談", entity: "deals", rows: deals.filter((row) => row.contact_id === idValue) },
+      { title: "タスク", entity: "tasks", rows: tasks.filter((row) => row.contact_id === idValue) },
       { title: "問い合わせ/チケット", entity: "tickets", rows: tickets.filter((row) => row.contact_id === idValue) },
       { title: "活動履歴", rows: activities.filter((row) => row.contact_id === idValue) },
     ];

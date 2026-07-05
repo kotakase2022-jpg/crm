@@ -1,6 +1,20 @@
 # Testing and Quality Gate
 
-This repository must not be considered complete unless the mechanical quality gate succeeds.
+This repository must not be considered complete unless the mechanical quality gate succeeds. This applies to Codex, Cursor, and human contributors.
+
+## Development Flow
+
+All ongoing development must use pull requests. Do not push directly to `main` except for emergency repository recovery by an administrator.
+
+Normal flow:
+
+1. Create a branch from `main`.
+2. Make the change and add the required tests.
+3. Run `npm run quality` locally.
+4. Open a pull request using `.github/pull_request_template.md`.
+5. Merge only after GitHub Actions `quality-gate` succeeds.
+
+For Vercel production deployments, `main` is the production source branch. A production deployment should only happen after the PR has passed `quality-gate` and has been merged to `main`.
 
 ## Local Commands
 
@@ -47,10 +61,12 @@ Vitest covers CRM domain logic under `src/lib/crm`:
 
 - amount and ARR/MRR calculations
 - date and formatter behavior
+- role-based write access rules
 - CSV parsing
 - entity input validation
 - API response shaping and fallback behavior
 - persistence payload shaping before Supabase writes
+- Supabase migration invariants for `organization_id`, RLS policy coverage, and authenticated profile bootstrap
 - sales funnel, dashboard KPI, CS KPI, and alert logic
 - empty data, invalid data, and boundary values
 
@@ -64,10 +80,23 @@ The E2E suite verifies:
 
 - initial dashboard rendering
 - main CRM navigation
+- entity creation and detail rendering for companies, contacts, deals, tasks, trials, contracts, and tickets
 - lead creation and detail rendering
 - lead conversion into a deal
+- record editing and persisted detail updates
+- search filtering and condition clearing
+- lead spreadsheet import settings navigation and persistence
+- deal stage board search behavior and query-preserving stage drill-down
 - task completion and reopen flow
+- activity history creation from a customer detail page
+- related-record creation with parent company/deal prefilled
+- deal stage and probability updates
+- trial usage metric updates
+- contract ARR calculation from MRR
+- delete confirmation and soft delete behavior
 - automation task generation
+- dashboard, report, and settings operational decision signals
+- tablet-width layout overflow checks for dense pages
 - invalid form input without crash
 - controlled route-level 404 behavior
 - `console.error`, `pageerror`, failed local requests, unexpected local 4xx/5xx responses, hydration signals, and React runtime errors
@@ -86,6 +115,7 @@ Fixtures are stored in `tests/fixtures`:
 - `tests/fixtures/csv/leads.empty.csv`
 - `tests/fixtures/csv/leads.invalid.csv`
 - `tests/fixtures/csv/leads.boundary.csv`
+- `tests/fixtures/csv/leads.spreadsheet-ja.csv`
 - `tests/fixtures/api/supabase-insert-success.json`
 - `tests/fixtures/api/supabase-insert-error.json`
 - `tests/fixtures/db/demo-snapshot.json`
@@ -100,6 +130,8 @@ Required production/runtime variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` for server-side Vercel Cron lead imports
+- `CRON_SECRET` for authenticated Vercel Cron requests
 - `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`
 
 Optional test variables:
@@ -112,7 +144,7 @@ Optional test variables:
 
 `.github/workflows/quality-gate.yml` runs on pull requests and pushes to `main` or `master`.
 
-The workflow performs checkout, Node setup from `.nvmrc`, `npm ci`, Playwright Chromium install, typecheck, lint, test guard, unit/integration tests, coverage, E2E, and production build. It uploads Playwright reports, traces/screenshots, and coverage artifacts.
+The workflow performs checkout, Node setup from `.nvmrc`, `npm ci`, Playwright Chromium install, typecheck, lint, test guard, unit/integration tests, coverage, E2E, and production build. It uploads Playwright reports, traces/screenshots, and coverage artifacts. If any step fails, CI fails.
 
 If CI fails:
 
@@ -123,14 +155,42 @@ If CI fails:
 
 ## Branch Protection
 
-Enable GitHub branch protection for `main` and require the `quality-gate / typecheck-lint-test-e2e-build` status check before merge. Also require pull requests and disallow bypasses for regular contributors.
+Enable GitHub branch protection for `main`. If automation cannot set these rules, configure them manually in GitHub:
+
+1. Open the repository settings.
+2. Go to `Rules` or `Branches`, then create a rule for `main`.
+3. Enable `Require a pull request before merging`.
+4. Enable `Require status checks to pass before merging`.
+5. Require the `quality-gate / typecheck-lint-test-e2e-build` status check.
+6. Enable `Require branches to be up to date before merging`.
+7. Restrict direct pushes to `main`.
+8. Do not allow bypassing the above settings unless a repository owner needs emergency recovery.
+
+The repository is not considered fully protected until this rule is active.
 
 ## New Feature Rule
 
 Every new feature must add or update tests at the right level:
 
-- pure domain logic: Vitest unit test
-- cross-module behavior or data shaping: Vitest integration test
-- user-critical CRM workflow: Playwright E2E test
+- New screen: add a corresponding Playwright E2E test.
+- New form: add normal-path and error-path tests.
+- New API route or server action behavior: add normal-path, error-path, and permission-error tests.
+- CSV, PDF, image, or file upload changes: add or update fixtures and cover the upload/import/render flow.
+- Supabase table, RLS, or persistence changes: add data-integrity tests and verify organization-level isolation behavior where practical.
+- Pure domain logic: add a Vitest unit test.
+- Cross-module behavior or data shaping: add a Vitest integration test.
+- User-critical CRM workflow: add a Playwright E2E test.
+- Bug fix: add a failing reproduction test first whenever practical, verify it fails, then fix the implementation.
 
 Shipping a feature by weakening tests is not allowed.
+
+It is forbidden to delete, skip, mark todo, comment out, or weaken existing tests just to make the gate pass.
+
+## Local Hooks
+
+Husky hooks provide a local safety net:
+
+- `pre-commit`: runs `npm run test:guard`
+- `pre-push`: runs `npm run test:guard`, `npm run lint`, `npm run typecheck`, and `npm run test`
+
+E2E, coverage, and production build remain enforced by GitHub Actions and by the required local `npm run quality` before PR handoff.

@@ -16,6 +16,13 @@ describe("CSV parsing", () => {
     expect(result.headers).toContain("monthly_projects");
   });
 
+  it("parses quoted cells with embedded newlines", () => {
+    const result = parseCsv('name,company_name,notes\nLead A,Sample Construction,"line 1\nline 2"\n');
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].notes).toBe("line 1\nline 2");
+  });
+
   it("rejects empty CSV and malformed rows", () => {
     expect(() => parseCsv(fixture("leads.empty.csv"))).toThrow(CsvParseError);
     expect(() => parseCsv(fixture("leads.invalid.csv"))).toThrow(CsvParseError);

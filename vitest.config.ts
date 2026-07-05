@@ -26,6 +26,7 @@ export default defineConfig({
         "src/lib/crm/csv.ts",
         "src/lib/crm/format.ts",
         "src/lib/crm/health.ts",
+        "src/lib/crm/lead-import-utils.ts",
         "src/lib/crm/persistence.ts",
         "src/lib/crm/validation.ts",
         "src/lib/utils.ts",

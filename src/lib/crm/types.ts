@@ -21,7 +21,9 @@ export type TableName =
   | "support_tickets"
   | "health_scores"
   | "billing_records"
-  | "deal_stage_history";
+  | "deal_stage_history"
+  | "lead_import_settings"
+  | "lead_import_runs";
 
 export type CrmRecord = {
   id: string;

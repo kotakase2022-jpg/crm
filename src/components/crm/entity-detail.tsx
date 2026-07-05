@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CheckCircle2, GitBranchPlus, History, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { CheckCircle2, GitBranchPlus, History, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Badge, toneForValue } from "@/components/ui/badge";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ConfirmSubmitButton } from "@/components/crm/form-buttons";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import {
   completeTaskAction,
@@ -15,6 +16,8 @@ import { activityTypes } from "@/lib/crm/options";
 import { formatValue } from "@/lib/crm/format";
 import type { CrmRecord, EntityConfig, EntitySlug, RelationOptions } from "@/lib/crm/types";
 import type { RelatedSection } from "@/lib/crm/data";
+import { getEntityConfig } from "@/lib/crm/entities";
+import { canWriteTable } from "@/lib/crm/access";
 import { fieldLabel } from "./entity-table";
 
 function sectionFields(section: RelatedSection) {
@@ -31,6 +34,89 @@ function sectionFields(section: RelatedSection) {
   return ["type", "subject", "occurred_at", "has_next_action"];
 }
 
+const relatedFieldLabels: Record<string, string> = {
+  type: "種別",
+  subject: "件名",
+  content: "内容",
+  occurred_at: "実施日時",
+  has_next_action: "次回アクション",
+  next_action_date: "次回アクション日",
+  period_start: "期間開始",
+  period_end: "期間終了",
+  login_count: "ログイン回数",
+  documents_created: "帳票作成数",
+  active_users_count: "利用ユーザー数",
+  measured_on: "測定日",
+  total_score: "ヘルススコア",
+  health_status: "状態",
+  churn_risk: "解約リスク",
+  upsell_candidate: "アップセル候補",
+  billing_month: "請求月",
+  amount: "金額",
+  status: "ステータス",
+  due_on: "支払期限",
+  from_stage: "変更前",
+  to_stage: "変更後",
+  changed_at: "変更日時",
+};
+
+function relatedFieldLabel(section: RelatedSection, field: string) {
+  const config = section.entity ? getEntityConfig(section.entity) : null;
+  if (config) return fieldLabel(config, field);
+  return relatedFieldLabels[field] ?? field;
+}
+
+function stringValue(record: CrmRecord, field: string) {
+  const value = record[field];
+  return typeof value === "string" && value ? value : null;
+}
+
+function relatedCreateHref(parentEntity: EntitySlug, record: CrmRecord, childEntity: EntitySlug) {
+  const params = new URLSearchParams();
+  const parentId = String(record.id);
+
+  if (parentEntity === "companies") {
+    params.set("company_id", parentId);
+  }
+
+  if (parentEntity === "contacts") {
+    params.set("contact_id", parentId);
+    const companyId = stringValue(record, "company_id");
+    if (companyId) params.set("company_id", companyId);
+  }
+
+  if (parentEntity === "leads" && ["deals", "tasks"].includes(childEntity)) {
+    params.set("lead_id", parentId);
+  }
+
+  if (parentEntity === "deals" && ["tasks", "trials"].includes(childEntity)) {
+    params.set("deal_id", parentId);
+    const companyId = stringValue(record, "company_id");
+    const contactId = stringValue(record, "contact_id");
+    if (companyId) params.set("company_id", companyId);
+    if (childEntity === "tasks" && contactId) params.set("contact_id", contactId);
+  }
+
+  if (parentEntity === "tickets" && childEntity === "tasks") {
+    params.set("support_ticket_id", parentId);
+    const companyId = stringValue(record, "company_id");
+    const contactId = stringValue(record, "contact_id");
+    if (companyId) params.set("company_id", companyId);
+    if (contactId) params.set("contact_id", contactId);
+  }
+
+  return params.size > 0 ? `/${childEntity}/new?${params.toString()}` : `/${childEntity}/new`;
+}
+
+function relatedCreateLabel(entity: EntitySlug) {
+  return `${getEntityConfig(entity)?.singular ?? "関連データ"}を追加`;
+}
+
+function canCreateRelatedEntity(role: string, entity: EntitySlug) {
+  const config = getEntityConfig(entity);
+  return config ? canWriteTable(role, config.table) : false;
+}
+
 function RelatedTable({ section, relations }: { section: RelatedSection; relations: RelationOptions }) {
   const fields = sectionFields(section);
 
@@ -45,7 +131,7 @@ function RelatedTable({ section, relations }: { section: RelatedSection; relatio
           <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
             {fields.map((field) => (
               <th key={field} className="w-40 px-3 py-2 font-semibold">
-                {field}
+                {relatedFieldLabel(section, field)}
               </th>
             ))}
           </tr>
@@ -77,8 +163,8 @@ function RelatedTable({ section, relations }: { section: RelatedSection; relatio
   );
 }
 
-function ActivityQuickForm({ entity, id }: { entity: EntitySlug; id: string }) {
-  if (!["leads", "companies", "contacts", "deals"].includes(entity)) return null;
+function ActivityQuickForm({ entity, id, canCreate }: { entity: EntitySlug; id: string; canCreate: boolean }) {
+  if (!canCreate || !["leads", "companies", "contacts", "deals"].includes(entity)) return null;
 
   const action = createActivityAction.bind(null, entity, id);
 
@@ -141,16 +227,20 @@ export function EntityDetail({
   record,
   relations,
   relatedSections,
+  role,
 }: {
   config: EntityConfig;
   record: CrmRecord;
   relations: RelationOptions;
   relatedSections: RelatedSection[];
+  role: string;
 }) {
   const deleteAction = deleteEntityAction.bind(null, config.slug, String(record.id));
   const convertAction = convertLeadAction.bind(null, String(record.id));
   const completeAction = completeTaskAction.bind(null, String(record.id));
   const reopenAction = reopenTaskAction.bind(null, String(record.id));
+  const canWriteCurrent = canWriteTable(role, config.table);
+  const canCreateActivities = canWriteTable(role, "activities");
 
   return (
     <div className="grid gap-5">
@@ -165,7 +255,7 @@ export function EntityDetail({
               <h2 className="text-2xl font-bold tracking-normal text-slate-950">{String(record[config.primaryField] ?? record.id)}</h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              {config.slug === "leads" && !record.converted_deal_id ? (
+              {canWriteCurrent && config.slug === "leads" && !record.converted_deal_id ? (
                 <form action={convertAction}>
                   <Button variant="secondary">
                     <GitBranchPlus className="h-4 w-4" aria-hidden />
@@ -173,7 +263,7 @@ export function EntityDetail({
                   </Button>
                 </form>
               ) : null}
-              {config.slug === "tasks" && record.status !== "完了" ? (
+              {canWriteCurrent && config.slug === "tasks" && record.status !== "完了" ? (
                 <form action={completeAction}>
                   <Button variant="secondary">
                     <CheckCircle2 className="h-4 w-4" aria-hidden />
@@ -181,7 +271,7 @@ export function EntityDetail({
                   </Button>
                 </form>
               ) : null}
-              {config.slug === "tasks" && record.status === "完了" ? (
+              {canWriteCurrent && config.slug === "tasks" && record.status === "完了" ? (
                 <form action={reopenAction}>
                   <Button variant="secondary">
                     <RotateCcw className="h-4 w-4" aria-hidden />
@@ -189,16 +279,20 @@ export function EntityDetail({
                   </Button>
                 </form>
               ) : null}
-              <Link href={`/${config.slug}/${record.id}/edit`} className={buttonClassName("secondary")}>
-                <Pencil className="h-4 w-4" aria-hidden />
-                編集
-              </Link>
-              <form action={deleteAction}>
-                <Button variant="danger">
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                  削除
-                </Button>
-              </form>
+              {canWriteCurrent ? (
+                <>
+                  <Link href={`/${config.slug}/${record.id}/edit`} className={buttonClassName("secondary")}>
+                    <Pencil className="h-4 w-4" aria-hidden />
+                    編集
+                  </Link>
+                  <form action={deleteAction}>
+                    <ConfirmSubmitButton confirmMessage={`この${config.singular}を削除しますか？一覧から非表示になります。`}>
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                      削除
+                    </ConfirmSubmitButton>
+                  </form>
+                </>
+              ) : null}
             </div>
           </div>
         </CardHeader>
@@ -214,22 +308,35 @@ export function EntityDetail({
         </CardContent>
       </Card>
 
-      <ActivityQuickForm entity={config.slug} id={String(record.id)} />
+      <ActivityQuickForm entity={config.slug} id={String(record.id)} canCreate={canCreateActivities} />
 
       <div className="grid gap-5">
-        {relatedSections.map((section) => (
-          <Card key={section.title}>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-slate-950">{section.title}</h3>
-                <Badge tone="slate">{section.rows.length}件</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <RelatedTable section={section} relations={relations} />
-            </CardContent>
-          </Card>
-        ))}
+        {relatedSections.map((section) => {
+          const relatedEntity = section.entity;
+          const createHref = relatedEntity && canCreateRelatedEntity(role, relatedEntity) ? relatedCreateHref(config.slug, record, relatedEntity) : null;
+
+          return (
+            <Card key={section.title}>
+              <CardHeader>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <h3 className="font-semibold text-slate-950">{section.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {relatedEntity && createHref ? (
+                      <Link href={createHref} className={buttonClassName("secondary", "h-9 px-3 text-xs")}>
+                        <Plus className="h-4 w-4" aria-hidden />
+                        {relatedCreateLabel(relatedEntity)}
+                      </Link>
+                    ) : null}
+                    <Badge tone="slate">{section.rows.length}件</Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <RelatedTable section={section} relations={relations} />
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

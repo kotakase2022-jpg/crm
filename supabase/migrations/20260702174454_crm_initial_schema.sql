@@ -90,7 +90,7 @@ create table public.leads (
   contact_name text,
   email text,
   phone text,
-  status text not null default '新規',
+  status text not null default '新規（広告以外）',
   source text,
   issue_tags text[] not null default '{}',
   industry text,
