@@ -1,5 +1,5 @@
-import { activationLevels } from "./options";
-import type { CrmRecord, RelationKey, RelationOptions } from "./types";
+import { activationLevels, companyStatusLabels } from "./options";
+import type { CrmRecord, FieldConfig, RelationKey, RelationOptions } from "./types";
 
 const crmTimeZone = "Asia/Tokyo";
 
@@ -99,6 +99,16 @@ export function formatDate(value: unknown) {
   return date ? localDateString(date) : "-";
 }
 
+function textValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : String(value ?? "");
+}
+
+export function optionLabelForField(field: Pick<FieldConfig, "optionLabels"> | null | undefined, value: unknown) {
+  const text = textValue(value);
+  if (!text) return "";
+  return field?.optionLabels?.[text] ?? text;
+}
+
 export function localDateString(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -155,6 +165,10 @@ export function labelForRelation(field: string, value: unknown, relations: Relat
 export function formatValue(field: string, value: unknown, relations: RelationOptions = {}) {
   if (value === null || value === undefined || value === "") return "-";
   if (field.endsWith("_id")) return labelForRelation(field, value, relations);
+  if (field === "status" && typeof value === "string") {
+    const label = companyStatusLabels[value.trim() as keyof typeof companyStatusLabels];
+    if (label) return label;
+  }
   if (field.includes("mrr") || field.includes("arr") || field === "amount") return formatCurrency(value);
   if (field.endsWith("_at") || field === "opened_at" || field === "resolved_at") return formatDateTime(value);
   if (field.endsWith("_date") || field.endsWith("_on") || field === "measured_on" || field === "billing_month") return formatDate(value);

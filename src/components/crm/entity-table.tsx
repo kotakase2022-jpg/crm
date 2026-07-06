@@ -5,7 +5,7 @@ import { Button, buttonClassName } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
 import type { CrmRecord, EntityConfig, QueryState, RelationOptions } from "@/lib/crm/types";
-import { formatValue } from "@/lib/crm/format";
+import { formatValue, optionLabelForField } from "@/lib/crm/format";
 import { relationHrefForField } from "@/lib/crm/related";
 import { defaultSortDirection, listSortHref, normalizedSort } from "@/lib/crm/search";
 
@@ -51,6 +51,7 @@ export function EntityFilterBar({
   query: QueryState;
 }) {
   const options = filterOptions(config, rows);
+  const filterFieldConfig = config.filterField ? config.fields.find((field) => field.name === config.filterField) : null;
   const selectedSort = normalizedSort(config, query.sort);
   const defaultDirection = defaultSortDirection(config, selectedSort);
   const hasActiveQuery =
@@ -81,7 +82,7 @@ export function EntityFilterBar({
               <option value="">すべて</option>
               {options.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {optionLabelForField(filterFieldConfig, option)}
                 </option>
               ))}
             </Select>

@@ -47,7 +47,12 @@ const createScenarios = [
     entity: "companies",
     visibleMarkerPrefix: "E2E Company",
     fill: async (page, marker: string) => {
+      await expect(page.locator('select[name="status"] option:checked')).toContainText("見込み");
       await page.locator('input[name="name"]').fill(marker);
+    },
+    assertDetail: async (page) => {
+      await expect(page.locator("body")).toContainText("見込み");
+      await expect(page.locator("body")).not.toContainText("prospect");
     },
   },
   {
@@ -107,6 +112,7 @@ const createScenarios = [
   entity: string;
   visibleMarkerPrefix: string;
   fill: (page: Page, marker: string) => Promise<void>;
+  assertDetail?: (page: Page) => Promise<void>;
 }>;
 
 for (const scenario of createScenarios) {
@@ -120,6 +126,7 @@ for (const scenario of createScenarios) {
 
     await expect(page).toHaveURL(new RegExp(`/${scenario.entity}/[^/]+\\?toast=created$`));
     await expect(page.locator("body")).toContainText(marker);
+    await scenario.assertDetail?.(page);
     await strict.expectClean();
   });
 }

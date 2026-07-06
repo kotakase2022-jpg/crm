@@ -3,7 +3,7 @@ import { buttonClassName } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SaveSubmitButton } from "@/components/crm/form-buttons";
 import { Input, Select, Textarea } from "@/components/ui/input";
-import { dateInputValue, dateTimeInputValue } from "@/lib/crm/format";
+import { dateInputValue, dateTimeInputValue, optionLabelForField } from "@/lib/crm/format";
 import type { CrmRecord, EntityConfig, FieldConfig, RelationOptions } from "@/lib/crm/types";
 
 export function valueForField(field: FieldConfig, record: CrmRecord | null, config: EntityConfig) {
@@ -50,11 +50,14 @@ function FieldInput({
     return (
       <Select {...baseProps} defaultValue={String(value)}>
         <option value="">未設定</option>
-        {options.map((option, index) => (
-          <option key={`${option}-${index}`} value={String(values[index] ?? option)}>
-            {option}
-          </option>
-        ))}
+        {options.map((option, index) => {
+          const optionValue = String(values[index] ?? option);
+          return (
+            <option key={`${option}-${index}`} value={optionValue}>
+              {field.relation ? option : optionLabelForField(field, optionValue)}
+            </option>
+          );
+        })}
       </Select>
     );
   }
@@ -72,7 +75,7 @@ function FieldInput({
               defaultChecked={selected.includes(option)}
               className="h-4 w-4 rounded border-slate-300 text-slate-950"
             />
-            {option}
+            {optionLabelForField(field, option)}
           </label>
         ))}
       </div>

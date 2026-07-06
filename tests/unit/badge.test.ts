@@ -8,5 +8,8 @@ describe("badge tone mapping", () => {
     expect(toneForValue(" 対応中 ")).toBe("yellow");
     expect(toneForValue(" 新規（広告経由） ")).toBe("blue");
     expect(toneForValue(" 商談化 ")).toBe("purple");
+    expect(toneForValue("prospect")).toBe("blue");
+    expect(toneForValue("customer")).toBe("green");
+    expect(toneForValue("churned")).toBe("red");
   });
 });

@@ -57,6 +57,7 @@ export type FieldConfig = {
   type: FieldType;
   required?: boolean;
   options?: readonly string[];
+  optionLabels?: Partial<Record<string, string>>;
   relation?: RelationKey;
   placeholder?: string;
   min?: number;

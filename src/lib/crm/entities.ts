@@ -1,6 +1,8 @@
 import {
   accountingSoftware,
   companySizes,
+  companyStatusLabels,
+  companyStatuses,
   constructionIndustries,
   contactRoles,
   decisionMakerTypes,
@@ -118,7 +120,7 @@ export const entityConfigs = {
     ],
     fields: [
       { name: "name", label: "会社名", type: "text", required: true },
-      { name: "status", label: "会社ステータス", type: "select", options: ["prospect", "customer", "churned"] },
+      { name: "status", label: "会社ステータス", type: "select", options: companyStatuses, optionLabels: companyStatusLabels },
       ...constructionFields,
       { name: "website", label: "Webサイト", type: "url" },
       { name: "prefecture", label: "都道府県", type: "text" },

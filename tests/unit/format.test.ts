@@ -11,6 +11,7 @@ import {
   formatValue,
   isSameLocalDate,
   localDateString,
+  optionLabelForField,
   offsetLocalDateString,
   recordTitle,
   relationOptionLabel,
@@ -41,8 +42,26 @@ describe("crm format utilities", () => {
     expect(formatValue("company_id", " company-1 ", { companies: [{ value: "company-1", label: "Acme" }] })).toBe("Acme");
     expect(formatValue("trial_id", "trial-1", { trials: [{ value: "trial-1", label: "Trial Jul" }] })).toBe("Trial Jul");
     expect(formatValue("subscription_id", "subscription-1", { contracts: [{ value: "subscription-1", label: "Pro Paid" }] })).toBe("Pro Paid");
+    expect(formatValue("status", "customer")).toBe("顧客");
+    expect(formatValue("status", "prospect")).toBe("見込み");
+    expect(formatValue("status", "churned")).toBe("解約済み");
     expect(formatValue("issue_tags", ["slow", "paper"])).toBe("slow / paper");
     expect(formatValue("has_next_action", true)).not.toBe("-");
+  });
+
+  it("keeps persisted option values while exposing Japanese labels for CRM forms", () => {
+    expect(
+      optionLabelForField(
+        {
+          optionLabels: {
+            prospect: "見込み",
+            customer: "顧客",
+          },
+        },
+        "customer",
+      ),
+    ).toBe("顧客");
+    expect(optionLabelForField({ optionLabels: { prospect: "見込み" } }, "unknown")).toBe("unknown");
   });
 
   it("treats whitespace-only display values as empty instead of rendering invisible text", () => {
