@@ -38,6 +38,8 @@ export default async function EntityListPage({
     sort: first(rawQuery.sort),
     direction: direction(rawQuery.direction),
     view: first(rawQuery.view),
+    relationField: first(rawQuery.relation_field),
+    relationId: first(rawQuery.relation_id),
   };
   const [context, rows, allRows, relations] = await Promise.all([getCrmContext(), listRecords(config, query), listRecords(config), getRelationOptions()]);
   const canCreate = canWriteTable(context.role, config.table);

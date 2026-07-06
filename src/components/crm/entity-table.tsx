@@ -57,6 +57,7 @@ export function EntityFilterBar({
     Boolean(query.q) ||
     Boolean(query.filter) ||
     Boolean(query.view) ||
+    Boolean(query.relationField && query.relationId) ||
     (query.sort && query.sort !== config.sortFields[0]) ||
     (query.direction && query.direction !== defaultDirection);
 
@@ -65,6 +66,12 @@ export function EntityFilterBar({
       <CardContent className="p-4">
         <form className="grid gap-3 md:grid-cols-[1fr_180px_180px_140px_auto]" data-testid="entity-filter-form">
           {query.view ? <input type="hidden" name="view" value={query.view} /> : null}
+          {query.relationField && query.relationId ? (
+            <>
+              <input type="hidden" name="relation_field" value={query.relationField} />
+              <input type="hidden" name="relation_id" value={query.relationId} />
+            </>
+          ) : null}
           <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden />
             <Input name="q" defaultValue={query.q} placeholder={`${config.plural}を検索`} className="pl-9" />

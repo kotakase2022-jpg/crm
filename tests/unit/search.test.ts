@@ -2,7 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { entityConfigs } from "@/lib/crm/entities";
 import { localDateString, offsetLocalDateString } from "@/lib/crm/format";
 import { priorities, taskStatuses } from "@/lib/crm/options";
-import { defaultSortDirection, filterSortRows, listSortHref, matchesFilter, matchesSearch, nextSortDirection, normalizedSort } from "@/lib/crm/search";
+import {
+  defaultSortDirection,
+  filterSortRows,
+  listSortHref,
+  matchesFilter,
+  matchesRelationFilter,
+  matchesSearch,
+  nextSortDirection,
+  normalizedSort,
+} from "@/lib/crm/search";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -299,13 +308,43 @@ describe("CRM list search", () => {
 
   it("builds list header sort links without dropping the user's current context", () => {
     expect(
-      listSortHref(entityConfigs.tasks, { q: "契約", filter: taskStatuses[0], view: "today", sort: "due_date", direction: "asc" }, "priority"),
+      listSortHref(
+        entityConfigs.tasks,
+        {
+          q: "契約",
+          filter: taskStatuses[0],
+          view: "today",
+          sort: "due_date",
+          direction: "asc",
+          relationField: "company_id",
+          relationId: "company-1",
+        },
+        "priority",
+      ),
     ).toBe(
-      `/tasks?q=${encodeURIComponent("契約")}&filter=${encodeURIComponent(taskStatuses[0])}&view=today&sort=priority&direction=desc`,
+      `/tasks?q=${encodeURIComponent("契約")}&filter=${encodeURIComponent(taskStatuses[0])}&view=today&relation_field=company_id&relation_id=company-1&sort=priority&direction=desc`,
     );
 
     expect(nextSortDirection(entityConfigs.deals, { sort: "expected_mrr", direction: "desc" }, "expected_mrr")).toBe("asc");
     expect(nextSortDirection(entityConfigs.deals, { sort: "expected_contract_date", direction: "asc" }, "expected_mrr")).toBe("desc");
+  });
+
+  it("filters related list drilldowns by exact relation ids instead of parent names", () => {
+    const rows = [
+      { id: "contact-1", name: "佐藤", company_id: "company-1" },
+      { id: "contact-2", name: "佐藤", company_id: "company-2" },
+      { id: "contact-3", name: "山田", company_id: " company-1 " },
+    ];
+
+    expect(rows.filter((row) => matchesRelationFilter(row, { relationField: "company_id", relationId: "company-1" })).map((row) => row.id)).toEqual([
+      "contact-1",
+      "contact-3",
+    ]);
+    expect(filterSortRows(rows, entityConfigs.contacts, { relationField: "company_id", relationId: "company-1" }).map((row) => row.id)).toEqual([
+      "contact-1",
+      "contact-3",
+    ]);
+    expect(matchesRelationFilter(rows[0], { relationField: "name", relationId: "佐藤" })).toBe(true);
   });
 
   it("shares invalid sort normalization between list rendering and data ordering", () => {

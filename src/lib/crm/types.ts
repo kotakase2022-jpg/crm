@@ -90,6 +90,8 @@ export type QueryState = {
   sort?: string;
   direction?: "asc" | "desc";
   view?: string;
+  relationField?: string;
+  relationId?: string;
 };
 
 export type RelationOption = {

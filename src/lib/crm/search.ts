@@ -1,6 +1,7 @@
 import { daysUntil, formatValue, isSameLocalDate, toDate } from "./format";
 import { priorities } from "./options";
 import { isCompletedTaskStatus } from "./automation";
+import { relationIdMatches, relationIdValue } from "./related";
 import type { CrmRecord, EntityConfig, QueryState, RelationOptions } from "./types";
 
 const priorityRank = new Map(priorities.map((priority, index) => [priority, index]));
@@ -43,6 +44,14 @@ export function matchesFilter(row: CrmRecord, config: EntityConfig, filter?: str
   return true;
 }
 
+export function matchesRelationFilter(row: CrmRecord, query: QueryState) {
+  const field = query.relationField?.trim();
+  const id = relationIdValue(query.relationId);
+  if (!field || !id) return true;
+  if (!field.endsWith("_id")) return true;
+  return relationIdMatches(row[field], id);
+}
+
 export function defaultSortDirection(config: EntityConfig, sort?: string): "asc" | "desc" {
   const field = sort && config.sortFields.includes(sort) ? sort : config.sortFields[0] ?? "updated_at";
 
@@ -72,6 +81,10 @@ export function listSortHref(config: EntityConfig, query: QueryState, field: str
   if (query.q) params.set("q", query.q);
   if (query.filter) params.set("filter", query.filter);
   if (query.view) params.set("view", query.view);
+  if (query.relationField && query.relationId) {
+    params.set("relation_field", query.relationField);
+    params.set("relation_id", query.relationId);
+  }
 
   params.set("sort", field);
   params.set("direction", nextSortDirection(config, query, field));
@@ -149,5 +162,6 @@ export function filterSortRows(rows: CrmRecord[], config: EntityConfig, query: Q
   return rows
     .filter((row) => matchesSearch(row, config, query.q, relations))
     .filter((row) => matchesFilter(row, config, query.filter, query.view))
+    .filter((row) => matchesRelationFilter(row, query))
     .sort((a, b) => compareValues(sort, a[sort], b[sort], direction));
 }

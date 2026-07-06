@@ -530,9 +530,10 @@ test("related sections with hidden rows link to a filtered full list", async ({ 
   await expect(page.getByRole("link", { name: "さらに1件を一覧で確認" })).toBeVisible();
   await page.getByRole("link", { name: "さらに1件を一覧で確認" }).click();
 
-  await expect(page).toHaveURL(/\/contacts\?q=/);
+  await expect(page).toHaveURL(/\/contacts\?relation_field=company_id&relation_id=/);
   const listUrl = new URL(page.url());
-  expect(listUrl.searchParams.get("q")).toBe(companyName);
+  expect(listUrl.searchParams.get("relation_field")).toBe("company_id");
+  expect(listUrl.searchParams.get("relation_id")).toBe(companyId);
   await expect(page.locator("tbody tr")).toHaveCount(9);
   await expect(page.locator("tbody")).toContainText(lastContactName);
   await strict.expectClean();

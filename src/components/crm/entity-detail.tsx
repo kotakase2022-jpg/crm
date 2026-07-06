@@ -14,7 +14,7 @@ import {
 } from "@/lib/crm/actions";
 import { activityTypes } from "@/lib/crm/options";
 import { formatValue, recordTitle } from "@/lib/crm/format";
-import { relationHrefForField } from "@/lib/crm/related";
+import { relationHrefForField, relationIdValue } from "@/lib/crm/related";
 import { isCompletedTaskStatus } from "@/lib/crm/automation";
 import type { CrmRecord, EntityConfig, EntitySlug, RelationOptions } from "@/lib/crm/types";
 import type { RelatedSection } from "@/lib/crm/data";
@@ -116,10 +116,22 @@ function relatedCreateLabel(entity: EntitySlug) {
   return `${getEntityConfig(entity)?.singular ?? "関連データ"}を追加`;
 }
 
-function relatedListHref(record: CrmRecord, childEntity: EntitySlug) {
+const parentRelationFieldByEntity: Partial<Record<EntitySlug, string>> = {
+  companies: "company_id",
+  contacts: "contact_id",
+  deals: "deal_id",
+  leads: "lead_id",
+  tickets: "support_ticket_id",
+};
+
+function relatedListHref(parentEntity: EntitySlug, record: CrmRecord, childEntity: EntitySlug) {
   const params = new URLSearchParams();
-  const title = recordTitle(record);
-  if (title && title !== "-") params.set("q", title);
+  const relationField = parentRelationFieldByEntity[parentEntity];
+  const id = relationIdValue(record.id);
+  if (relationField && id) {
+    params.set("relation_field", relationField);
+    params.set("relation_id", id);
+  }
   return params.size > 0 ? `/${childEntity}?${params.toString()}` : `/${childEntity}`;
 }
 
@@ -345,7 +357,7 @@ export function EntityDetail({
           const relatedEntity = section.entity;
           const createHref = relatedEntity && canCreateRelatedEntity(role, relatedEntity) ? relatedCreateHref(config.slug, record, relatedEntity) : null;
           const hiddenRowsCount = Math.max(0, section.rows.length - 8);
-          const listHref = relatedEntity && hiddenRowsCount > 0 ? relatedListHref(record, relatedEntity) : null;
+          const listHref = relatedEntity && hiddenRowsCount > 0 ? relatedListHref(config.slug, record, relatedEntity) : null;
 
           return (
             <Card key={section.title}>
