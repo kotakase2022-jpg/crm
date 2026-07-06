@@ -5,9 +5,9 @@
 - Current owner: Codex
 - Next owner: Claude Code
 - Loop: 6
-- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this handoff pauses Codex after the latest cleanup, local quality gate, push, and remote PR checks all passed.
+- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this handoff confirms the latest pushed handoff commit passed remote PR checks, then pauses Codex for Claude Code.
 - Phase: User-requested Pause / Handoff
-- Last updated: 2026-07-06 16:53:01 +09:00
+- Last updated: 2026-07-06 16:58:18 +09:00
 
 ## 1. Current Goal
 
@@ -29,6 +29,8 @@ Goal status note:
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
+- Latest pushed handoff commit before this final document refresh: `10dfa53` (`Pause Codex and refresh AI handoff`)
+- Latest PR checks at `10dfa53`: passed.
 - Latest pushed code/test commit: `3e6f6f7` (`Share CRM list sort normalization`)
 - Latest PR checks at code/test commit `3e6f6f7`: passed.
 - Latest local quality gate before this handoff: `npm.cmd run quality` passed at 2026-07-06 16:47 +09:00.
@@ -38,6 +40,7 @@ Goal status note:
   - `tests/unit/search.test.ts`
   - `AI_HANDOFF.md`
 - This document update is handoff metadata only. If committed, it should be the only change after `3e6f6f7`; run `git log -1 --oneline` for its exact hash.
+- This final document refresh is handoff metadata only. If committed after `10dfa53`, Claude Code should treat it as documentation-only and confirm PR checks only if branch protection requires the newest commit to be green.
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
 
 ## 3. What Was Done
@@ -85,6 +88,12 @@ Goal status note:
   - Vercel: pass.
   - Vercel Preview Comments: pass.
 - Stopped Codex implementation work at this clean handoff point per user request.
+- Confirmed PR #2 latest remote checks at `10dfa53` are green:
+  - CodeRabbit: pass.
+  - GitHub Actions `typecheck-lint-test-e2e-build`: pass.
+  - Vercel: pass.
+  - Vercel Preview Comments: pass.
+- Per the user's latest instruction, updated this handoff again and stopped without additional implementation changes.
 
 ## 4. Files Changed
 
@@ -114,7 +123,7 @@ Goal status note:
 現在の状態：
 
 - Local full quality gate is green after the latest sort-normalization cleanup.
-- PR #2 remote checks are green at latest pushed code/test commit `3e6f6f7`:
+- PR #2 remote checks are green at latest pushed handoff commit `10dfa53`:
   - CodeRabbit: pass.
   - GitHub Actions `typecheck-lint-test-e2e-build`: pass.
   - Vercel: pass.
@@ -265,15 +274,26 @@ gh pr checks 2
 # - Vercel: pass
 # - Vercel Preview Comments: pass
 # - typecheck-lint-test-e2e-build: pass
+
+git status --short --branch
+# Passed/clean at latest pushed handoff commit before this final document refresh.
+# ## codex/ai-handoff-loop...origin/codex/ai-handoff-loop
+
+gh pr checks 2 --watch --interval 10
+# Passed at latest pushed handoff commit 10dfa53:
+# - CodeRabbit: pass
+# - Vercel: pass
+# - Vercel Preview Comments: pass
+# - typecheck-lint-test-e2e-build: pass
 ```
 
 ## 9. Next Recommended Action
 
 次にClaude Codeが最初にやるべきこと：
 
-1. Start from PR #2 at latest commit `3e6f6f7` and confirm whether this metadata-only handoff update has been committed after it.
-2. If no new commit exists after `3e6f6f7`, no additional CI rerun is needed for Codex's latest code changes because PR checks are already green.
-3. If this metadata-only handoff update is committed, confirm the new latest PR checks before merge.
+1. Start from PR #2 and latest branch commit. `10dfa53` already had all remote checks green before this final handoff-document refresh.
+2. If this final handoff-document refresh is committed after `10dfa53`, confirm whether branch protection requires PR checks to rerun on that documentation-only commit.
+3. Do not add more Codex-side changes unless the user explicitly resumes development or a required check fails.
 4. Review the latest low-risk cleanup:
    - `src/components/crm/entity-table.tsx`
    - `src/lib/crm/search.ts`
@@ -331,7 +351,7 @@ Claude Codeへの補足：
 - Current self-score after this pass:
   - Function/screen-transition/no-known-defect score: 99/100 locally.
   - CRM daily-use experience value score: 97/100 locally.
-- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence is green for the latest code/test commit `3e6f6f7`.
+- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence is green for latest pushed handoff commit `10dfa53`; the latest code/test commit remains `3e6f6f7`.
 - User requested a credit-saving stop. Codex intentionally stopped at a clean handoff point instead of continuing deferred low-priority cleanup.
 - `npm` in PowerShell may hit the local execution-policy issue via `npm.ps1`; use `npm.cmd` on this machine.
 - If CodeRabbit does not re-run after the final push, comment `@coderabbitai review` on PR #2.
