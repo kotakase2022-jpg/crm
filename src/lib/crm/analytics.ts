@@ -1,6 +1,7 @@
 import { dealStages } from "./options";
 import { daysUntil, toDate, toFiniteNumber } from "./format";
 import { relationIdValue } from "./related";
+import { hasAnyValue, hasValue, latestUsageRowsByCompany } from "./usage";
 import type { CrmRecord, DashboardSnapshot } from "./types";
 
 type DealStage = (typeof dealStages)[number];
@@ -38,43 +39,6 @@ function sumBy(rows: CrmRecord[], field: string) {
 function uniqueRelationIdCount(rows: CrmRecord[], field: string) {
   const ids = rows.map((row) => relationIdValue(row[field])).filter((id): id is string => Boolean(id));
   return new Set(ids).size;
-}
-
-function usageSortTime(usage: CrmRecord) {
-  for (const field of ["period_end", "last_login_at", "updated_at", "created_at"]) {
-    const value = toDate(usage[field]);
-    if (value) return value.getTime();
-  }
-
-  return 0;
-}
-
-function latestUsageRowsByCompany(rows: CrmRecord[]) {
-  const latest = new Map<string, CrmRecord>();
-
-  for (const row of rows) {
-    const companyId = relationIdValue(row.company_id);
-    if (!companyId) continue;
-
-    const current = latest.get(companyId);
-    if (!current || usageSortTime(row) >= usageSortTime(current)) {
-      latest.set(companyId, row);
-    }
-  }
-
-  return Array.from(latest.values());
-}
-
-function textValue(value: unknown) {
-  return typeof value === "string" ? value.trim() : String(value ?? "");
-}
-
-function hasValue(value: unknown, expected: string) {
-  return textValue(value) === expected;
-}
-
-function hasAnyValue(value: unknown, expected: string[]) {
-  return expected.includes(textValue(value));
 }
 
 function isStage(row: CrmRecord, stage: string) {

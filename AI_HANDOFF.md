@@ -7,13 +7,13 @@
 - Loop: 7
 - Loop number inferred from: 前回の `AI_HANDOFF.md` は `Current owner: Claude Code` / `Next owner: Codex` / `Loop: 6` で、Claude Code が Loop 6 のレビューを完了して Codex へ戻す内容だったため、今回を Codex 側の次ループ開始（Loop 7）として扱う。
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-06 17:58:55 +09:00
+- Last updated: 2026-07-06 18:06:36 +09:00
 
 ## 1. Current Goal
 
 今回の目的：
 
-- Claude Code が残した Loop 6 レビュー結果を受け取り、CodeRabbit OSS deferred 項目のうち小さく安全に対応できるものを1件進める。
+- Claude Code が残した Loop 6 レビュー結果を受け取り、CodeRabbit OSS deferred 項目のうち小さく安全に対応できるものを進める。
 - PR #2 の緑状態を崩さず、CRMの実務導線を少しでも100点に近づける。
 - Cursor Bugbotは標準レビューから外し、CodeRabbit OSSを標準PRレビューとして扱う。
 - 作業後に次のClaude Codeがレビューしやすいよう、変更範囲・検証結果・残課題を明確に残す。
@@ -43,6 +43,10 @@
   - Preserved relation filters through list sort links and the filter form.
   - Changed detail-page "さらにN件を一覧で確認" links to pass `relation_field` / `relation_id`.
   - Updated unit and E2E tests for the precise relation-filter behavior.
+- Implemented another deferred CodeRabbit maintainability item: shared helper extraction between analytics and alerts.
+  - Added `src/lib/crm/usage.ts` for normalized text matching and latest usage row selection.
+  - Updated `analytics.ts` and `alerts.ts` to use the same `hasValue`, `hasAnyValue`, and `latestUsageRowsByCompany` helpers.
+  - Added direct unit coverage in `tests/unit/usage.test.ts`.
 - Updated this handoff for Loop 7 and preserved the key Claude Code review conclusions from Loop 6.
 
 ## 4. Files Changed
@@ -51,10 +55,14 @@
 
 - `src/lib/crm/types.ts`
 - `src/lib/crm/search.ts`
+- `src/lib/crm/usage.ts`
+- `src/lib/crm/analytics.ts`
+- `src/lib/crm/alerts.ts`
 - `src/app/(crm)/[entity]/page.tsx`
 - `src/components/crm/entity-table.tsx`
 - `src/components/crm/entity-detail.tsx`
 - `tests/unit/search.test.ts`
+- `tests/unit/usage.test.ts`
 - `tests/e2e/crm-flows.spec.ts`
 - `AI_HANDOFF.md`
 
@@ -63,15 +71,17 @@
 現在の状態：
 
 - Related-list drilldown links are now more precise. They filter by the actual parent relation id, so records with the same company/contact/deal name no longer leak into the drilldown list.
+- Analytics and alerts now share the same normalized value checks and latest-usage selection logic, reducing the chance that dashboard KPIs and automation alerts drift apart.
 - Local focused verification for the changed logic is green:
   - `npm.cmd run test -- --run tests/unit/search.test.ts`
+  - `npm.cmd run test -- --run tests/unit/usage.test.ts tests/integration/analytics-alerts.test.ts`
   - `npm.cmd run typecheck`
   - `npm.cmd run test:e2e -- -g "related sections with hidden rows link to a filtered full list"`
   - `npm.cmd run lint`
 - Full local quality gate is green after this handoff edit:
   - `npm.cmd run quality` passed.
-  - Unit/integration: 25 files / 154 tests passed.
-  - Coverage: statements 92.98%, branches 85.95%, functions 99.05%, lines 95.39%.
+  - Unit/integration: 26 files / 156 tests passed.
+  - Coverage: statements 92.94%, branches 86.36%, functions 99.00%, lines 95.33%.
   - Playwright E2E: 39 Chromium tests passed.
   - Production build: passed.
 - The two top-level product scores are still not 100/100 because live Supabase/Vercel authenticated verification and human/product acceptance evidence remain incomplete.
@@ -82,7 +92,6 @@
 
 - No live Supabase/Vercel authenticated session was manually verified in this pass.
 - Remaining deferred CodeRabbit lower-priority suggestions:
-  - shared helper extraction between analytics/alerts;
   - coverage include expansion for more source files;
   - seed SQL test brittleness.
 - `src/proxy.ts` matcher duplication remains intentionally unchanged because Next.js proxy matcher values must remain statically analyzable constants.
@@ -96,6 +105,7 @@ CodeRabbit OSSの指摘と対応状況：
 - Critical findings: Previously resolved and reviewed by Claude Code in Loop 6.
 - Resolved findings in this Codex pass:
   - Related list drilldown precision in `entity-detail.tsx`; links now use `relation_field` / `relation_id` and list filtering honors those exact relation ids.
+  - Shared helper extraction between analytics and alerts; both now use `src/lib/crm/usage.ts` for normalized text comparisons and latest usage rows.
 - Previously resolved findings:
   - relation consistency validation errors;
   - latest product usage row for document totals;
@@ -110,7 +120,6 @@ CodeRabbit OSSの指摘と対応状況：
   - analytics stage-list centralization;
   - shared list sort normalization.
 - Deferred findings:
-  - analytics/alerts helper extraction;
   - broader coverage include expansion;
   - seed SQL test brittleness.
 - False positives / not applicable:
@@ -142,6 +151,9 @@ gh pr checks 2
 npm.cmd run test -- --run tests/unit/search.test.ts
 # Passed: 1 file / 19 tests.
 
+npm.cmd run test -- --run tests/unit/usage.test.ts tests/integration/analytics-alerts.test.ts
+# Passed: 2 files / 18 tests.
+
 npm.cmd run typecheck
 # Passed.
 
@@ -155,9 +167,9 @@ npm.cmd run quality
 # Passed.
 # typecheck passed.
 # lint passed.
-# test guard passed: 26 spec files checked.
-# unit/integration: 25 files / 154 tests passed.
-# coverage passed: statements 92.98%, branches 85.95%, functions 99.05%, lines 95.39%.
+# test guard passed: 27 spec files checked.
+# unit/integration: 26 files / 156 tests passed.
+# coverage passed: statements 92.94%, branches 86.36%, functions 99.00%, lines 95.33%.
 # Playwright E2E: 39 Chromium tests passed.
 # Next.js production build passed.
 ```

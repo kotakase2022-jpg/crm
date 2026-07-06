@@ -1,6 +1,7 @@
 import { daysUntil, offsetLocalDateString, toDate, toFiniteNumber } from "./format";
 import { hasOpenAutomationTask, isOpenTask } from "./automation";
 import { relationIdMatches, relationIdValue } from "./related";
+import { hasAnyValue, hasValue, latestUsageRowsByCompany } from "./usage";
 import type { CrmRecord, DashboardSnapshot } from "./types";
 
 export type CrmAlert = {
@@ -21,49 +22,12 @@ function dateOffset(days: number) {
   return offsetLocalDateString(days);
 }
 
-function textValue(value: unknown) {
-  return typeof value === "string" ? value.trim() : String(value ?? "");
-}
-
-function hasValue(value: unknown, expected: string) {
-  return textValue(value) === expected;
-}
-
-function hasAnyValue(value: unknown, expected: string[]) {
-  return expected.includes(textValue(value));
-}
-
 function hasOpenTask(tasks: CrmRecord[], predicate: (task: CrmRecord) => boolean) {
   return tasks.some((task) => isOpenTask(task) && predicate(task));
 }
 
 function recordId(value: unknown) {
   return relationIdValue(value) ?? String(value ?? "");
-}
-
-function usageSortTime(usage: CrmRecord) {
-  for (const field of ["period_end", "last_login_at", "updated_at", "created_at"]) {
-    const value = toDate(usage[field]);
-    if (value) return value.getTime();
-  }
-
-  return 0;
-}
-
-function latestUsageRowsByCompany(rows: CrmRecord[]) {
-  const latest = new Map<string, CrmRecord>();
-
-  for (const row of rows) {
-    const companyId = relationIdValue(row.company_id);
-    if (!companyId) continue;
-
-    const current = latest.get(companyId);
-    if (!current || usageSortTime(row) >= usageSortTime(current)) {
-      latest.set(companyId, row);
-    }
-  }
-
-  return Array.from(latest.values());
 }
 
 export function buildAlerts(snapshot: DashboardSnapshot): CrmAlert[] {
