@@ -7,7 +7,7 @@
 - Loop: 7
 - Loop number inferred from: 前回の `AI_HANDOFF.md` は `Current owner: Claude Code` / `Next owner: Codex` / `Loop: 6` で、Claude Code が Loop 6 のレビューを完了して Codex へ戻す内容だったため、今回を Codex 側の次ループ開始（Loop 7）として扱う。
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-06 18:06:36 +09:00
+- Last updated: 2026-07-06 18:13:35 +09:00
 
 ## 1. Current Goal
 
@@ -21,11 +21,11 @@
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/ai-handoff-loop`
-- Latest committed base before this Codex pass: `6410f0b` (`Refresh handoff after green PR checks`)
-- Last known good remote commit before this Codex pass: `6410f0b`
-- This Codex pass is expected to add a small code/test/docs commit after `6410f0b`; run `git log -1 --oneline` for the exact latest hash after commit.
+- Latest pushed code/test commit before this final document refresh: `f3d2f14` (`Share CRM usage value helpers`)
+- Last known good remote commit before this final document refresh: `f3d2f14`
+- This final document refresh is handoff metadata only. If committed after `f3d2f14`, run `git log -1 --oneline` for the exact latest hash and confirm whether branch protection requires checks to rerun.
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
-- CodeRabbit OSS review status before this Codex pass: `pass` on PR #2. PR comment also noted CodeRabbit auto-pause behavior after many commits, but the latest visible check before this pass was green.
+- CodeRabbit OSS review status at `f3d2f14`: `pass` on PR #2.
 
 ## 3. What Was Done
 
@@ -48,6 +48,12 @@
   - Updated `analytics.ts` and `alerts.ts` to use the same `hasValue`, `hasAnyValue`, and `latestUsageRowsByCompany` helpers.
   - Added direct unit coverage in `tests/unit/usage.test.ts`.
 - Updated this handoff for Loop 7 and preserved the key Claude Code review conclusions from Loop 6.
+- Pushed commit `f3d2f14` to `origin/codex/ai-handoff-loop`.
+- Confirmed PR #2 remote checks at `f3d2f14` are green:
+  - CodeRabbit: pass.
+  - Vercel: pass.
+  - Vercel Preview Comments: pass.
+  - `typecheck-lint-test-e2e-build`: pass.
 
 ## 4. Files Changed
 
@@ -84,6 +90,7 @@
   - Coverage: statements 92.94%, branches 86.36%, functions 99.00%, lines 95.33%.
   - Playwright E2E: 39 Chromium tests passed.
   - Production build: passed.
+- PR #2 remote checks are green at code/test commit `f3d2f14`.
 - The two top-level product scores are still not 100/100 because live Supabase/Vercel authenticated verification and human/product acceptance evidence remain incomplete.
 
 ## 6. Known Issues
@@ -172,6 +179,13 @@ npm.cmd run quality
 # coverage passed: statements 92.94%, branches 86.36%, functions 99.00%, lines 95.33%.
 # Playwright E2E: 39 Chromium tests passed.
 # Next.js production build passed.
+
+gh pr checks 2 --watch --interval 10
+# Passed at pushed code/test commit f3d2f14:
+# - CodeRabbit: pass
+# - Vercel: pass
+# - Vercel Preview Comments: pass
+# - typecheck-lint-test-e2e-build: pass
 ```
 
 ## 10. Next Recommended Action
@@ -185,7 +199,7 @@ npm.cmd run quality
    - `src/app/(crm)/[entity]/page.tsx`
    - `tests/unit/search.test.ts`
    - `tests/e2e/crm-flows.spec.ts`
-2. Confirm `npm.cmd run quality` and PR #2 remote checks are green after the latest push.
+2. Confirm whether this final handoff metadata-only commit exists after `f3d2f14`; if so, verify PR #2 remote checks on that newest commit before merge.
 3. Review whether `relation_field` / `relation_id` should be documented in a short developer note, or whether tests are sufficient.
 4. Decide whether to address one remaining deferred CodeRabbit item in a later small PR, or prepare PR #2 for human review/merge.
 
