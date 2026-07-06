@@ -3,6 +3,17 @@ import { daysUntil, toDate, toFiniteNumber } from "./format";
 import { relationIdValue } from "./related";
 import type { CrmRecord, DashboardSnapshot } from "./types";
 
+type DealStage = (typeof dealStages)[number];
+
+function stageRangeThroughWon(startStage: DealStage) {
+  const startIndex = dealStages.indexOf(startStage);
+  const wonIndex = dealStages.indexOf("受注");
+  return dealStages.slice(startIndex, wonIndex + 1);
+}
+
+const demoScheduledStages = stageRangeThroughWon("デモ設定");
+const demoDoneStages = stageRangeThroughWon("デモ実施");
+
 function bucketLabel(value: unknown) {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -108,8 +119,8 @@ export function buildSalesDashboard(snapshot: DashboardSnapshot) {
     kpis: {
       newLeads: snapshot.leads.length,
       dealCreated: snapshot.deals.length,
-      demoScheduled: snapshot.deals.filter((deal) => hasAnyValue(deal.stage, ["デモ設定", "デモ実施", "トライアル開始", "利用確認中", "契約交渉", "受注"])).length,
-      demoDone: snapshot.deals.filter((deal) => hasAnyValue(deal.stage, ["デモ実施", "トライアル開始", "利用確認中", "契約交渉", "受注"])).length,
+      demoScheduled: snapshot.deals.filter((deal) => hasAnyValue(deal.stage, demoScheduledStages)).length,
+      demoDone: snapshot.deals.filter((deal) => hasAnyValue(deal.stage, demoDoneStages)).length,
       trialStarted: snapshot.trials.length,
       won: wonDeals.length,
       lost: lostDeals.length,
@@ -151,7 +162,7 @@ export function buildCsDashboard(snapshot: DashboardSnapshot) {
 export function buildFunnel(snapshot: DashboardSnapshot) {
   const leadCount = snapshot.leads.length;
   const dealCount = snapshot.deals.length;
-  const demoCount = snapshot.deals.filter((deal) => hasAnyValue(deal.stage, ["デモ設定", "デモ実施", "トライアル開始", "利用確認中", "契約交渉", "受注"])).length;
+  const demoCount = snapshot.deals.filter((deal) => hasAnyValue(deal.stage, demoScheduledStages)).length;
   const trialCount = snapshot.trials.length;
   const paidCount = snapshot.contracts.filter((contract) => hasValue(contract.status, "有料")).length;
 

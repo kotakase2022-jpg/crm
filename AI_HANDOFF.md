@@ -5,18 +5,18 @@
 - Current owner: Codex
 - Next owner: Claude Code
 - Loop: 6
-- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this pass continued Loop 6 by addressing PR #2 AI review findings and then stopping at a clean handoff point because the user requested credit conservation.
-- Phase: Handoff / Goal Paused By User Request
-- Last updated: 2026-07-06 16:32:48 +09:00
+- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this pass continues Loop 6 by verifying final PR checks and resolving two low-risk deferred CodeRabbit maintainability suggestions.
+- Phase: Autonomous Improvement / Verification / Handoff
+- Last updated: 2026-07-06 16:38:28 +09:00
 
 ## 1. Current Goal
 
 今回の目的：
 
 - Improve the CRM until the two top-level user goals can be proven at 100/100 by reproducible checks and review evidence.
-- Address high-value CodeRabbit OSS findings on PR #2 without broad refactors.
+- Reduce remaining CodeRabbit OSS review debt on PR #2 without broad refactors.
 - Keep Cursor Bugbot as optional backup only. It auto-ran on PR #2, but this pass did not manually invoke it.
-- Stop at a clean boundary and hand over to Claude Code because the user requested reduced credit consumption.
+- Keep each change small, reviewable, and fully covered by the existing quality gate.
 
 Goal status note:
 
@@ -27,13 +27,18 @@ Goal status note:
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
-- Latest pushed handoff commit: this handoff metadata commit on top of `55b7893`; run `git log -1 --oneline` for the exact hash.
+- Latest pushed commit before this cleanup pass: `fa039ec` (`Clarify final handoff check status`)
+- This cleanup pass changes:
+  - `src/components/crm/toast-notice.tsx`
+  - `src/lib/crm/analytics.ts`
+  - `AI_HANDOFF.md`
+- Latest commit after this handoff update should contain the low-risk CodeRabbit cleanup and this updated handoff; run `git log -1 --oneline` for the exact hash after commit.
 - Latest pushed code/test commit: `0e2e2cb` (`Strengthen handoff after CodeRabbit nitpick`)
 - Any later commit should be handoff metadata only unless Claude Code chooses to address deferred low-priority CodeRabbit suggestions.
 - Commit `0e2e2cb` contains:
   - relation-field assertion improvement for the CodeRabbit Nitpick;
   - updated `AI_HANDOFF.md` noting the user-requested pause.
-- Last known good local verification: `npm.cmd run quality` passed at 2026-07-06 16:25 +09:00 after the Nitpick test improvement.
+- Last known good local verification: `npm.cmd run quality` passed at 2026-07-06 16:38 +09:00 after the toast/analytics cleanup.
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
 
 ## 3. What Was Done
@@ -56,6 +61,14 @@ Goal status note:
   - demo trial seed rows stay company-consistent with their linked deals;
   - dashboard alert links are created only through validated relation options.
 - Addressed the latest CodeRabbit Nitpick by strengthening `tests/unit/data-conversion.test.ts` to assert `fieldErrors.relation`, not just any `CrmValidationError`.
+- Confirmed PR #2 latest remote checks were green at `fa039ec` before this new cleanup:
+  - CodeRabbit: pass.
+  - GitHub Actions `quality-gate`: pass.
+  - Vercel: pass.
+  - Vercel Preview Comments: pass.
+- Addressed two low-risk deferred CodeRabbit maintainability suggestions:
+  - moved `validation-error` into the main toast messages map in `src/components/crm/toast-notice.tsx`;
+  - centralized demo-stage ranges in `src/lib/crm/analytics.ts` so demo scheduled/done/funnel calculations share one derived source from `dealStages`.
 - Re-ran focused tests and the full quality gate successfully.
 
 ## 4. Files Changed
@@ -64,6 +77,7 @@ Goal status note:
 
 - `src/app/(crm)/dashboard/page.tsx`
 - `src/lib/crm/analytics.ts`
+- `src/components/crm/toast-notice.tsx`
 - `src/lib/crm/data.ts`
 - `src/lib/crm/demo-data.ts`
 - `src/lib/crm/format.ts`
@@ -82,14 +96,14 @@ Goal status note:
 
 現在の状態：
 
-- Local full quality gate is green after the latest Nitpick improvement.
-- Commit `55b7893` and the subsequent handoff metadata commit have been pushed to PR #2.
-- PR #2 remote checks were green at commit `55b7893` immediately before the final handoff-only metadata update:
+- Local full quality gate is green after the latest low-risk cleanup.
+- PR #2 remote checks were green at commit `fa039ec` immediately before this cleanup:
   - CodeRabbit: pass.
   - GitHub Actions `quality-gate`: pass.
   - Vercel: pass.
 - Vercel Preview Comments: pass.
-- Latest Vercel preview deployment before the final handoff-only metadata update: https://crm-git-codex-ai-handoff-loop-kotakase2022-jpgs-projects.vercel.app
+- Latest Vercel preview deployment before this cleanup: https://crm-git-codex-ai-handoff-loop-kotakase2022-jpgs-projects.vercel.app
+- After committing/pushing this cleanup, GitHub Actions, Vercel, and CodeRabbit may rerun. Claude Code should confirm the newest commit before merge.
 - PR #2 body has been updated to include Summary, Impact, Tests Added/Updated, Commands Run, Quality Gate, E2E Flows Verified, Safety Checklist, and Notes.
 - The two top-level scores are still not marked 100/100 because live Supabase/Vercel authenticated verification and final human/product acceptance evidence are still incomplete.
 
@@ -103,8 +117,6 @@ Goal status note:
   - shared helper extraction between analytics/alerts;
   - duplicate sort normalization reuse in `entity-table.tsx`;
   - coverage include expansion for more source files;
-  - toast message map consistency;
-  - analytics stage-list centralization;
   - seed SQL test brittleness.
 - `src/proxy.ts` matcher duplication was intentionally not changed yet because Next.js proxy matcher values must remain statically analyzable constants.
 - Git status may print warnings about `C:\Users\hiras/.config/git/ignore` permission; this has not blocked checks.
@@ -114,7 +126,7 @@ Goal status note:
 Cursor Bugbotの指摘と対応状況：
 
 - CodeRabbit OSS findings:
-  - Addressed: relation consistency validation errors, latest-usage document total, Supabase claims fallback, paginated reads, invalid ARR computation, deterministic Tokyo datetime handling, demo trial/deal company consistency, dashboard alert relation validation, and relation-field assertion specificity in `tests/unit/data-conversion.test.ts`.
+  - Addressed: relation consistency validation errors, latest-usage document total, Supabase claims fallback, paginated reads, invalid ARR computation, deterministic Tokyo datetime handling, demo trial/deal company consistency, dashboard alert relation validation, relation-field assertion specificity in `tests/unit/data-conversion.test.ts`, toast message map consistency, and analytics stage-list centralization.
   - Deferred/needs Claude Code review: lower-priority maintainability and broader coverage suggestions listed in Known Issues.
 - Cursor Bugbot:
   - Auto-ran on PR #2 as an optional neutral check.
@@ -172,23 +184,53 @@ gh pr checks 2 --watch --interval 10
 # - CodeRabbit: pass
 # - Vercel: pass
 # - Vercel Preview Comments: pass
+
+gh pr checks 2
+# Passed at commit fa039ec before this cleanup:
+# - quality-gate/typecheck-lint-test-e2e-build: pass
+# - CodeRabbit: pass
+# - Vercel: pass
+# - Vercel Preview Comments: pass
+
+npm.cmd run test -- --run tests/integration/analytics-alerts.test.ts tests/e2e/crm-flows.spec.ts
+# Passed for the Vitest-matched analytics integration tests.
+# Note: the Playwright E2E path is not a Vitest spec, so full E2E coverage was verified through npm.cmd run quality below.
+
+npm.cmd run typecheck
+# Passed.
+
+npm.cmd run quality
+# Passed after the toast/analytics cleanup.
+# typecheck passed.
+# lint passed.
+# test guard passed: 26 spec files checked.
+# unit/integration: 25 files / 152 tests passed.
+# coverage passed: statements 92.68%, branches 85.68%, functions 99.04%, lines 95.20%.
+# Playwright E2E: 39 Chromium tests passed.
+# Next.js production build passed.
 ```
 
 ## 9. Next Recommended Action
 
 次にClaude Codeが最初にやるべきこと：
 
-1. Confirm PR #2 latest remote checks after the final handoff-only metadata commit.
-2. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
-3. Review the previously fixed high-risk areas:
+1. Confirm PR #2 latest remote checks after the toast/analytics cleanup commit:
+   - GitHub Actions `quality-gate`
+   - Vercel preview
+   - CodeRabbit
+2. Review the latest low-risk cleanup:
+   - `src/components/crm/toast-notice.tsx`
+   - `src/lib/crm/analytics.ts`
+3. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
+4. Review the previously fixed high-risk areas:
    - `src/lib/supabase/proxy.ts`
    - `src/lib/crm/data.ts`
    - `src/lib/crm/analytics.ts`
    - `src/lib/crm/persistence.ts`
    - `src/lib/crm/validation.ts`
    - `src/lib/crm/format.ts`
-4. Decide whether any deferred CodeRabbit maintainability suggestions should be handled before merge.
-5. If no additional changes are needed, prepare PR #2 for human review/merge under branch protection.
+5. Decide whether any remaining deferred CodeRabbit maintainability suggestions should be handled before merge.
+6. If no additional changes are needed, prepare PR #2 for human review/merge under branch protection.
 
 ## 10. Suggested Review Scope for Claude Code
 
@@ -209,6 +251,9 @@ Claude Codeに重点レビューしてほしい範囲：
   - demo seed trial rows are company-consistent with linked deals.
 - KPI behavior:
   - CS active companies and document totals use latest usage rows per company.
+- Low-risk cleanup:
+  - toast messages remain behaviorally unchanged while the message map is centralized;
+  - demo scheduled/done/funnel stages derive from `dealStages` instead of duplicated literals.
 
 ## 11. Do Not Touch
 
@@ -224,10 +269,10 @@ Claude Codeに重点レビューしてほしい範囲：
 
 Claude Codeへの補足：
 
-- User asked Codex to stop at a clean point because of credit consumption. Treat this as a handoff pause.
+- Codex resumed after the previous pause and made one small review-debt cleanup pass.
 - Current self-score after this pass:
   - Function/screen-transition/no-known-defect score: 99/100 locally.
   - CRM daily-use experience value score: 97/100 locally.
-- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence was green at `55b7893`; confirm whether the final handoff-only metadata commit also completed before merge.
+- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence was green at `fa039ec`; confirm whether the latest cleanup commit also completed before merge.
 - `npm` in PowerShell may hit the local execution-policy issue via `npm.ps1`; use `npm.cmd` on this machine.
 - If CodeRabbit does not re-run after the final push, comment `@coderabbitai review` on PR #2.

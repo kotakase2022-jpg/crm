@@ -16,10 +16,9 @@ const messages: Record<string, string> = {
   "settings-error": "スプレッドシート取込設定を保存できませんでした。Googleスプレッドシートの共有URLまたは公開CSV URLを確認してください。",
   "import-success": "スプレッドシートからリードを取り込みました。",
   "import-failed": "スプレッドシート取込に失敗しました。",
+  "validation-error": "入力内容に誤りがあります。入力した項目を確認して、もう一度保存してください。",
   demo: "Supabase未設定のためローカルデモデータで表示しています。",
 };
-
-messages["validation-error"] = "入力内容に誤りがあります。入力した項目を確認して、もう一度保存してください。";
 
 const errorToasts = new Set(["settings-error", "validation-error", "import-failed"]);
 
