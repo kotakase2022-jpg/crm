@@ -6,10 +6,12 @@ import { Input, Select, Textarea } from "@/components/ui/input";
 import { dateInputValue, dateTimeInputValue } from "@/lib/crm/format";
 import type { CrmRecord, EntityConfig, FieldConfig, RelationOptions } from "@/lib/crm/types";
 
-function valueForField(field: FieldConfig, record: CrmRecord | null, config: EntityConfig) {
+export function valueForField(field: FieldConfig, record: CrmRecord | null, config: EntityConfig) {
   const value = record?.[field.name] ?? config.defaultValues?.[field.name] ?? "";
   if (field.type === "date") return dateInputValue(value);
   if (field.type === "datetime-local") return dateTimeInputValue(value);
+  if (field.type === "multiselect" && Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
+  if (field.type === "select") return String(value ?? "").trim();
   if (Array.isArray(value)) return value;
   return value === null || value === undefined ? "" : String(value);
 }
@@ -104,11 +106,13 @@ export function EntityForm({
   record = null,
   relations,
   action,
+  cancelHref,
 }: {
   config: EntityConfig;
   record?: CrmRecord | null;
   relations: RelationOptions;
   action: (formData: FormData) => Promise<void>;
+  cancelHref?: string;
 }) {
   return (
     <Card>
@@ -131,7 +135,7 @@ export function EntityForm({
             ))}
           </div>
           <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
-            <Link href={`/${config.slug}`} className={buttonClassName("secondary")}>
+            <Link href={cancelHref ?? `/${config.slug}`} className={buttonClassName("secondary")}>
               キャンセル
             </Link>
             <SaveSubmitButton />

@@ -5,6 +5,17 @@ async function selectFirstRealOption(page: Page, name: string) {
   await page.locator(`select[name="${name}"]`).selectOption({ index: 1 });
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function localDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 test("initial dashboard and main navigation load without browser errors", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
 
@@ -18,6 +29,16 @@ test("initial dashboard and main navigation load without browser errors", async 
     await expect(page.locator("main")).toBeVisible();
   }
 
+  await strict.expectClean();
+});
+
+test("login page sanitizes external next redirects", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/login?next=https%3A%2F%2Fevil.example%2Fphishing");
+
+  await expect(page.locator('input[name="next"]')).toHaveValue("/dashboard");
+  await expect(page.locator("main")).toContainText("建設帳票CRM");
   await strict.expectClean();
 });
 
@@ -122,12 +143,20 @@ test("lead creation persists to the detail page and converts into a deal", async
   await expect(page).toHaveURL(/\/leads\/[^/]+\?toast=created$/);
   await expect(page.locator("body")).toContainText(leadName);
   await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText("初回架電");
+  const leadPath = new URL(page.url()).pathname;
 
   await page.locator("main form button").first().click();
 
   await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=converted$/);
   await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText("デモ日程確認");
   await expect(page.locator("body")).toContainText("ID:");
+
+  await page.goto(leadPath);
+  await expect(page.locator("body")).toContainText(leadName);
+  await expect(page.locator("dl")).toContainText("商談化");
+  await expect(page.getByRole("button", { name: "会社・担当者・商談へ変換" })).toHaveCount(0);
   await strict.expectClean();
 });
 
@@ -141,10 +170,14 @@ test("task completion and reopen actions change state without crashing", async (
   await page.locator("main form button").first().click();
   await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=completed$/);
   await expect(page.locator("body")).toContainText("ID:");
+  await expect(page.locator("dl")).toContainText("完了");
+  await expect(page.getByRole("button", { name: "未完了に戻す" })).toBeVisible();
 
   await page.locator("main form button").first().click();
   await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=reopened$/);
   await expect(page.locator("body")).toContainText("ID:");
+  await expect(page.locator("dl")).toContainText("未完了");
+  await expect(page.getByRole("button", { name: "完了", exact: true })).toBeVisible();
 
   await strict.expectClean();
 });
@@ -159,11 +192,38 @@ test("record editing persists updated notes on the detail page", async ({ page }
 
   await page.getByRole("link", { name: "編集" }).click();
   await expect(page).toHaveURL(/\/leads\/[^/]+\/edit$/);
+
+  const leadDetailPath = page.url().replace(/\/edit$/, "");
+  await page.getByRole("link", { name: "キャンセル" }).click();
+  await expect(page).toHaveURL(leadDetailPath);
+
+  await page.getByRole("link", { name: "編集" }).click();
+  await expect(page).toHaveURL(/\/leads\/[^/]+\/edit$/);
   await page.locator('textarea[name="notes"]').fill(note);
   await page.getByRole("button", { name: "保存" }).click();
 
   await expect(page).toHaveURL(/\/leads\/[^/]+\?toast=updated$/);
   await expect(page.locator("body")).toContainText(note);
+  await strict.expectClean();
+});
+
+test("datetime-local edit fields keep the user's local wall-clock time", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const title = `E2E DateTime Ticket ${unique}`;
+  const openedAt = "2026-07-05T00:30";
+
+  await page.goto("/tickets/new");
+  await selectFirstRealOption(page, "company_id");
+  await page.locator('input[name="title"]').fill(title);
+  await page.locator('input[name="opened_at"]').fill(openedAt);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\?toast=created$/);
+  await page.locator('main a[href$="/edit"]').first().click();
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\/edit$/);
+  await expect(page.locator('input[name="opened_at"]')).toHaveValue(openedAt);
+
   await strict.expectClean();
 });
 
@@ -184,6 +244,121 @@ test("list search filters results and can be cleared", async ({ page }) => {
   await strict.expectClean();
 });
 
+test("task list search finds visible related company names", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Search Company ${unique}`;
+  const taskTitle = `E2E Related Search Task ${unique}`;
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.goto(`/tasks/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+
+  await page.goto(`/tasks?q=${encodeURIComponent(companyName)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(taskTitle);
+  await expect(page.locator("tbody")).toContainText(companyName);
+  await strict.expectClean();
+});
+
+test("task quick views keep their view filter when searching", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const taskTitle = `E2E Today View Search ${unique}`;
+  const todayDate = localDateInputValue();
+
+  await page.goto("/tasks/new");
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.locator('input[name="due_date"]').fill(todayDate);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+
+  await page.goto("/tasks?view=today");
+  await page.locator('input[name="q"]').fill(taskTitle);
+  await page.locator('input[name="q"]').press("Enter");
+
+  const url = new URL(page.url());
+  expect(url.pathname).toBe("/tasks");
+  expect(url.searchParams.get("view")).toBe("today");
+  expect(url.searchParams.get("q")).toBe(taskTitle);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(taskTitle);
+  await strict.expectClean();
+});
+
+test("list column headers sort records while preserving the current search", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const marker = `E2E Header Sort ${unique}`;
+  const lowDeal = `${marker} Low`;
+  const highDeal = `${marker} High`;
+
+  await page.goto("/deals/new");
+  await page.locator('input[name="name"]').fill(lowDeal);
+  await page.locator('input[name="expected_mrr"]').fill("10000");
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+
+  await page.goto("/deals/new");
+  await page.locator('input[name="name"]').fill(highDeal);
+  await page.locator('input[name="expected_mrr"]').fill("90000");
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+
+  await page.goto(`/deals?q=${encodeURIComponent(marker)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(2);
+
+  await page.getByTestId("sort-header-expected_mrr").click();
+  await expect(page).toHaveURL(/\/deals\?.*sort=expected_mrr.*direction=desc/);
+  let url = new URL(page.url());
+  expect(url.searchParams.get("q")).toBe(marker);
+  expect(url.searchParams.get("sort")).toBe("expected_mrr");
+  expect(url.searchParams.get("direction")).toBe("desc");
+  await expect(page.locator("tbody tr").first()).toContainText(highDeal);
+
+  await page.getByTestId("sort-header-expected_mrr").click();
+  await expect(page).toHaveURL(/\/deals\?.*sort=expected_mrr.*direction=asc/);
+  url = new URL(page.url());
+  expect(url.searchParams.get("q")).toBe(marker);
+  expect(url.searchParams.get("sort")).toBe("expected_mrr");
+  expect(url.searchParams.get("direction")).toBe("asc");
+  await expect(page.locator("tbody tr").first()).toContainText(lowDeal);
+  await strict.expectClean();
+});
+
+test("dashboard alerts link directly to the related CRM record", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const dealName = `E2E Dashboard Alert Deal ${Date.now()}`;
+
+  await page.goto("/deals/new");
+  await page.locator('input[name="name"]').fill(dealName);
+  await page.locator('input[name="expected_mrr"]').fill("95000");
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+  const dealPath = new URL(page.url()).pathname;
+
+  await page.goto("/dashboard");
+  const alertLink = page.getByTestId("dashboard-alert-link").filter({ hasText: dealName });
+  await expect(alertLink).toBeVisible();
+
+  await alertLink.click();
+  await expect(page).toHaveURL(new RegExp(`${dealPath}$`));
+  await expect(page.locator("body")).toContainText(dealName);
+  await strict.expectClean();
+});
+
 test("lead spreadsheet import settings can be opened from leads and saved", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
 
@@ -198,6 +373,19 @@ test("lead spreadsheet import settings can be opened from leads and saved", asyn
 
   await expect(page).toHaveURL(/\/leads\/import-settings\?toast=settings-saved$/);
   await expect(page.locator('input[name="spreadsheet_url"]')).toHaveValue("https://docs.google.com/spreadsheets/d/e2e-sheet-id/edit#gid=0");
+  await strict.expectClean();
+});
+
+test("lead spreadsheet import settings rejects unsupported URLs without crashing", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/leads/import-settings");
+  await page.locator('input[name="spreadsheet_url"]').fill("https://example.com/leads.csv");
+  await page.getByRole("button", { name: "設定を保存" }).click();
+
+  await expect(page).toHaveURL(/\/leads\/import-settings\?toast=settings-error$/);
+  await expect(page.getByTestId("toast-notice")).toContainText("保存できませんでした");
+  await expect(page.locator('input[name="spreadsheet_url"]')).toBeVisible();
   await strict.expectClean();
 });
 
@@ -246,6 +434,42 @@ test("activity history can be added from a company detail page", async ({ page }
   await strict.expectClean();
 });
 
+test("activity next action creates a linked task without losing the activity", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Next Action Company ${unique}`;
+  const subject = `E2E Next Action Activity ${unique}`;
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyPath = new URL(page.url()).pathname;
+
+  await page.locator('input[name="subject"]').fill(subject);
+  await page.locator('textarea[name="content"]').fill("Call back with the trial setup checklist.");
+  await page.locator('input[name="has_next_action"]').check();
+  await page.locator('input[name="next_action_date"]').fill("2026-07-12");
+
+  const activityForm = page.locator('input[name="subject"]').locator("xpath=ancestor::form");
+  await activityForm.locator("button").last().click();
+
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(companyPath)}\\?toast=activity$`));
+  await expect(page.locator("body")).toContainText(subject);
+
+  await page.goto(`/tasks?q=${encodeURIComponent(subject)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(subject);
+  await expect(page.locator("tbody")).toContainText(companyName);
+
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+$/);
+  await expect(page.locator("body")).toContainText(subject);
+  await expect(page.locator("body")).toContainText(companyName);
+  await strict.expectClean();
+});
+
 test("company related create action prefills the parent company on a new contact", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const contactName = `E2E Related Contact ${Date.now()}`;
@@ -256,6 +480,7 @@ test("company related create action prefills the parent company on a new contact
   await expect(page).toHaveURL(/\/companies\/[^/]+$/);
 
   const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  const companyPath = new URL(page.url()).pathname;
 
   await page.getByRole("link", { name: /担当者を追加/ }).click();
 
@@ -263,12 +488,128 @@ test("company related create action prefills the parent company on a new contact
   await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
   await expect(page.locator('select[name="company_id"] option:checked')).toContainText(companyName);
 
+  await page.getByRole("link", { name: "キャンセル" }).click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(companyPath)}$`));
+
+  await page.getByRole("link", { name: /担当者を追加/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/contacts/new\\?company_id=${companyId}$`));
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+
   await page.locator('input[name="name"]').fill(contactName);
   await page.getByRole("button", { name: "保存" }).click();
 
   await expect(page).toHaveURL(/\/contacts\/[^/]+\?toast=created$/);
   await expect(page.locator("body")).toContainText(contactName);
   await expect(page.locator("body")).toContainText(companyName);
+  await strict.expectClean();
+});
+
+test("related sections with hidden rows link to a filtered full list", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Many Contacts Company ${unique}`;
+  const lastContactName = `E2E Hidden Contact ${unique}-9`;
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyPath = new URL(page.url()).pathname;
+  const companyId = companyPath.split("/").at(-1) ?? "";
+
+  for (let index = 1; index <= 9; index += 1) {
+    await page.goto(`/contacts/new?company_id=${companyId}`);
+    await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+    await page.locator('input[name="name"]').fill(index === 9 ? lastContactName : `E2E Visible Contact ${unique}-${index}`);
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page).toHaveURL(/\/contacts\/[^/]+\?toast=created$/);
+  }
+
+  await page.goto(companyPath);
+  await expect(page.getByRole("link", { name: "さらに1件を一覧で確認" })).toBeVisible();
+  await page.getByRole("link", { name: "さらに1件を一覧で確認" }).click();
+
+  await expect(page).toHaveURL(/\/contacts\?q=/);
+  const listUrl = new URL(page.url());
+  expect(listUrl.searchParams.get("q")).toBe(companyName);
+  await expect(page.locator("tbody tr")).toHaveCount(9);
+  await expect(page.locator("tbody")).toContainText(lastContactName);
+  await strict.expectClean();
+});
+
+test("contact activity is visible from the parent company timeline", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const contactName = `E2E Timeline Contact ${unique}`;
+  const subject = `E2E Contact Timeline Activity ${unique}`;
+
+  await page.goto("/companies");
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+$/);
+
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.getByRole("link", { name: /担当者を追加/ }).click();
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="name"]').fill(contactName);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/contacts\/[^/]+\?toast=created$/);
+  await expect(page.locator("body")).toContainText(contactName);
+
+  await page.locator('input[name="subject"]').fill(subject);
+  await page.locator('textarea[name="content"]').fill("This contact-level activity must roll up to the company timeline.");
+  await page.getByRole("button", { name: "活動を追加" }).click();
+
+  await expect(page).toHaveURL(/\/contacts\/[^/]+\?toast=activity$/);
+  await expect(page.locator("body")).toContainText(subject);
+
+  await page.goto(`/companies/${companyId}`);
+  await expect(page.locator("body")).toContainText(subject);
+  await strict.expectClean();
+});
+
+test("deal activity is visible from linked company and contact timelines", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Deal Timeline Company ${unique}`;
+  const contactName = `E2E Deal Timeline Contact ${unique}`;
+  const dealName = `E2E Timeline Deal ${unique}`;
+  const subject = `E2E Deal Timeline Activity ${unique}`;
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.goto(`/contacts/new?company_id=${companyId}`);
+  await page.locator('input[name="name"]').fill(contactName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/contacts\/[^/]+\?toast=created$/);
+  const contactId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  expect(companyId).toBeTruthy();
+  expect(contactId).toBeTruthy();
+
+  await page.goto(`/deals/new?company_id=${companyId}&contact_id=${contactId}`);
+  await page.locator('input[name="name"]').fill(dealName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+
+  await page.locator('input[name="subject"]').fill(subject);
+  await page.locator('textarea[name="content"]').fill("This deal-level activity must roll up to company and contact timelines.");
+  await page.getByRole("button", { name: "活動を追加" }).click();
+
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=activity$/);
+  await expect(page.locator("body")).toContainText(subject);
+
+  await page.goto(`/companies/${companyId}`);
+  await expect(page.locator("body")).toContainText(subject);
+
+  await page.goto(`/contacts/${contactId}`);
+  await expect(page.locator("body")).toContainText(subject);
   await strict.expectClean();
 });
 
@@ -297,6 +638,45 @@ test("deal related task creation keeps the deal relationship through save", asyn
   await strict.expectClean();
 });
 
+test("task detail shows activity context from its linked company", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const subject = `E2E Task Context Activity ${Date.now()}`;
+  const taskTitle = `E2E Context Task ${Date.now()}`;
+
+  await page.goto("/companies");
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+$/);
+
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.locator('input[name="subject"]').fill(subject);
+  await page.locator('textarea[name="content"]').fill("Activity context for a task linked to this company");
+  await page.getByRole("button", { name: "活動を追加" }).click();
+
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=activity$/);
+  await expect(page.locator("body")).toContainText(subject);
+
+  await page.goto(`/tasks/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  await expect(page.locator("body")).toContainText(taskTitle);
+  await expect(page.locator("body")).toContainText(subject);
+
+  await page.locator(`main a[href="/companies/${companyId}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`/companies/${companyId}$`));
+  await expect(page.locator("body")).toContainText(subject);
+
+  await page.goto(`/tasks?q=${encodeURIComponent(taskTitle)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.locator(`tbody a[href="/companies/${companyId}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`/companies/${companyId}$`));
+  await expect(page.locator("body")).toContainText(subject);
+  await strict.expectClean();
+});
+
 test("deal stage editing persists stage and probability changes", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const dealName = `E2E Stage Deal ${Date.now()}`;
@@ -311,7 +691,7 @@ test("deal stage editing persists stage and probability changes", async ({ page 
   await expect(page).toHaveURL(/\/deals\/[^/]+\/edit$/);
 
   const stageSelect = page.locator('select[name="stage"]');
-  await stageSelect.selectOption({ index: 4 });
+  await stageSelect.selectOption("デモ実施");
   const selectedStage = (await stageSelect.locator("option:checked").textContent())?.trim() ?? "";
   await page.locator('input[name="probability"]').fill("65");
   await page.getByRole("button", { name: "保存" }).click();
@@ -320,6 +700,9 @@ test("deal stage editing persists stage and probability changes", async ({ page 
   await expect(page.locator("body")).toContainText(dealName);
   await expect(page.locator("body")).toContainText(selectedStage);
   await expect(page.locator("body")).toContainText("65");
+  await expect(page.locator("body")).toContainText("デモ後フォロー");
+  await expect(page.locator("body")).toContainText("問い合わせ / リード獲得");
+  await expect(page.locator("body")).toContainText("ステージ履歴");
   await strict.expectClean();
 });
 
@@ -367,6 +750,48 @@ test("contract creation calculates ARR from MRR", async ({ page }) => {
   await expect(page.locator("body")).toContainText(marker);
   await expect(page.locator("body")).toContainText("￥50,000");
   await expect(page.locator("body")).toContainText("￥600,000");
+  await strict.expectClean();
+});
+
+test("usage and billing relation tables link to their contract and trial records", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/contracts");
+  const contractLink = page.locator('tbody a[href^="/contracts/"]').first();
+  await expect(contractLink).toBeVisible();
+  const contractHref = await contractLink.getAttribute("href");
+  expect(contractHref).toMatch(/^\/contracts\/[^/]+$/);
+  await contractLink.click();
+
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(contractHref ?? "")}$`));
+  await expect(page.locator("main")).toContainText("利用状況");
+  await expect(page.locator("main")).toContainText("請求履歴");
+
+  const contractRelationLinks = page.locator(`tbody a[href="${contractHref}"]`);
+  expect(await contractRelationLinks.count()).toBeGreaterThanOrEqual(2);
+  const contractRelationText = (await contractRelationLinks.first().textContent())?.trim() ?? "";
+  expect(contractRelationText).not.toContain(contractHref?.split("/").pop() ?? "");
+
+  const companyHref = await page.locator('main a[href^="/companies/"]').first().getAttribute("href");
+  expect(companyHref).toMatch(/^\/companies\/[^/]+$/);
+  await page.goto(companyHref ?? "/companies");
+  await expect(page.locator("main")).toContainText("請求履歴");
+  await expect(page.locator(`tbody a[href="${contractHref}"]`).first()).toBeVisible();
+
+  await page.goto("/trials");
+  const trialLink = page.locator('tbody a[href^="/trials/"]').first();
+  await expect(trialLink).toBeVisible();
+  const trialHref = await trialLink.getAttribute("href");
+  expect(trialHref).toMatch(/^\/trials\/[^/]+$/);
+  await trialLink.click();
+
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(trialHref ?? "")}$`));
+  await expect(page.locator("main")).toContainText("利用状況");
+  const trialRelationLink = page.locator(`tbody a[href="${trialHref}"]`).first();
+  await expect(trialRelationLink).toBeVisible();
+  const trialRelationText = (await trialRelationLink.textContent())?.trim() ?? "";
+  expect(trialRelationText).not.toContain(trialHref?.split("/").pop() ?? "");
+
   await strict.expectClean();
 });
 
@@ -420,6 +845,9 @@ test("dashboards, reports, and settings expose operational decision signals", as
   await expect(page.locator("main")).toContainText("MRR");
   await expect(page.locator("main")).toContainText("CS");
   await expect(page.locator("main a[href^=\"/tasks/\"]").first()).toBeVisible();
+  const riskyCompanyHref = await page.getByTestId("dashboard-risky-company-link").first().getAttribute("href");
+  expect(riskyCompanyHref).toMatch(/^\/companies\/[^/\s]+$/);
+  expect(riskyCompanyHref).not.toContain("undefined");
 
   await page.goto("/reports");
   await expect(page.locator("main")).toContainText("ARR");

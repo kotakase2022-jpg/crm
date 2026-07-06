@@ -3,6 +3,7 @@ import { entityConfigs } from "./entities";
 import { leadSources, leadStatuses } from "./options";
 import { parseEntityValues } from "./validation";
 import type { CsvRow } from "./csv";
+import type { CrmRecord } from "./types";
 
 export const defaultLeadImportStatus = "新規（広告経由）";
 
@@ -32,16 +33,22 @@ function valueAsString(value: unknown) {
 }
 
 function normalizeHeaders(row: CsvRow) {
-  return Object.fromEntries(
-    Object.entries(row).map(([key, value]) => {
-      const normalizedKey = headerAliases[key.trim()] ?? key.trim();
-      return [normalizedKey, value];
-    }),
-  );
+  const normalized: CsvRow = {};
+
+  for (const [key, value] of Object.entries(row)) {
+    const normalizedKey = headerAliases[key.trim()] ?? key.trim();
+    if (normalizedKey in normalized) {
+      throw new Error(`Spreadsheet import has duplicate header after normalization: ${normalizedKey}`);
+    }
+    normalized[normalizedKey] = value;
+  }
+
+  return normalized;
 }
 
 export function safeLeadImportStatus(status: string, fallback = defaultLeadImportStatus) {
-  return leadStatuses.includes(status as (typeof leadStatuses)[number]) ? status : fallback;
+  const normalized = status.trim();
+  return leadStatuses.includes(normalized as (typeof leadStatuses)[number]) ? normalized : fallback;
 }
 
 function isTrustedSpreadsheetHost(hostname: string) {
@@ -114,4 +121,34 @@ export function importSourceId(row: Record<string, unknown>) {
 
   const fallback = `${valueAsString(row.company_name)}|${valueAsString(row.name)}`.toLowerCase();
   return `row:${createHash("sha256").update(fallback).digest("hex")}`;
+}
+
+export function importSourceIdValue(value: unknown) {
+  const sourceId = valueAsString(value);
+  return sourceId || null;
+}
+
+export function importSourceIdSet(rows: Array<Record<string, unknown>>) {
+  return new Set(
+    rows.flatMap((row) => {
+      const sourceId = importSourceIdValue(row.external_source_id);
+      return sourceId ? [sourceId] : [];
+    }),
+  );
+}
+
+function importRunSortTime(run: CrmRecord) {
+  for (const field of ["started_at", "created_at", "updated_at"]) {
+    const value = run[field];
+    if (typeof value !== "string" || !value) continue;
+
+    const parsed = new Date(value).getTime();
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  return 0;
+}
+
+export function recentLeadImportRuns(runs: CrmRecord[], limit = 10) {
+  return [...runs].sort((a, b) => importRunSortTime(b) - importRunSortTime(a)).slice(0, limit);
 }

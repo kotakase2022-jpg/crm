@@ -13,6 +13,7 @@ import {
   ticketStatuses,
   ticketTypes,
 } from "./options";
+import { offsetLocalDateString } from "./format";
 import type { CrmRecord, TableName } from "./types";
 
 type DemoStore = Record<TableName, CrmRecord[]>;
@@ -55,9 +56,7 @@ function id(prefix: string, index: number) {
 }
 
 function date(offsetDays: number) {
-  const value = new Date("2026-07-03T00:00:00.000Z");
-  value.setUTCDate(value.getUTCDate() + offsetDays);
-  return value.toISOString().slice(0, 10);
+  return offsetLocalDateString(offsetDays, new Date(2026, 6, 3));
 }
 
 function dateTime(offsetDays: number, hour = 10) {
@@ -182,11 +181,12 @@ function createDeals(companies: CrmRecord[], contacts: CrmRecord[], leads: CrmRe
   });
 }
 
-function createTasks(companies: CrmRecord[], leads: CrmRecord[], deals: CrmRecord[]): CrmRecord[] {
+function createTasks(leads: CrmRecord[], deals: CrmRecord[]): CrmRecord[] {
   const titles = ["初回架電", "デモ日程確認", "デモ後フォロー", "トライアル状況確認", "契約確認", "請求確認", "解約リスク確認"];
 
   return Array.from({ length: 30 }, (_, index) => {
     const i = index + 1;
+    const deal = deals[index % deals.length];
 
     return {
       id: id("task", i),
@@ -198,19 +198,20 @@ function createTasks(companies: CrmRecord[], leads: CrmRecord[], deals: CrmRecor
       due_date: date((i % 14) - 7),
       assignee_id: userId,
       lead_id: i <= leads.length ? leads[i - 1].id : null,
-      company_id: companies[index % companies.length].id,
-      deal_id: deals[index % deals.length].id,
+      company_id: deal.company_id,
+      deal_id: deal.id,
       automation_key: `demo-task-${i}`,
       completed_at: i % 6 === 0 ? dateTime(-1) : null,
     };
   });
 }
 
-function createActivities(companies: CrmRecord[], contacts: CrmRecord[], leads: CrmRecord[], deals: CrmRecord[]): CrmRecord[] {
+function createActivities(leads: CrmRecord[], deals: CrmRecord[]): CrmRecord[] {
   const types = ["電話", "メール", "オンライン商談", "デモ", "訪問", "メモ", "資料送付", "契約関連", "その他"];
 
   return Array.from({ length: 50 }, (_, index) => {
     const i = index + 1;
+    const deal = deals[index % deals.length];
 
     return {
       id: id("activity", i),
@@ -221,9 +222,9 @@ function createActivities(companies: CrmRecord[], contacts: CrmRecord[], leads: 
       occurred_at: dateTime(-50 + i, 11),
       owner_id: userId,
       lead_id: i <= leads.length ? leads[i - 1].id : null,
-      company_id: companies[index % companies.length].id,
-      contact_id: contacts[index % contacts.length].id,
-      deal_id: deals[index % deals.length].id,
+      company_id: deal.company_id,
+      contact_id: deal.contact_id,
+      deal_id: deal.id,
       has_next_action: i % 3 === 0,
       next_action_date: i % 3 === 0 ? date(i % 7) : null,
     };
@@ -233,12 +234,14 @@ function createActivities(companies: CrmRecord[], contacts: CrmRecord[], leads: 
 function createTrials(companies: CrmRecord[], deals: CrmRecord[]): CrmRecord[] {
   return Array.from({ length: 8 }, (_, index) => {
     const i = index + 1;
+    const company = companies[index];
+    const deal = deals.find((item) => item.company_id === company.id) ?? deals[index % deals.length];
 
     return {
       id: id("trial", i),
       ...base(-24 + i),
-      company_id: companies[index].id,
-      deal_id: deals[(index + 4) % deals.length].id,
+      company_id: company.id,
+      deal_id: deal.id,
       start_date: date(-(i * 3)),
       end_date: date(21 - i),
       first_login_at: i % 3 === 0 ? null : dateTime(-i),
@@ -401,8 +404,8 @@ function createStore(): DemoStore {
   const contacts = createContacts(companies);
   const leads = createLeads();
   const deals = createDeals(companies, contacts, leads);
-  const tasks = createTasks(companies, leads, deals);
-  const activities = createActivities(companies, contacts, leads, deals);
+  const tasks = createTasks(leads, deals);
+  const activities = createActivities(leads, deals);
   const trials = createTrials(companies, deals);
   const subscriptions = createContracts(companies);
   const usage = createUsage(companies, subscriptions, trials);

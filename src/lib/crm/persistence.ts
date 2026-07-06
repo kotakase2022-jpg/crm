@@ -15,14 +15,18 @@ export function stripManagedFields(values: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(values).filter(([key]) => !managedFields.has(key)));
 }
 
+function hasOwnField(values: Record<string, unknown>, field: string) {
+  return Object.prototype.hasOwnProperty.call(values, field);
+}
+
 export function withComputedAmounts(table: TableName, values: Record<string, unknown>) {
   const next = { ...values };
 
-  if (table === "deals") {
+  if (table === "deals" && hasOwnField(next, "expected_mrr")) {
     next.expected_arr = toNumber(next.expected_mrr) * 12;
   }
 
-  if (table === "subscriptions") {
+  if (table === "subscriptions" && hasOwnField(next, "mrr")) {
     next.arr = toNumber(next.mrr) * 12;
   }
 

@@ -15,6 +15,23 @@ function firstParamValue(value: string | string[] | undefined) {
   return value ?? "";
 }
 
+const parentDetailParams = [
+  ["support_ticket_id", "tickets"],
+  ["deal_id", "deals"],
+  ["contact_id", "contacts"],
+  ["company_id", "companies"],
+  ["lead_id", "leads"],
+] as const;
+
+function parentCancelHrefFromSearchParams(searchParams: Awaited<SearchParams>) {
+  for (const [field, entity] of parentDetailParams) {
+    const id = firstParamValue(searchParams[field]);
+    if (id) return `/${entity}/${encodeURIComponent(id)}`;
+  }
+
+  return null;
+}
+
 function prefillRecordFromSearchParams(config: EntityConfig, searchParams: Awaited<SearchParams>) {
   const record: CrmRecord = { id: "new" };
   let hasPrefill = false;
@@ -55,12 +72,17 @@ export default async function EntityNewPage({
   const [context, relations] = await Promise.all([getCrmContext(), getRelationOptions()]);
   const action = createEntityAction.bind(null, config.slug);
   const prefillRecord = prefillRecordFromSearchParams(config, resolvedSearchParams);
+  const cancelHref = parentCancelHrefFromSearchParams(resolvedSearchParams) ?? `/${config.slug}`;
   const canCreate = canWriteTable(context.role, config.table);
 
   return (
     <>
       <PageHeader title={`${config.singular}作成`} description="必須項目を入力して保存してください。" />
-      {canCreate ? <EntityForm config={config} record={prefillRecord} relations={relations} action={action} /> : <PermissionNotice action="作成" />}
+      {canCreate ? (
+        <EntityForm config={config} record={prefillRecord} relations={relations} action={action} cancelHref={cancelHref} />
+      ) : (
+        <PermissionNotice action="作成" />
+      )}
     </>
   );
 }

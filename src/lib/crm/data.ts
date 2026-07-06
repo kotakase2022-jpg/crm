@@ -2,12 +2,27 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { buildNextActionTaskFromActivity } from "./activity-next-action";
 import { buildAlerts } from "./alerts";
+import { hasOpenAutomationTask } from "./automation";
 import { assertCanWriteTable } from "./access";
 import { addDemoRow, demoStore, getDemoRows, newDemoId, nowIso, updateDemoRow } from "./demo-data";
 import { entityConfigs } from "./entities";
-import { daysUntil, recordTitle } from "./format";
+import { localDateString, offsetLocalDateString, recordTitle, relationOptionLabel } from "./format";
 import { prepareRecordForPersistence, withComputedAmounts } from "./persistence";
+import {
+  activityRelationForEntity,
+  completeRelationValues,
+  hasRelationConsistencyValue,
+  isActivityParentEntity,
+  mergeRelationConsistencyValues,
+  relatedActivitiesForTask,
+  relatedRows,
+  relationConsistencyErrors,
+  relationIdValue,
+  touchesRelationConsistencyField,
+} from "./related";
+import { filterSortRows } from "./search";
 import type { CrmRecord, DashboardSnapshot, EntityConfig, EntitySlug, QueryState, RelationKey, RelationOptions, TableName } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -40,6 +55,21 @@ const relationTableByKey: Record<RelationKey, TableName> = {
   leads: "leads",
   deals: "deals",
   tickets: "support_tickets",
+  trials: "trials",
+  contracts: "subscriptions",
+};
+
+const relationFieldsByTable: Partial<Record<TableName, readonly string[]>> = {
+  contacts: ["company_id"],
+  deals: ["lead_id", "company_id", "contact_id"],
+  activities: ["lead_id", "company_id", "contact_id", "deal_id"],
+  tasks: ["lead_id", "company_id", "contact_id", "deal_id", "support_ticket_id"],
+  trials: ["company_id", "deal_id"],
+  subscriptions: ["company_id"],
+  product_usage: ["company_id", "subscription_id", "trial_id"],
+  support_tickets: ["company_id", "contact_id"],
+  health_scores: ["company_id"],
+  billing_records: ["company_id", "subscription_id"],
 };
 
 function assertCanWrite(ctx: CrmContext, table: TableName) {
@@ -109,53 +139,6 @@ export async function getCrmContext(options: { allowAnonymous?: boolean; pathnam
   };
 }
 
-function matchesSearch(row: CrmRecord, config: EntityConfig, q?: string) {
-  if (!q) return true;
-  const lowered = q.toLowerCase();
-
-  return config.searchFields.some((field) => {
-    const value = row[field];
-    if (Array.isArray(value)) return value.join(" ").toLowerCase().includes(lowered);
-    return String(value ?? "").toLowerCase().includes(lowered);
-  });
-}
-
-function matchesFilter(row: CrmRecord, config: EntityConfig, filter?: string, view?: string) {
-  if (filter && config.filterField && String(row[config.filterField] ?? "") !== filter) return false;
-
-  if (config.slug === "tasks") {
-    if (view === "today") return row.status !== "完了" && row.due_date === new Date().toISOString().slice(0, 10);
-    if (view === "overdue") {
-      const due = daysUntil(row.due_date);
-      return row.status !== "完了" && due !== null && due < 0;
-    }
-  }
-
-  return true;
-}
-
-function compareValues(a: unknown, b: unknown, direction: "asc" | "desc") {
-  const directionValue = direction === "asc" ? 1 : -1;
-  const aValue = a ?? "";
-  const bValue = b ?? "";
-
-  if (typeof aValue === "number" && typeof bValue === "number") {
-    return (aValue - bValue) * directionValue;
-  }
-
-  return String(aValue).localeCompare(String(bValue), "ja") * directionValue;
-}
-
-function filterSortRows(rows: CrmRecord[], config: EntityConfig, query: QueryState) {
-  const sort = query.sort && config.sortFields.includes(query.sort) ? query.sort : config.sortFields[0] ?? "updated_at";
-  const direction = query.direction ?? "desc";
-
-  return rows
-    .filter((row) => matchesSearch(row, config, query.q))
-    .filter((row) => matchesFilter(row, config, query.filter, query.view))
-    .sort((a, b) => compareValues(a[sort], b[sort], direction));
-}
-
 async function readRows(ctx: CrmContext, table: TableName) {
   if (ctx.mode === "demo") {
     return getDemoRows(table);
@@ -175,8 +158,74 @@ async function readRows(ctx: CrmContext, table: TableName) {
   return (data ?? []) as CrmRecord[];
 }
 
+async function readRowById(ctx: CrmContext, table: TableName, idValue: string) {
+  if (ctx.mode === "demo") {
+    return getDemoRows(table).find((row) => row.id === idValue) ?? null;
+  }
+
+  const { data, error } = await ctx.supabase
+    .from(table)
+    .select("*")
+    .eq("organization_id", ctx.organizationId)
+    .eq("id", idValue)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as CrmRecord | null;
+}
+
+async function readRelationRow(ctx: CrmContext, values: Record<string, unknown>, field: string, table: TableName) {
+  const idValue = relationIdValue(values[field]);
+  return idValue ? readRowById(ctx, table, idValue) : null;
+}
+
+async function readRelationRows(ctx: CrmContext, values: Record<string, unknown>) {
+  const [lead, company, contact, deal, ticket, subscription, trial] = await Promise.all([
+    readRelationRow(ctx, values, "lead_id", "leads"),
+    readRelationRow(ctx, values, "company_id", "companies"),
+    readRelationRow(ctx, values, "contact_id", "contacts"),
+    readRelationRow(ctx, values, "deal_id", "deals"),
+    readRelationRow(ctx, values, "support_ticket_id", "support_tickets"),
+    readRelationRow(ctx, values, "subscription_id", "subscriptions"),
+    readRelationRow(ctx, values, "trial_id", "trials"),
+  ]);
+
+  return { lead, company, contact, deal, ticket, subscription, trial };
+}
+
+async function completeRelationsForTable(
+  ctx: CrmContext,
+  table: TableName,
+  values: Record<string, unknown>,
+  explicitValues: Record<string, unknown> = values,
+) {
+  const related = await readRelationRows(ctx, values);
+  return completeRelationValues(values, related, {
+    allowedFields: relationFieldsByTable[table],
+    explicitValues,
+  });
+}
+
+async function assertRelationConsistency(ctx: CrmContext, values: Record<string, unknown>) {
+  if (!hasRelationConsistencyValue(values)) {
+    return;
+  }
+
+  const errors = relationConsistencyErrors(values, await readRelationRows(ctx, values));
+
+  if (errors.length > 0) {
+    throw new Error(errors.join("\n"));
+  }
+}
+
 async function insertRow(ctx: CrmContext, table: TableName, values: Record<string, unknown>) {
   assertCanWrite(ctx, table);
+  const completedValues = await completeRelationsForTable(ctx, table, values);
+  await assertRelationConsistency(ctx, completedValues);
 
   if (ctx.mode === "demo") {
     const timestamp = nowIso();
@@ -187,14 +236,29 @@ async function insertRow(ctx: CrmContext, table: TableName, values: Record<strin
       updated_at: timestamp,
       created_by: ctx.userId,
       updated_by: ctx.userId,
-      ...values,
+      ...completedValues,
     }) as CrmRecord;
 
     addDemoRow(table, record);
+    if (table === "deals" && typeof record.stage === "string" && record.stage) {
+      addDemoRow("deal_stage_history", {
+        id: newDemoId("stage-history"),
+        organization_id: ctx.organizationId,
+        deal_id: record.id,
+        from_stage: null,
+        to_stage: record.stage,
+        changed_at: timestamp,
+        changed_by: ctx.userId,
+        created_at: timestamp,
+        updated_at: timestamp,
+        created_by: ctx.userId,
+        updated_by: ctx.userId,
+      });
+    }
     return record;
   }
 
-  const persistedValues = prepareRecordForPersistence(table, values);
+  const persistedValues = prepareRecordForPersistence(table, completedValues);
   const { data, error } = await ctx.supabase
     .from(table)
     .insert({
@@ -215,6 +279,25 @@ async function insertRow(ctx: CrmContext, table: TableName, values: Record<strin
 
 async function updateRow(ctx: CrmContext, table: TableName, idValue: string, values: Record<string, unknown>) {
   assertCanWrite(ctx, table);
+  const needsExistingRecord = table === "deals" || touchesRelationConsistencyField(values);
+  const previous = needsExistingRecord ? await readRowById(ctx, table, idValue) : null;
+
+  if (touchesRelationConsistencyField(values)) {
+    if (!previous) throw new Error("対象レコードが見つかりません。");
+    const mergedValues = mergeRelationConsistencyValues(previous, values);
+    const completedMergedValues = await completeRelationsForTable(ctx, table, mergedValues, values);
+    await assertRelationConsistency(ctx, completedMergedValues);
+    values = {
+      ...values,
+      ...Object.fromEntries(
+        (relationFieldsByTable[table] ?? []).flatMap((field) =>
+          completedMergedValues[field] !== previous[field] && completedMergedValues[field] !== undefined ? [[field, completedMergedValues[field]]] : [],
+        ),
+      ),
+    };
+  } else {
+    await assertRelationConsistency(ctx, values);
+  }
 
   if (ctx.mode === "demo") {
     const updated = updateDemoRow(table, idValue, withComputedAmounts(table, {
@@ -224,17 +307,18 @@ async function updateRow(ctx: CrmContext, table: TableName, idValue: string, val
 
     if (!updated) throw new Error("対象レコードが見つかりません。");
 
-    if (table === "deals" && values.stage) {
+    if (table === "deals" && typeof values.stage === "string" && previous?.stage !== values.stage) {
+      const timestamp = nowIso();
       addDemoRow("deal_stage_history", {
         id: newDemoId("stage-history"),
         organization_id: ctx.organizationId,
         deal_id: idValue,
-        from_stage: null,
+        from_stage: typeof previous?.stage === "string" ? previous.stage : null,
         to_stage: values.stage,
-        changed_at: nowIso(),
+        changed_at: timestamp,
         changed_by: ctx.userId,
-        created_at: nowIso(),
-        updated_at: nowIso(),
+        created_at: timestamp,
+        updated_at: timestamp,
         created_by: ctx.userId,
         updated_by: ctx.userId,
       });
@@ -266,29 +350,13 @@ async function updateRow(ctx: CrmContext, table: TableName, idValue: string, val
 export async function listRecords(config: EntityConfig, query: QueryState = {}) {
   const ctx = await getCrmContext();
   const rows = await readRows(ctx, config.table);
-  return filterSortRows(rows, config, query);
+  const relations = query.q ? await getRelationOptionsForContext(ctx) : {};
+  return filterSortRows(rows, config, query, relations);
 }
 
 export async function getRecord(config: EntityConfig, idValue: string) {
   const ctx = await getCrmContext();
-
-  if (ctx.mode === "demo") {
-    return getDemoRows(config.table).find((row) => row.id === idValue) ?? null;
-  }
-
-  const { data, error } = await ctx.supabase
-    .from(config.table)
-    .select("*")
-    .eq("organization_id", ctx.organizationId)
-    .eq("id", idValue)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data as CrmRecord | null;
+  return readRowById(ctx, config.table, idValue);
 }
 
 export async function createRecord(config: EntityConfig, values: Record<string, unknown>) {
@@ -301,7 +369,7 @@ export async function createRecord(config: EntityConfig, values: Record<string, 
       description: "新規リード登録後の自動タスクです。",
       status: "未完了",
       priority: "高",
-      due_date: new Date().toISOString().slice(0, 10),
+      due_date: localDateString(),
       lead_id: record.id,
       automation_key: `lead-first-call-${record.id}`,
     });
@@ -321,7 +389,7 @@ export async function updateRecord(config: EntityConfig, idValue: string, values
       description: "デモ実施翌日のフォロータスクです。",
       status: "未完了",
       priority: "中",
-      due_date: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
+      due_date: offsetLocalDateString(1),
       deal_id: idValue,
       company_id: typeof record.company_id === "string" ? record.company_id : null,
     });
@@ -355,22 +423,56 @@ export async function reopenTask(idValue: string) {
 
 export async function createActivity(values: Record<string, unknown>) {
   const ctx = await getCrmContext();
-  return insertRow(ctx, "activities", {
+  const activity = await insertRow(ctx, "activities", {
     type: "メモ",
     occurred_at: nowIso(),
     has_next_action: false,
     ...values,
   });
+
+  await createTaskForNextActionActivity(ctx, activity);
+  return activity;
+}
+
+export async function createActivityForEntity(entity: EntitySlug, idValue: string, values: Record<string, unknown>) {
+  if (!isActivityParentEntity(entity)) {
+    throw new Error("活動履歴を追加できる画面ではありません。");
+  }
+
+  const config = entityConfigs[entity];
+  const ctx = await getCrmContext();
+  const record = await readRowById(ctx, config.table, idValue);
+
+  if (!record) {
+    throw new Error("活動を紐づける対象レコードが見つかりません。");
+  }
+
+  const activity = await insertRow(ctx, "activities", {
+    type: "メモ",
+    occurred_at: nowIso(),
+    has_next_action: false,
+    ...values,
+    ...activityRelationForEntity(entity, record),
+  });
+
+  await createTaskForNextActionActivity(ctx, activity);
+  return activity;
 }
 
 async function ensureTask(ctx: CrmContext, task: Record<string, unknown>) {
   const existing = await readRows(ctx, "tasks");
   const key = String(task.automation_key ?? "");
-  if (key && existing.some((row) => row.automation_key === key && !row.deleted_at)) {
+  if (key && hasOpenAutomationTask(existing, key)) {
     return null;
   }
 
   return insertRow(ctx, "tasks", task);
+}
+
+async function createTaskForNextActionActivity(ctx: CrmContext, activity: CrmRecord) {
+  const task = buildNextActionTaskFromActivity(activity);
+  if (!task) return null;
+  return ensureTask(ctx, task);
 }
 
 export async function convertLead(idValue: string) {
@@ -385,8 +487,12 @@ export async function convertLead(idValue: string) {
     throw new Error("リードが見つかりません。");
   }
 
-  if (lead.converted_deal_id) {
-    return String(lead.converted_deal_id);
+  const convertedDealId = relationIdValue(lead.converted_deal_id);
+  if (convertedDealId) {
+    const convertedDeal = await readRowById(ctx, "deals", convertedDealId);
+    if (convertedDeal) {
+      return convertedDealId;
+    }
   }
 
   const company = await insertRow(ctx, "companies", {
@@ -454,7 +560,7 @@ export async function convertLead(idValue: string) {
     description: "リード商談化後の次アクションです。",
     status: "未完了",
     priority: "中",
-    due_date: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
+    due_date: offsetLocalDateString(1),
     lead_id: lead.id,
     company_id: company.id,
     deal_id: deal.id,
@@ -463,8 +569,7 @@ export async function convertLead(idValue: string) {
   return String(deal.id);
 }
 
-export async function getRelationOptions(): Promise<RelationOptions> {
-  const ctx = await getCrmContext();
+async function getRelationOptionsForContext(ctx: CrmContext): Promise<RelationOptions> {
   const entries = await Promise.all(
     (Object.keys(relationTableByKey) as RelationKey[]).map(async (key) => {
       const rows = await readRows(ctx, relationTableByKey[key]);
@@ -472,7 +577,7 @@ export async function getRelationOptions(): Promise<RelationOptions> {
         key,
         rows.map((row) => ({
           value: String(row.id),
-          label: relationLabel(key, row),
+          label: relationOptionLabel(key, row),
         })),
       ] as const;
     }),
@@ -481,12 +586,9 @@ export async function getRelationOptions(): Promise<RelationOptions> {
   return Object.fromEntries(entries);
 }
 
-function relationLabel(key: RelationKey, row: CrmRecord) {
-  if (key === "companies") return String(row.name ?? row.id);
-  if (key === "contacts") return String(row.name ?? row.email ?? row.id);
-  if (key === "leads") return String(row.company_name ?? row.name ?? row.id);
-  if (key === "deals") return String(row.name ?? row.id);
-  return String(row.title ?? row.id);
+export async function getRelationOptions(): Promise<RelationOptions> {
+  const ctx = await getCrmContext();
+  return getRelationOptionsForContext(ctx);
 }
 
 export async function getRelatedSections(entity: EntitySlug, idValue: string): Promise<RelatedSection[]> {
@@ -507,60 +609,62 @@ export async function getRelatedSections(entity: EntitySlug, idValue: string): P
 
   if (entity === "companies") {
     return [
-      { title: "担当者", entity: "contacts", rows: contacts.filter((row) => row.company_id === idValue) },
-      { title: "商談", entity: "deals", rows: deals.filter((row) => row.company_id === idValue) },
-      { title: "タスク", entity: "tasks", rows: tasks.filter((row) => row.company_id === idValue) },
-      { title: "トライアル", entity: "trials", rows: trials.filter((row) => row.company_id === idValue) },
-      { title: "契約情報", entity: "contracts", rows: contracts.filter((row) => row.company_id === idValue) },
-      { title: "利用状況", rows: usage.filter((row) => row.company_id === idValue) },
-      { title: "問い合わせ/チケット", entity: "tickets", rows: tickets.filter((row) => row.company_id === idValue) },
-      { title: "ヘルススコア", rows: healthScores.filter((row) => row.company_id === idValue) },
-      { title: "活動履歴", rows: activities.filter((row) => row.company_id === idValue) },
+      { title: "担当者", entity: "contacts", rows: relatedRows(contacts, "company_id", idValue) },
+      { title: "商談", entity: "deals", rows: relatedRows(deals, "company_id", idValue) },
+      { title: "タスク", entity: "tasks", rows: relatedRows(tasks, "company_id", idValue) },
+      { title: "トライアル", entity: "trials", rows: relatedRows(trials, "company_id", idValue) },
+      { title: "契約情報", entity: "contracts", rows: relatedRows(contracts, "company_id", idValue) },
+      { title: "利用状況", rows: relatedRows(usage, "company_id", idValue) },
+      { title: "請求履歴", rows: relatedRows(billing, "company_id", idValue) },
+      { title: "問い合わせ/チケット", entity: "tickets", rows: relatedRows(tickets, "company_id", idValue) },
+      { title: "ヘルススコア", rows: relatedRows(healthScores, "company_id", idValue) },
+      { title: "活動履歴", rows: relatedRows(activities, "company_id", idValue) },
     ];
   }
 
   if (entity === "leads") {
     return [
-      { title: "商談", entity: "deals", rows: deals.filter((row) => row.lead_id === idValue) },
-      { title: "タスク", entity: "tasks", rows: tasks.filter((row) => row.lead_id === idValue) },
-      { title: "活動履歴", rows: activities.filter((row) => row.lead_id === idValue) },
+      { title: "商談", entity: "deals", rows: relatedRows(deals, "lead_id", idValue) },
+      { title: "タスク", entity: "tasks", rows: relatedRows(tasks, "lead_id", idValue) },
+      { title: "活動履歴", rows: relatedRows(activities, "lead_id", idValue) },
     ];
   }
 
   if (entity === "contacts") {
     return [
-      { title: "商談", entity: "deals", rows: deals.filter((row) => row.contact_id === idValue) },
-      { title: "タスク", entity: "tasks", rows: tasks.filter((row) => row.contact_id === idValue) },
-      { title: "問い合わせ/チケット", entity: "tickets", rows: tickets.filter((row) => row.contact_id === idValue) },
-      { title: "活動履歴", rows: activities.filter((row) => row.contact_id === idValue) },
+      { title: "商談", entity: "deals", rows: relatedRows(deals, "contact_id", idValue) },
+      { title: "タスク", entity: "tasks", rows: relatedRows(tasks, "contact_id", idValue) },
+      { title: "問い合わせ/チケット", entity: "tickets", rows: relatedRows(tickets, "contact_id", idValue) },
+      { title: "活動履歴", rows: relatedRows(activities, "contact_id", idValue) },
     ];
   }
 
   if (entity === "deals") {
     return [
-      { title: "タスク", entity: "tasks", rows: tasks.filter((row) => row.deal_id === idValue) },
-      { title: "トライアル", entity: "trials", rows: trials.filter((row) => row.deal_id === idValue) },
-      { title: "ステージ履歴", rows: stageHistory.filter((row) => row.deal_id === idValue) },
-      { title: "活動履歴", rows: activities.filter((row) => row.deal_id === idValue) },
+      { title: "タスク", entity: "tasks", rows: relatedRows(tasks, "deal_id", idValue) },
+      { title: "トライアル", entity: "trials", rows: relatedRows(trials, "deal_id", idValue) },
+      { title: "ステージ履歴", rows: relatedRows(stageHistory, "deal_id", idValue) },
+      { title: "活動履歴", rows: relatedRows(activities, "deal_id", idValue) },
     ];
   }
 
   if (entity === "tasks") {
-    return [{ title: "関連活動", rows: activities.filter((row) => row.lead_id === idValue || row.company_id === idValue || row.deal_id === idValue) }];
+    const task = tasks.find((row) => row.id === idValue);
+    return [{ title: "関連活動", rows: relatedActivitiesForTask(task, activities) }];
   }
 
   if (entity === "trials") {
-    return [{ title: "利用状況", rows: usage.filter((row) => row.trial_id === idValue) }];
+    return [{ title: "利用状況", rows: relatedRows(usage, "trial_id", idValue) }];
   }
 
   if (entity === "contracts") {
     return [
-      { title: "利用状況", rows: usage.filter((row) => row.subscription_id === idValue) },
-      { title: "請求履歴", rows: billing.filter((row) => row.subscription_id === idValue) },
+      { title: "利用状況", rows: relatedRows(usage, "subscription_id", idValue) },
+      { title: "請求履歴", rows: relatedRows(billing, "subscription_id", idValue) },
     ];
   }
 
-  return [{ title: "関連タスク", entity: "tasks", rows: tasks.filter((row) => row.support_ticket_id === idValue) }];
+  return [{ title: "関連タスク", entity: "tasks", rows: relatedRows(tasks, "support_ticket_id", idValue) }];
 }
 
 export async function getSnapshot(): Promise<DashboardSnapshot> {
@@ -608,7 +712,7 @@ export async function generateAutomationTasks() {
       description: alert.description,
       status: "未完了",
       priority: alert.priority ?? "中",
-      due_date: alert.dueDate ?? new Date().toISOString().slice(0, 10),
+      due_date: alert.dueDate ?? localDateString(),
       lead_id: alert.lead_id ?? null,
       company_id: alert.company_id ?? null,
       deal_id: alert.deal_id ?? null,

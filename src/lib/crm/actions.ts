@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { z } from "zod";
-import { activityTypes } from "./options";
 import {
   completeTask,
   convertLead,
-  createActivity,
+  createActivityForEntity,
   createRecord,
   generateAutomationTasks,
   reopenTask,
@@ -15,73 +13,20 @@ import {
   updateRecord,
 } from "./data";
 import { getEntityConfig } from "./entities";
-import { runLeadImportSetting, saveLeadImportSetting } from "./lead-imports";
-import type { EntityConfig, EntitySlug, FieldConfig } from "./types";
+import { LeadImportValidationError, runLeadImportSetting, saveLeadImportSetting } from "./lead-imports";
+import { safeInternalRedirectPath } from "./navigation";
+import { CrmValidationError, parseActivityFormValues, parseEntityFormValues } from "./validation";
+import type { EntitySlug } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-function coerceField(field: FieldConfig, formData: FormData) {
-  if (field.type === "multiselect") {
-    return formData.getAll(field.name).map(String).filter(Boolean);
-  }
-
-  if (field.type === "checkbox") {
-    return formData.get(field.name) === "on";
-  }
-
-  const raw = formData.get(field.name);
-  const value = typeof raw === "string" ? raw.trim() : "";
-
-  if (!value) return null;
-
-  if (field.type === "number") {
-    return Number(value);
-  }
-
-  if (field.type === "datetime-local") {
-    return new Date(value).toISOString();
-  }
-
-  return value;
-}
-
-function parseValues(config: EntityConfig, formData: FormData) {
-  const values: Record<string, unknown> = {};
-  const errors: Record<string, string> = {};
-
-  for (const field of config.fields) {
-    const value = coerceField(field, formData);
-    const isEmpty = value === null || value === "" || (Array.isArray(value) && value.length === 0);
-
-    if (field.required && isEmpty) {
-      errors[field.name] = `${field.label}は必須です。`;
-      continue;
-    }
-
-    if (field.type === "number" && value !== null) {
-      const numberValue = z.number().safeParse(value);
-      if (!numberValue.success || Number.isNaN(value)) {
-        errors[field.name] = `${field.label}は数値で入力してください。`;
-        continue;
-      }
-      if (field.min !== undefined && Number(value) < field.min) errors[field.name] = `${field.label}は${field.min}以上で入力してください。`;
-      if (field.max !== undefined && Number(value) > field.max) errors[field.name] = `${field.label}は${field.max}以下で入力してください。`;
-    }
-
-    if (field.type === "email" && value) {
-      const email = z.string().email().safeParse(value);
-      if (!email.success) errors[field.name] = "メールアドレスの形式で入力してください。";
-    }
-
-    values[field.name] = value;
-  }
-
-  if (Object.keys(errors).length > 0) {
-    throw new Error(Object.values(errors).join("\n"));
-  }
-
-  return values;
-}
+const relationDetailEntities = {
+  lead_id: "leads",
+  company_id: "companies",
+  contact_id: "contacts",
+  deal_id: "deals",
+  support_ticket_id: "tickets",
+} as const satisfies Record<string, EntitySlug>;
 
 function mustGetConfig(entity: EntitySlug | string) {
   const config = getEntityConfig(entity);
@@ -89,89 +34,140 @@ function mustGetConfig(entity: EntitySlug | string) {
   return config;
 }
 
+function revalidateOperationalViews() {
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+}
+
+function revalidateRelatedRecordViews(record: Record<string, unknown>) {
+  for (const [field, entity] of Object.entries(relationDetailEntities)) {
+    const id = record[field];
+    if (typeof id === "string" && id) {
+      revalidatePath(`/${entity}/${id}`);
+    }
+  }
+}
+
 export async function createEntityAction(entity: EntitySlug, formData: FormData) {
   const config = mustGetConfig(entity);
-  const values = parseValues(config, formData);
-  const record = await createRecord(config, values);
+  let record: Awaited<ReturnType<typeof createRecord>> | null = null;
+  let validationFailed = false;
+
+  try {
+    const values = parseEntityFormValues(config, formData);
+    record = await createRecord(config, values);
+  } catch (error) {
+    if (error instanceof CrmValidationError) {
+      validationFailed = true;
+    } else {
+      throw error;
+    }
+  }
+
+  if (validationFailed) return redirect(`/${entity}/new?toast=validation-error`);
+  if (!record) throw new Error("Create action did not return a record.");
 
   revalidatePath(`/${entity}`);
+  revalidateRelatedRecordViews(record);
+  revalidateOperationalViews();
+  if (entity === "leads") revalidatePath("/tasks");
   redirect(`/${entity}/${record.id}?toast=created`);
 }
 
 export async function updateEntityAction(entity: EntitySlug, id: string, formData: FormData) {
   const config = mustGetConfig(entity);
-  const values = parseValues(config, formData);
-  await updateRecord(config, id, values);
+  let record: Awaited<ReturnType<typeof updateRecord>> | null = null;
+  let validationFailed = false;
+
+  try {
+    const values = parseEntityFormValues(config, formData);
+    record = await updateRecord(config, id, values);
+  } catch (error) {
+    if (error instanceof CrmValidationError) {
+      validationFailed = true;
+    } else {
+      throw error;
+    }
+  }
+
+  if (validationFailed) return redirect(`/${entity}/${id}/edit?toast=validation-error`);
+  if (!record) throw new Error("Update action did not return a record.");
 
   revalidatePath(`/${entity}`);
   revalidatePath(`/${entity}/${id}`);
+  revalidateRelatedRecordViews(record);
+  revalidateOperationalViews();
+  if (entity === "deals") revalidatePath("/tasks");
   redirect(`/${entity}/${id}?toast=updated`);
 }
 
 export async function deleteEntityAction(entity: EntitySlug, id: string) {
   const config = mustGetConfig(entity);
-  await softDeleteRecord(config, id);
+  const record = await softDeleteRecord(config, id);
 
   revalidatePath(`/${entity}`);
+  revalidateRelatedRecordViews(record);
+  revalidateOperationalViews();
   redirect(`/${entity}?toast=deleted`);
 }
 
 export async function completeTaskAction(id: string) {
-  await completeTask(id);
+  const record = await completeTask(id);
   revalidatePath("/tasks");
+  revalidatePath(`/tasks/${id}`);
+  revalidateRelatedRecordViews(record);
+  revalidateOperationalViews();
   redirect(`/tasks/${id}?toast=completed`);
 }
 
 export async function reopenTaskAction(id: string) {
-  await reopenTask(id);
+  const record = await reopenTask(id);
   revalidatePath("/tasks");
+  revalidatePath(`/tasks/${id}`);
+  revalidateRelatedRecordViews(record);
+  revalidateOperationalViews();
   redirect(`/tasks/${id}?toast=reopened`);
 }
 
 export async function convertLeadAction(id: string) {
   const dealId = await convertLead(id);
   revalidatePath("/leads");
+  revalidatePath(`/leads/${id}`);
   revalidatePath("/companies");
   revalidatePath("/contacts");
   revalidatePath("/deals");
+  revalidatePath("/tasks");
+  revalidateOperationalViews();
   redirect(`/deals/${dealId}?toast=converted`);
 }
 
-function activityRelation(entity: EntitySlug, id: string) {
-  if (entity === "leads") return { lead_id: id };
-  if (entity === "companies") return { company_id: id };
-  if (entity === "contacts") return { contact_id: id };
-  if (entity === "deals") return { deal_id: id };
-  return {};
-}
-
 export async function createActivityAction(entity: EntitySlug, id: string, formData: FormData) {
-  const type = String(formData.get("type") ?? "メモ");
-  const subject = String(formData.get("subject") ?? "").trim();
-  const content = String(formData.get("content") ?? "").trim();
-  const occurredAt = String(formData.get("occurred_at") ?? "").trim();
-  const hasNextAction = formData.get("has_next_action") === "on";
-  const nextActionDate = String(formData.get("next_action_date") ?? "").trim();
+  let values: ReturnType<typeof parseActivityFormValues> | null = null;
+  let activity: Awaited<ReturnType<typeof createActivityForEntity>> | null = null;
+  let validationFailed = false;
 
-  if (!activityTypes.includes(type as (typeof activityTypes)[number])) {
-    throw new Error("活動種別が不正です。");
+  try {
+    values = parseActivityFormValues(formData);
+    activity = await createActivityForEntity(entity, id, values);
+  } catch (error) {
+    if (error instanceof CrmValidationError) {
+      validationFailed = true;
+    } else {
+      throw error;
+    }
   }
 
-  if (!subject) {
-    throw new Error("活動件名は必須です。");
-  }
-
-  await createActivity({
-    type,
-    subject,
-    content,
-    occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
-    has_next_action: hasNextAction,
-    next_action_date: nextActionDate || null,
-    ...activityRelation(entity, id),
-  });
+  if (validationFailed) return redirect(`/${entity}/${id}?toast=validation-error`);
+  if (!values || !activity) throw new Error("Activity action did not return a record.");
 
   revalidatePath(`/${entity}/${id}`);
+  revalidateRelatedRecordViews(activity);
+  // Any activity clears the "untouched lead" dashboard alert and affects report
+  // counts, so refresh operational views regardless of next-action state.
+  revalidateOperationalViews();
+  if (values.has_next_action) {
+    revalidatePath("/tasks");
+  }
   redirect(`/${entity}/${id}?toast=activity`);
 }
 
@@ -183,7 +179,16 @@ export async function runAutomationAction() {
 }
 
 export async function saveLeadImportSettingAction(formData: FormData) {
-  await saveLeadImportSetting(formData);
+  try {
+    await saveLeadImportSetting(formData);
+  } catch (error) {
+    if (error instanceof LeadImportValidationError) {
+      return redirect("/leads/import-settings?toast=settings-error");
+    }
+
+    throw error;
+  }
+
   revalidatePath("/leads/import-settings");
   revalidatePath("/leads");
   redirect("/leads/import-settings?toast=settings-saved");
@@ -193,6 +198,8 @@ export async function runLeadImportSettingAction(settingId: string) {
   const result = await runLeadImportSetting(settingId);
   revalidatePath("/leads/import-settings");
   revalidatePath("/leads");
+  revalidatePath("/tasks");
+  revalidateOperationalViews();
   redirect(
     `/leads/import-settings?toast=import-${result.status}&imported=${result.importedCount}&skipped=${result.skippedCount}`,
   );
@@ -200,7 +207,7 @@ export async function runLeadImportSettingAction(settingId: string) {
 
 export async function signInAction(formData: FormData) {
   const env = getSupabaseEnv();
-  const next = String(formData.get("next") ?? "/dashboard");
+  const next = safeInternalRedirectPath(formData.get("next"));
 
   if (!env.configured) {
     redirect("/dashboard?toast=demo");
@@ -211,7 +218,7 @@ export async function signInAction(formData: FormData) {
     redirect("/dashboard?toast=demo");
   }
 
-  const email = String(formData.get("email") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -224,7 +231,7 @@ export async function signInAction(formData: FormData) {
 
 export async function signUpAction(formData: FormData) {
   const env = getSupabaseEnv();
-  const next = String(formData.get("next") ?? "/dashboard");
+  const next = safeInternalRedirectPath(formData.get("next"));
 
   if (!env.configured) {
     redirect("/dashboard?toast=demo");
@@ -235,7 +242,7 @@ export async function signUpAction(formData: FormData) {
     redirect("/dashboard?toast=demo");
   }
 
-  const email = String(formData.get("email") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const { error } = await supabase.auth.signUp({ email, password });
 

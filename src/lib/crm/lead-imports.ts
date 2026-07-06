@@ -5,11 +5,14 @@ import { assertCanWriteTable, canWriteTable } from "./access";
 import { parseCsv } from "./csv";
 import { getCrmContext } from "./data";
 import { addDemoRow, getDemoRows, newDemoId, nowIso, updateDemoRow } from "./demo-data";
+import { localDateString } from "./format";
 import {
   assertTrustedSpreadsheetCsvUrl,
   defaultLeadImportStatus,
   importSourceId,
+  importSourceIdSet,
   normalizeLeadImportRow,
+  recentLeadImportRuns,
   safeLeadImportStatus,
   spreadsheetUrlToCsvUrl,
 } from "./lead-import-utils";
@@ -18,7 +21,7 @@ import { prepareRecordForPersistence } from "./persistence";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CrmRecord } from "./types";
 
-export { defaultLeadImportStatus } from "./lead-import-utils";
+export { defaultLeadImportStatus, safeLeadImportStatus } from "./lead-import-utils";
 
 type CrmContext = Awaited<ReturnType<typeof getCrmContext>>;
 
@@ -28,6 +31,13 @@ export type LeadImportView = {
   canManage: boolean;
   mode: "demo" | "supabase";
 };
+
+export class LeadImportValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LeadImportValidationError";
+  }
+}
 
 type ImportResult = {
   settingId: string;
@@ -139,7 +149,7 @@ async function existingSourceIdsInSupabase(supabase: SupabaseClient, setting: Cr
     .is("deleted_at", null);
 
   if (error) throw new Error(error.message);
-  return new Set((data ?? []).map((row) => String(row.external_source_id)).filter(Boolean));
+  return importSourceIdSet((data ?? []) as Array<Record<string, unknown>>);
 }
 
 function leadFirstCallTask(leadId: string) {
@@ -148,7 +158,7 @@ function leadFirstCallTask(leadId: string) {
     description: "スプレッドシート取込後の自動タスクです。",
     status: taskStatuses[0],
     priority: priorities[2],
-    due_date: new Date().toISOString().slice(0, 10),
+    due_date: localDateString(),
     lead_id: leadId,
     automation_key: `lead-first-call-${leadId}`,
   };
@@ -281,12 +291,7 @@ async function importWithPersistence({
 }
 
 async function importDemoSetting(setting: CrmRecord) {
-  const existingSourceIds = new Set(
-    getDemoRows("leads")
-      .filter((lead) => lead.import_setting_id === setting.id)
-      .map((lead) => String(lead.external_source_id ?? ""))
-      .filter(Boolean),
-  );
+  const existingSourceIds = importSourceIdSet(getDemoRows("leads").filter((lead) => lead.import_setting_id === setting.id));
 
   return importWithPersistence({
     setting,
@@ -345,7 +350,7 @@ export async function getLeadImportView(): Promise<LeadImportView> {
   if (ctx.mode === "demo") {
     return {
       settings: getDemoRows("lead_import_settings"),
-      runs: getDemoRows("lead_import_runs").slice(0, 10),
+      runs: recentLeadImportRuns(getDemoRows("lead_import_runs")),
       canManage,
       mode: "demo",
     };
@@ -381,10 +386,14 @@ export async function getLeadImportView(): Promise<LeadImportView> {
 function parseSettingForm(formData: FormData) {
   const rawUrl = valueAsString(formData.get("spreadsheet_url"));
   if (!rawUrl) {
-    throw new Error("スプレッドシートURLは必須です。");
+    throw new LeadImportValidationError("スプレッドシートURLは必須です。");
   }
 
-  spreadsheetUrlToCsvUrl(rawUrl);
+  try {
+    spreadsheetUrlToCsvUrl(rawUrl);
+  } catch {
+    throw new LeadImportValidationError("Googleスプレッドシートの共有URLまたは公開CSV URLを入力してください。");
+  }
 
   const defaultStatus = safeLeadImportStatus(valueAsString(formData.get("default_status")) || defaultLeadImportStatus);
   return {

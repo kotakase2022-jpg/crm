@@ -49,7 +49,7 @@ export type FieldType =
   | "multiselect"
   | "checkbox";
 
-export type RelationKey = "companies" | "contacts" | "leads" | "deals" | "tickets";
+export type RelationKey = "companies" | "contacts" | "leads" | "deals" | "tickets" | "trials" | "contracts";
 
 export type FieldConfig = {
   name: string;

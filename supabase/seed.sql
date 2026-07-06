@@ -29,6 +29,7 @@ declare
   ];
   i integer;
   j integer;
+  v_deal_index integer;
   v_company uuid;
   v_contact uuid;
   v_deal uuid;
@@ -193,6 +194,8 @@ begin
   end loop;
 
   for i in 1..30 loop
+    v_deal_index := ((i - 1) % array_length(deal_ids, 1)) + 1;
+
     insert into public.tasks (
       organization_id, title, description, status, priority, due_date, assignee_id,
       lead_id, company_id, deal_id, support_ticket_id, automation_key, created_by, updated_by
@@ -206,8 +209,8 @@ begin
       current_date + ((i % 14) - 7),
       v_user,
       case when i <= 20 then lead_ids[i] else null end,
-      company_ids[((i - 1) % array_length(company_ids, 1)) + 1],
-      deal_ids[((i - 1) % array_length(deal_ids, 1)) + 1],
+      company_ids[((v_deal_index - 1) % array_length(company_ids, 1)) + 1],
+      deal_ids[v_deal_index],
       null,
       'seed-task-' || i,
       v_user,
@@ -216,6 +219,8 @@ begin
   end loop;
 
   for i in 1..50 loop
+    v_deal_index := ((i - 1) % array_length(deal_ids, 1)) + 1;
+
     insert into public.activities (
       organization_id, type, subject, content, occurred_at, owner_id,
       lead_id, company_id, contact_id, deal_id, has_next_action, next_action_date,
@@ -229,9 +234,9 @@ begin
       now() - ((50 - i) || ' days')::interval,
       v_user,
       case when i <= 20 then lead_ids[i] else null end,
-      company_ids[((i - 1) % array_length(company_ids, 1)) + 1],
-      contact_ids[((i - 1) % array_length(contact_ids, 1)) + 1],
-      deal_ids[((i - 1) % array_length(deal_ids, 1)) + 1],
+      company_ids[((v_deal_index - 1) % array_length(company_ids, 1)) + 1],
+      contact_ids[v_deal_index],
+      deal_ids[v_deal_index],
       i % 3 = 0,
       case when i % 3 = 0 then current_date + (i % 7) else null end,
       v_user,
@@ -240,6 +245,8 @@ begin
   end loop;
 
   for i in 1..8 loop
+    v_deal_index := i;
+
     insert into public.trials (
       organization_id, company_id, deal_id, start_date, end_date, first_login_at,
       login_count, documents_created, estimates_created, invoices_created,
@@ -249,7 +256,7 @@ begin
     values (
       v_org,
       company_ids[i],
-      deal_ids[((i + 4) % array_length(deal_ids, 1)) + 1],
+      deal_ids[v_deal_index],
       current_date - (i * 3),
       current_date + (21 - i),
       case when i % 3 = 0 then null else now() - (i || ' days')::interval end,

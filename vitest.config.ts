@@ -20,6 +20,8 @@ export default defineConfig({
       reportsDirectory: "coverage",
       reporter: ["text", "json", "html", "lcov"],
       include: [
+        "src/lib/crm/activity-next-action.ts",
+        "src/lib/crm/automation.ts",
         "src/lib/crm/alerts.ts",
         "src/lib/crm/analytics.ts",
         "src/lib/crm/api.ts",
@@ -27,8 +29,12 @@ export default defineConfig({
         "src/lib/crm/format.ts",
         "src/lib/crm/health.ts",
         "src/lib/crm/lead-import-utils.ts",
+        "src/lib/crm/navigation.ts",
         "src/lib/crm/persistence.ts",
+        "src/lib/crm/related.ts",
+        "src/lib/crm/search.ts",
         "src/lib/crm/validation.ts",
+        "src/lib/supabase/proxy.ts",
         "src/lib/utils.ts",
       ],
       thresholds: {

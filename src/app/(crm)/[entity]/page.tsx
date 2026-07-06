@@ -14,6 +14,12 @@ function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function direction(value: string | string[] | undefined) {
+  const current = first(value);
+  if (current === "asc" || current === "desc") return current;
+  return undefined;
+}
+
 export default async function EntityListPage({
   params,
   searchParams,
@@ -30,7 +36,7 @@ export default async function EntityListPage({
     q: first(rawQuery.q),
     filter: first(rawQuery.filter),
     sort: first(rawQuery.sort),
-    direction: first(rawQuery.direction) === "asc" ? "asc" : "desc",
+    direction: direction(rawQuery.direction),
     view: first(rawQuery.view),
   };
   const [context, rows, allRows, relations] = await Promise.all([getCrmContext(), listRecords(config, query), listRecords(config), getRelationOptions()]);
@@ -53,7 +59,7 @@ export default async function EntityListPage({
       </PageHeader>
       {config.slug === "deals" ? <StageBoard deals={rows} query={query} /> : null}
       <EntityFilterBar config={config} rows={allRows} query={query} />
-      <EntityTable config={config} rows={rows} relations={relations} />
+      <EntityTable config={config} rows={rows} relations={relations} query={query} />
     </>
   );
 }

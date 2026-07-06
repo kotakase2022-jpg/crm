@@ -28,6 +28,12 @@ describe("CSV parsing", () => {
     expect(() => parseCsv(fixture("leads.invalid.csv"))).toThrow(CsvParseError);
   });
 
+  it("rejects duplicate headers instead of silently overwriting imported values", () => {
+    expect(() => parseCsv("name,company_name,email,email\nLead A,Sample Construction,a@example.test,b@example.test")).toThrow(
+      "CSV has duplicate header: email",
+    );
+  });
+
   it("keeps numeric boundary values visible for import validation", () => {
     const result = parseCsv(fixture("leads.boundary.csv"), { requiredHeaders: ["name", "company_name"] });
 

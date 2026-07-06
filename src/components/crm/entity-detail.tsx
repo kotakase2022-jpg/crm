@@ -13,7 +13,9 @@ import {
   reopenTaskAction,
 } from "@/lib/crm/actions";
 import { activityTypes } from "@/lib/crm/options";
-import { formatValue } from "@/lib/crm/format";
+import { formatValue, recordTitle } from "@/lib/crm/format";
+import { relationHrefForField } from "@/lib/crm/related";
+import { isCompletedTaskStatus } from "@/lib/crm/automation";
 import type { CrmRecord, EntityConfig, EntitySlug, RelationOptions } from "@/lib/crm/types";
 import type { RelatedSection } from "@/lib/crm/data";
 import { getEntityConfig } from "@/lib/crm/entities";
@@ -27,9 +29,9 @@ function sectionFields(section: RelatedSection) {
   if (section.entity === "trials") return ["company_id", "start_date", "end_date", "activation_level"];
   if (section.entity === "contracts") return ["plan", "mrr", "status", "renewal_on"];
   if (section.entity === "tickets") return ["title", "type", "priority", "status"];
-  if (section.title === "利用状況") return ["period_start", "period_end", "login_count", "documents_created", "active_users_count"];
+  if (section.title === "利用状況") return ["subscription_id", "trial_id", "period_start", "period_end", "login_count", "documents_created", "active_users_count"];
   if (section.title === "ヘルススコア") return ["measured_on", "total_score", "health_status", "churn_risk", "upsell_candidate"];
-  if (section.title === "請求履歴") return ["billing_month", "amount", "status", "due_on"];
+  if (section.title === "請求履歴") return ["subscription_id", "billing_month", "amount", "status", "due_on"];
   if (section.title === "ステージ履歴") return ["from_stage", "to_stage", "changed_at"];
   return ["type", "subject", "occurred_at", "has_next_action"];
 }
@@ -46,6 +48,8 @@ const relatedFieldLabels: Record<string, string> = {
   login_count: "ログイン回数",
   documents_created: "帳票作成数",
   active_users_count: "利用ユーザー数",
+  subscription_id: "契約",
+  trial_id: "トライアル",
   measured_on: "測定日",
   total_score: "ヘルススコア",
   health_status: "状態",
@@ -112,6 +116,13 @@ function relatedCreateLabel(entity: EntitySlug) {
   return `${getEntityConfig(entity)?.singular ?? "関連データ"}を追加`;
 }
 
+function relatedListHref(record: CrmRecord, childEntity: EntitySlug) {
+  const params = new URLSearchParams();
+  const title = recordTitle(record);
+  if (title && title !== "-") params.set("q", title);
+  return params.size > 0 ? `/${childEntity}?${params.toString()}` : `/${childEntity}`;
+}
+
 function canCreateRelatedEntity(role: string, entity: EntitySlug) {
   const config = getEntityConfig(entity);
   return config ? canWriteTable(role, config.table) : false;
@@ -141,10 +152,15 @@ function RelatedTable({ section, relations }: { section: RelatedSection; relatio
             <tr key={row.id} className="border-b border-slate-50 last:border-0">
               {fields.map((field, index) => {
                 const content = formatValue(field, row[field], relations);
+                const href = relationHrefForField(field, row[field], relations);
                 return (
                   <td key={field} className="truncate px-3 py-2 text-slate-700">
                     {index === 0 && section.entity ? (
                       <Link href={`/${section.entity}/${row.id}`} className="font-semibold text-slate-950 hover:text-blue-700">
+                        {content}
+                      </Link>
+                    ) : href ? (
+                      <Link href={href} className="font-semibold text-blue-700 hover:text-blue-800 hover:underline">
                         {content}
                       </Link>
                     ) : ["status", "priority", "stage", "health_status", "churn_risk"].includes(field) ? (
@@ -241,6 +257,7 @@ export function EntityDetail({
   const reopenAction = reopenTaskAction.bind(null, String(record.id));
   const canWriteCurrent = canWriteTable(role, config.table);
   const canCreateActivities = canWriteTable(role, "activities");
+  const isCompletedTask = config.slug === "tasks" && isCompletedTaskStatus(record.status);
 
   return (
     <div className="grid gap-5">
@@ -252,7 +269,7 @@ export function EntityDetail({
                 <Badge tone={toneForValue(record[config.statusField ?? ""])}>{formatValue(config.statusField ?? "status", record[config.statusField ?? ""])}</Badge>
                 <span className="text-xs text-slate-500">ID: {record.id}</span>
               </div>
-              <h2 className="text-2xl font-bold tracking-normal text-slate-950">{String(record[config.primaryField] ?? record.id)}</h2>
+              <h2 className="text-2xl font-bold tracking-normal text-slate-950">{recordTitle(record)}</h2>
             </div>
             <div className="flex flex-wrap gap-2">
               {canWriteCurrent && config.slug === "leads" && !record.converted_deal_id ? (
@@ -263,7 +280,7 @@ export function EntityDetail({
                   </Button>
                 </form>
               ) : null}
-              {canWriteCurrent && config.slug === "tasks" && record.status !== "完了" ? (
+              {canWriteCurrent && config.slug === "tasks" && !isCompletedTask ? (
                 <form action={completeAction}>
                   <Button variant="secondary">
                     <CheckCircle2 className="h-4 w-4" aria-hidden />
@@ -271,7 +288,7 @@ export function EntityDetail({
                   </Button>
                 </form>
               ) : null}
-              {canWriteCurrent && config.slug === "tasks" && record.status === "完了" ? (
+              {canWriteCurrent && isCompletedTask ? (
                 <form action={reopenAction}>
                   <Button variant="secondary">
                     <RotateCcw className="h-4 w-4" aria-hidden />
@@ -298,12 +315,25 @@ export function EntityDetail({
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {config.detailFields.map((field) => (
-              <div key={field} className="rounded-md bg-slate-50 px-3 py-2">
-                <dt className="text-xs font-semibold text-slate-500">{fieldLabel(config, field)}</dt>
-                <dd className="mt-1 break-words text-sm font-medium text-slate-900">{formatValue(field, record[field], relations)}</dd>
-              </div>
-            ))}
+            {config.detailFields.map((field) => {
+              const content = formatValue(field, record[field], relations);
+              const href = relationHrefForField(field, record[field], relations);
+
+              return (
+                <div key={field} className="rounded-md bg-slate-50 px-3 py-2">
+                  <dt className="text-xs font-semibold text-slate-500">{fieldLabel(config, field)}</dt>
+                  <dd className="mt-1 break-words text-sm font-medium text-slate-900">
+                    {href ? (
+                      <Link href={href} className="text-blue-700 hover:text-blue-800 hover:underline">
+                        {content}
+                      </Link>
+                    ) : (
+                      content
+                    )}
+                  </dd>
+                </div>
+              );
+            })}
           </dl>
         </CardContent>
       </Card>
@@ -314,6 +344,8 @@ export function EntityDetail({
         {relatedSections.map((section) => {
           const relatedEntity = section.entity;
           const createHref = relatedEntity && canCreateRelatedEntity(role, relatedEntity) ? relatedCreateHref(config.slug, record, relatedEntity) : null;
+          const hiddenRowsCount = Math.max(0, section.rows.length - 8);
+          const listHref = relatedEntity && hiddenRowsCount > 0 ? relatedListHref(record, relatedEntity) : null;
 
           return (
             <Card key={section.title}>
@@ -325,6 +357,11 @@ export function EntityDetail({
                       <Link href={createHref} className={buttonClassName("secondary", "h-9 px-3 text-xs")}>
                         <Plus className="h-4 w-4" aria-hidden />
                         {relatedCreateLabel(relatedEntity)}
+                      </Link>
+                    ) : null}
+                    {listHref ? (
+                      <Link href={listHref} className={buttonClassName("ghost", "h-9 px-3 text-xs")}>
+                        さらに{hiddenRowsCount}件を一覧で確認
                       </Link>
                     ) : null}
                     <Badge tone="slate">{section.rows.length}件</Badge>

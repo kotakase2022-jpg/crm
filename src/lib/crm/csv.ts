@@ -104,6 +104,15 @@ export function parseCsv(text: string, options: { requiredHeaders?: string[] } =
     errors.push("CSV header row is invalid");
   }
 
+  const seenHeaders = new Set<string>();
+  for (const header of headers) {
+    if (!header) continue;
+    if (seenHeaders.has(header)) {
+      errors.push(`CSV has duplicate header: ${header}`);
+    }
+    seenHeaders.add(header);
+  }
+
   for (const required of options.requiredHeaders ?? []) {
     if (!headers.includes(required)) errors.push(`CSV is missing required header: ${required}`);
   }
