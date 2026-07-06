@@ -27,7 +27,7 @@ Goal status note:
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
-- Latest pushed handoff commit: `55b7893` (`Record pushed handoff state`)
+- Latest pushed handoff commit: this handoff metadata commit on top of `55b7893`; run `git log -1 --oneline` for the exact hash.
 - Latest pushed code/test commit: `0e2e2cb` (`Strengthen handoff after CodeRabbit nitpick`)
 - Any later commit should be handoff metadata only unless Claude Code chooses to address deferred low-priority CodeRabbit suggestions.
 - Commit `0e2e2cb` contains:
@@ -83,13 +83,13 @@ Goal status note:
 現在の状態：
 
 - Local full quality gate is green after the latest Nitpick improvement.
-- Commit `55b7893` has been pushed to PR #2.
-- PR #2 remote checks are green at commit `55b7893`:
+- Commit `55b7893` and the subsequent handoff metadata commit have been pushed to PR #2.
+- PR #2 remote checks were green at commit `55b7893` immediately before the final handoff-only metadata update:
   - CodeRabbit: pass.
   - GitHub Actions `quality-gate`: pass.
   - Vercel: pass.
 - Vercel Preview Comments: pass.
-- Latest Vercel preview deployment: https://crm-git-codex-ai-handoff-loop-kotakase2022-jpgs-projects.vercel.app
+- Latest Vercel preview deployment before the final handoff-only metadata update: https://crm-git-codex-ai-handoff-loop-kotakase2022-jpgs-projects.vercel.app
 - PR #2 body has been updated to include Summary, Impact, Tests Added/Updated, Commands Run, Quality Gate, E2E Flows Verified, Safety Checklist, and Notes.
 - The two top-level scores are still not marked 100/100 because live Supabase/Vercel authenticated verification and final human/product acceptance evidence are still incomplete.
 
@@ -178,16 +178,17 @@ gh pr checks 2 --watch --interval 10
 
 次にClaude Codeが最初にやるべきこと：
 
-1. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
-2. Review the previously fixed high-risk areas:
+1. Confirm PR #2 latest remote checks after the final handoff-only metadata commit.
+2. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
+3. Review the previously fixed high-risk areas:
    - `src/lib/supabase/proxy.ts`
    - `src/lib/crm/data.ts`
    - `src/lib/crm/analytics.ts`
    - `src/lib/crm/persistence.ts`
    - `src/lib/crm/validation.ts`
    - `src/lib/crm/format.ts`
-3. Decide whether any deferred CodeRabbit maintainability suggestions should be handled before merge.
-4. If no additional changes are needed, prepare PR #2 for human review/merge under branch protection.
+4. Decide whether any deferred CodeRabbit maintainability suggestions should be handled before merge.
+5. If no additional changes are needed, prepare PR #2 for human review/merge under branch protection.
 
 ## 10. Suggested Review Scope for Claude Code
 
@@ -227,6 +228,6 @@ Claude Codeへの補足：
 - Current self-score after this pass:
   - Function/screen-transition/no-known-defect score: 99/100 locally.
   - CRM daily-use experience value score: 97/100 locally.
-- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. Post-final-push CI/Vercel/CodeRabbit evidence is now green for PR #2.
+- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence was green at `55b7893`; confirm whether the final handoff-only metadata commit also completed before merge.
 - `npm` in PowerShell may hit the local execution-policy issue via `npm.ps1`; use `npm.cmd` on this machine.
 - If CodeRabbit does not re-run after the final push, comment `@coderabbitai review` on PR #2.
