@@ -5,16 +5,17 @@
 - Current owner: Codex
 - Next owner: Claude Code
 - Loop: 6
-- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this pass continues Loop 6 by verifying PR checks and resolving one more low-risk deferred CodeRabbit maintainability suggestion.
-- Phase: Autonomous Improvement / Verification / Handoff
-- Last updated: 2026-07-06 16:47:27 +09:00
+- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this handoff pauses Codex after the latest cleanup, local quality gate, push, and remote PR checks all passed.
+- Phase: User-requested Pause / Handoff
+- Last updated: 2026-07-06 16:53:01 +09:00
 
 ## 1. Current Goal
 
 今回の目的：
 
 - Improve the CRM until the two top-level user goals can be proven at 100/100 by reproducible checks and review evidence.
-- Reduce remaining CodeRabbit OSS review debt on PR #2 without broad refactors.
+- Pause Codex work at a clean handoff point because the user warned that remaining Codex credit is low.
+- Hand off the current PR to Claude Code with local and remote quality evidence captured.
 - Keep Cursor Bugbot as optional backup only. It auto-ran on PR #2, but this pass did not manually invoke it.
 - Keep each change small, reviewable, and fully covered by the existing quality gate.
 
@@ -23,23 +24,20 @@ Goal status note:
 - Codex Goal remains technically `active` because the available Goal tool supports only `complete` or `blocked`, not `pause`.
 - The goal must not be marked `complete` yet because live Supabase verification and product/human acceptance evidence are still incomplete.
 - The goal must not be marked `blocked` because work can continue later; the stop is a user-requested pause, not a blocker.
+- Operational pause state: Codex should stop here unless the user resumes the goal; Claude Code is the next owner for review/follow-up.
 
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
-- Latest pushed commit before this pass: `8b5663c` (`Clean up CRM review nits`)
-- This pass changes:
+- Latest pushed code/test commit: `3e6f6f7` (`Share CRM list sort normalization`)
+- Latest PR checks at code/test commit `3e6f6f7`: passed.
+- Latest local quality gate before this handoff: `npm.cmd run quality` passed at 2026-07-06 16:47 +09:00.
+- Latest pushed code/test changes:
   - `src/components/crm/entity-table.tsx`
   - `src/lib/crm/search.ts`
   - `tests/unit/search.test.ts`
   - `AI_HANDOFF.md`
-- Latest commit after this handoff update should contain the sort-normalization cleanup and this updated handoff; run `git log -1 --oneline` for the exact hash after commit.
-- Latest pushed code/test commit: `0e2e2cb` (`Strengthen handoff after CodeRabbit nitpick`)
-- Any later commit should be handoff metadata only unless Claude Code chooses to address deferred low-priority CodeRabbit suggestions.
-- Commit `0e2e2cb` contains:
-  - relation-field assertion improvement for the CodeRabbit Nitpick;
-  - updated `AI_HANDOFF.md` noting the user-requested pause.
-- Last known good local verification: `npm.cmd run quality` passed at 2026-07-06 16:47 +09:00 after the sort-normalization cleanup.
+- This document update is handoff metadata only. If committed, it should be the only change after `3e6f6f7`; run `git log -1 --oneline` for its exact hash.
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
 
 ## 3. What Was Done
@@ -80,6 +78,13 @@ Goal status note:
   - reused it from `EntityFilterBar` and `EntityTable` so filter controls, header sort indicators, and data sorting share the same invalid-sort fallback;
   - added a regression assertion in `tests/unit/search.test.ts`.
 - Re-ran focused tests and the full quality gate successfully.
+- Pushed commit `3e6f6f7` to `origin/codex/ai-handoff-loop`.
+- Confirmed PR #2 latest remote checks at `3e6f6f7` are green:
+  - CodeRabbit: pass.
+  - GitHub Actions `typecheck-lint-test-e2e-build`: pass.
+  - Vercel: pass.
+  - Vercel Preview Comments: pass.
+- Stopped Codex implementation work at this clean handoff point per user request.
 
 ## 4. Files Changed
 
@@ -109,15 +114,16 @@ Goal status note:
 現在の状態：
 
 - Local full quality gate is green after the latest sort-normalization cleanup.
-- PR #2 remote checks were green at commit `8b5663c` immediately before this pass:
+- PR #2 remote checks are green at latest pushed code/test commit `3e6f6f7`:
   - CodeRabbit: pass.
-  - GitHub Actions `quality-gate`: pass.
+  - GitHub Actions `typecheck-lint-test-e2e-build`: pass.
   - Vercel: pass.
-- Vercel Preview Comments: pass.
-- Latest Vercel preview deployment before this pass: https://crm-git-codex-ai-handoff-loop-kotakase2022-jpgs-projects.vercel.app
-- After committing/pushing this pass, GitHub Actions, Vercel, and CodeRabbit may rerun. Claude Code should confirm the newest commit before merge.
+  - Vercel Preview Comments: pass.
+- Latest Vercel preview deployment: https://vercel.com/kotakase2022-jpgs-projects/crm/5CtA9n9y1RwqsMayjJav497S9Zgg
+- Worktree was clean before this metadata-only handoff update.
 - PR #2 body has been updated to include Summary, Impact, Tests Added/Updated, Commands Run, Quality Gate, E2E Flows Verified, Safety Checklist, and Notes.
 - The two top-level scores are still not marked 100/100 because live Supabase/Vercel authenticated verification and final human/product acceptance evidence are still incomplete.
+- Codex Goal cannot be mechanically paused via the Goal tool. Leave it `active` and treat this handoff as the operational pause.
 
 ## 6. Known Issues
 
@@ -221,8 +227,8 @@ npm.cmd run quality
 # Next.js production build passed.
 
 gh pr checks 2
-# Passed at commit 8b5663c before this pass:
-# - quality-gate/typecheck-lint-test-e2e-build: pass
+# Passed at commit 8b5663c before the sort-normalization pass:
+# - typecheck-lint-test-e2e-build: pass
 # - CodeRabbit: pass
 # - Vercel: pass
 # - Vercel Preview Comments: pass
@@ -243,30 +249,45 @@ npm.cmd run quality
 # coverage passed: statements 92.68%, branches 85.68%, functions 99.04%, lines 95.20%.
 # Playwright E2E: 39 Chromium tests passed.
 # Next.js production build passed.
+
+git status --short --branch
+# Passed/clean before this metadata update.
+# ## codex/ai-handoff-loop...origin/codex/ai-handoff-loop
+
+git log -3 --oneline
+# 3e6f6f7 Share CRM list sort normalization
+# 8b5663c Clean up CRM review nits
+# fa039ec Clarify final handoff check status
+
+gh pr checks 2
+# Passed at latest pushed commit 3e6f6f7:
+# - CodeRabbit: pass
+# - Vercel: pass
+# - Vercel Preview Comments: pass
+# - typecheck-lint-test-e2e-build: pass
 ```
 
 ## 9. Next Recommended Action
 
 次にClaude Codeが最初にやるべきこと：
 
-1. Confirm PR #2 latest remote checks after the sort-normalization cleanup commit:
-   - GitHub Actions `quality-gate`
-   - Vercel preview
-   - CodeRabbit
-2. Review the latest low-risk cleanup:
+1. Start from PR #2 at latest commit `3e6f6f7` and confirm whether this metadata-only handoff update has been committed after it.
+2. If no new commit exists after `3e6f6f7`, no additional CI rerun is needed for Codex's latest code changes because PR checks are already green.
+3. If this metadata-only handoff update is committed, confirm the new latest PR checks before merge.
+4. Review the latest low-risk cleanup:
    - `src/components/crm/entity-table.tsx`
    - `src/lib/crm/search.ts`
    - `tests/unit/search.test.ts`
-3. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
-4. Review the previously fixed high-risk areas:
+5. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
+6. Review the previously fixed high-risk areas:
    - `src/lib/supabase/proxy.ts`
    - `src/lib/crm/data.ts`
    - `src/lib/crm/analytics.ts`
    - `src/lib/crm/persistence.ts`
    - `src/lib/crm/validation.ts`
    - `src/lib/crm/format.ts`
-5. Decide whether any remaining deferred CodeRabbit maintainability suggestions should be handled before merge.
-6. If no additional changes are needed, prepare PR #2 for human review/merge under branch protection.
+7. Decide whether any remaining deferred CodeRabbit maintainability suggestions should be handled before merge.
+8. If no additional changes are needed, prepare PR #2 for human review/merge under branch protection.
 
 ## 10. Suggested Review Scope for Claude Code
 
@@ -310,6 +331,7 @@ Claude Codeへの補足：
 - Current self-score after this pass:
   - Function/screen-transition/no-known-defect score: 99/100 locally.
   - CRM daily-use experience value score: 97/100 locally.
-- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence was green at `8b5663c`; confirm whether the latest sort-normalization cleanup commit also completed before merge.
+- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence is green for the latest code/test commit `3e6f6f7`.
+- User requested a credit-saving stop. Codex intentionally stopped at a clean handoff point instead of continuing deferred low-priority cleanup.
 - `npm` in PowerShell may hit the local execution-policy issue via `npm.ps1`; use `npm.cmd` on this machine.
 - If CodeRabbit does not re-run after the final push, comment `@coderabbitai review` on PR #2.
