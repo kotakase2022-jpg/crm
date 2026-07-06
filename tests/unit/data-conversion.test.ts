@@ -27,14 +27,20 @@ describe("lead conversion data flow", () => {
     expect(companies[0]).toBeDefined();
     expect(mismatchedDeal).toBeDefined();
 
-    await expect(
-      createRecord(entityConfigs.tasks, {
+    try {
+      await createRecord(entityConfigs.tasks, {
         title: "Mismatched relation task",
         status: "未完了",
         company_id: companies[0]?.id,
         deal_id: mismatchedDeal?.id,
-      }),
-    ).rejects.toBeInstanceOf(CrmValidationError);
+      });
+      throw new Error("Expected relation consistency validation to fail.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CrmValidationError);
+      expect((error as CrmValidationError).fieldErrors).toMatchObject({
+        relation: expect.stringContaining("商談"),
+      });
+    }
   });
 
   it("ignores blank converted deal ids and converts the lead", async () => {

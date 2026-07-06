@@ -5,36 +5,45 @@
 - Current owner: Codex
 - Next owner: Claude Code
 - Loop: 6
-- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this pass continues Loop 6 by addressing PR #2 AI review findings before handing back to Claude Code.
-- Phase: Development / Autonomous Improvement / Verification / Handoff
-- Last updated: 2026-07-06 16:16:06 +09:00
+- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this pass continued Loop 6 by addressing PR #2 AI review findings and then stopping at a clean handoff point because the user requested credit conservation.
+- Phase: Handoff / Goal Paused By User Request
+- Last updated: 2026-07-06 16:26:18 +09:00
 
 ## 1. Current Goal
 
 今回の目的：
 
-- Keep improving the CRM until the two top-level user goals can be proven at 100/100 by reproducible checks and review evidence.
+- Improve the CRM until the two top-level user goals can be proven at 100/100 by reproducible checks and review evidence.
 - Address high-value CodeRabbit OSS findings on PR #2 without broad refactors.
 - Keep Cursor Bugbot as optional backup only. It auto-ran on PR #2, but this pass did not manually invoke it.
-- Preserve existing CRM specs, Japanese UI, routing, data model, and quality-gate behavior.
+- Stop at a clean boundary and hand over to Claude Code because the user requested reduced credit consumption.
+
+Goal status note:
+
+- Codex Goal remains technically `active` because the available Goal tool supports only `complete` or `blocked`, not `pause`.
+- The goal must not be marked `complete` yet because live Supabase verification and product/human acceptance evidence are still incomplete.
+- The goal must not be marked `blocked` because work can continue later; the stop is a user-requested pause, not a blocker.
 
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
-- Latest implementation commit: `d097c9f` (`Address CodeRabbit CRM data integrity findings`)
-- Latest handoff commit: this handoff-only metadata commit on top of `d097c9f`; run `git log -1 --oneline` for its exact hash after commit.
-- Last known good implementation commit: `d097c9f` locally; local working tree passed `npm.cmd run quality` at 2026-07-06 16:13 +09:00 before commit.
+- Latest pushed commit before the final nitpick handoff commit: `9cc8bce` (`Update handoff after CodeRabbit fixes`)
+- Local unpushed change before this handoff commit: CodeRabbit Nitpick improvement in `tests/unit/data-conversion.test.ts`.
+- Latest local commit after this handoff update should contain:
+  - relation-field assertion improvement for the CodeRabbit Nitpick;
+  - this updated `AI_HANDOFF.md`.
+- Last known good local verification: `npm.cmd run quality` passed at 2026-07-06 16:25 +09:00 after the Nitpick test improvement.
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
 
 ## 3. What Was Done
 
 今回完了したこと：
 
-- Confirmed PR #2 exists and initial remote gates were green before this fix pass:
-  - GitHub Actions `quality-gate`: success on the previous pushed commit.
-  - Vercel preview: success on the previous pushed commit.
-  - CodeRabbit OSS: review completed and posted findings.
-  - Cursor Bugbot: auto-ran as a neutral/optional check; not manually invoked.
+- Confirmed PR #2 existed and remote gates were green after the main CodeRabbit fix push:
+  - GitHub Actions `quality-gate`: passed.
+  - Vercel preview: passed.
+  - CodeRabbit OSS: passed/review completed.
+  - PR Description check: passed after updating the PR body.
 - Added failing regression tests first for the main CodeRabbit/Bugbot-overlapping findings, then fixed implementation:
   - relation consistency failures now surface as `CrmValidationError`;
   - CS document totals use the latest product usage row per company;
@@ -45,6 +54,7 @@
   - Supabase table reads paginate instead of silently truncating at 1000 rows;
   - demo trial seed rows stay company-consistent with their linked deals;
   - dashboard alert links are created only through validated relation options.
+- Addressed the latest CodeRabbit Nitpick by strengthening `tests/unit/data-conversion.test.ts` to assert `fieldErrors.relation`, not just any `CrmValidationError`.
 - Re-ran focused tests and the full quality gate successfully.
 
 ## 4. Files Changed
@@ -71,11 +81,14 @@
 
 現在の状態：
 
-- Local full quality gate is green after the CodeRabbit-fix pass.
-- The branch has not yet been pushed after the latest handoff update; push PR #2 after this commit.
-- CodeRabbit re-review is still needed after the next push. Because `.coderabbit.yaml` has `auto_pause_after_reviewed_commits: 2`, manually triggering CodeRabbit with `@coderabbitai review` may be necessary.
-- PR #2 body still needs to be checked/updated if CodeRabbit continues to warn that the PR template sections are missing.
-- The two top-level scores are still not marked 100/100 until post-push GitHub Actions, Vercel preview, and CodeRabbit re-review are green.
+- Local full quality gate is green after the latest Nitpick improvement.
+- Main PR #2 remote checks were green at commit `9cc8bce` before the final local Nitpick/handoff commit:
+  - CodeRabbit: pass.
+  - GitHub Actions `quality-gate`: pass.
+  - Vercel: pass.
+- After committing/pushing this final handoff/Nitpick update, GitHub Actions, Vercel, and CodeRabbit may rerun. Claude Code should confirm them before merge.
+- PR #2 body has been updated to include Summary, Impact, Tests Added/Updated, Commands Run, Quality Gate, E2E Flows Verified, Safety Checklist, and Notes.
+- The two top-level scores are still not marked 100/100 because live Supabase/Vercel authenticated verification and final human/product acceptance evidence are still incomplete.
 
 ## 6. Known Issues
 
@@ -86,7 +99,10 @@
   - related-list filter precision in `entity-detail.tsx`;
   - shared helper extraction between analytics/alerts;
   - duplicate sort normalization reuse in `entity-table.tsx`;
-  - coverage include expansion for more source files.
+  - coverage include expansion for more source files;
+  - toast message map consistency;
+  - analytics stage-list centralization;
+  - seed SQL test brittleness.
 - `src/proxy.ts` matcher duplication was intentionally not changed yet because Next.js proxy matcher values must remain statically analyzable constants.
 - Git status may print warnings about `C:\Users\hiras/.config/git/ignore` permission; this has not blocked checks.
 
@@ -94,10 +110,13 @@
 
 Cursor Bugbotの指摘と対応状況：
 
-- CodeRabbit OSS findings: partially addressed in this pass.
-  - Addressed: relation consistency validation errors, latest-usage document total, Supabase claims fallback, paginated reads, invalid ARR computation, deterministic Tokyo datetime handling, demo trial/deal company consistency, dashboard alert relation validation.
-  - Deferred/needs review: lower-priority maintainability and broader coverage suggestions listed in Known Issues.
-- Cursor Bugbot: auto-ran on PR #2 as an optional neutral check. It overlapped with the relation consistency, latest usage total, and Supabase proxy fallback findings; those overlapping issues were fixed here. No manual Bugbot retry was performed.
+- CodeRabbit OSS findings:
+  - Addressed: relation consistency validation errors, latest-usage document total, Supabase claims fallback, paginated reads, invalid ARR computation, deterministic Tokyo datetime handling, demo trial/deal company consistency, dashboard alert relation validation, and relation-field assertion specificity in `tests/unit/data-conversion.test.ts`.
+  - Deferred/needs Claude Code review: lower-priority maintainability and broader coverage suggestions listed in Known Issues.
+- Cursor Bugbot:
+  - Auto-ran on PR #2 as an optional neutral check.
+  - It overlapped with the relation consistency, latest usage total, and Supabase proxy fallback findings; those overlapping issues were fixed here.
+  - No manual Bugbot retry was performed.
 
 ## 8. Verification Results
 
@@ -123,8 +142,19 @@ npm.cmd run test -- --run tests/integration/analytics-alerts.test.ts tests/unit/
 npm.cmd run typecheck
 # Passed.
 
+gh pr checks 2 --watch --interval 10
+# Passed at commit 9cc8bce before the final local Nitpick/handoff commit:
+# - quality-gate/typecheck-lint-test-e2e-build: pass
+# - CodeRabbit: pass
+# - Vercel: pass
+# - Vercel Preview Comments: pass
+
+npm.cmd run test -- --run tests/unit/data-conversion.test.ts
+# Passed after CodeRabbit Nitpick assertion improvement.
+# 1 file / 3 tests passed.
+
 npm.cmd run quality
-# Passed.
+# Passed after CodeRabbit Nitpick assertion improvement.
 # typecheck passed.
 # lint passed.
 # test guard passed: 26 spec files checked.
@@ -138,16 +168,20 @@ npm.cmd run quality
 
 次にClaude Codeが最初にやるべきこと：
 
-1. After the Codex push, inspect PR #2 latest diff and CodeRabbit re-review.
-2. Confirm remote GitHub Actions `quality-gate` and Vercel preview are green on the latest commit.
-3. Review the fixed high-risk areas:
+1. Confirm whether Codex has pushed the final Nitpick/handoff commit after this file update.
+2. If pushed, confirm PR #2 latest remote checks:
+   - GitHub Actions `quality-gate`
+   - Vercel preview
+   - CodeRabbit
+3. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
+4. Review the previously fixed high-risk areas:
    - `src/lib/supabase/proxy.ts`
    - `src/lib/crm/data.ts`
    - `src/lib/crm/analytics.ts`
    - `src/lib/crm/persistence.ts`
    - `src/lib/crm/validation.ts`
    - `src/lib/crm/format.ts`
-4. Decide whether any deferred CodeRabbit maintainability suggestions should be handled before merge.
+5. Decide whether any deferred CodeRabbit maintainability suggestions should be handled before merge.
 
 ## 10. Suggested Review Scope for Claude Code
 
@@ -164,6 +198,7 @@ Claude Codeに重点レビューしてほしい範囲：
   - existing E2E still passes.
 - Relation consistency and data integrity:
   - mismatched company/contact/deal/ticket/subscription/trial relations produce user-facing validation errors;
+  - tests now assert `fieldErrors.relation` for the relation mismatch path;
   - demo seed trial rows are company-consistent with linked deals.
 - KPI behavior:
   - CS active companies and document totals use latest usage rows per company.
@@ -182,9 +217,10 @@ Claude Codeに重点レビューしてほしい範囲：
 
 Claude Codeへの補足：
 
+- User asked Codex to stop at a clean point because of credit consumption. Treat this as a handoff pause.
 - Current self-score after this pass:
   - Function/screen-transition/no-known-defect score: 99/100 locally.
   - CRM daily-use experience value score: 97/100 locally.
-- Scores are not 100 because post-push CI/Vercel/CodeRabbit evidence and live Supabase verification are still pending.
+- Scores are not 100 because post-final-push CI/Vercel/CodeRabbit evidence, live Supabase verification, and human/product acceptance are still pending.
 - `npm` in PowerShell may hit the local execution-policy issue via `npm.ps1`; use `npm.cmd` on this machine.
-- If CodeRabbit does not re-run after push, comment `@coderabbitai review` on PR #2.
+- If CodeRabbit does not re-run after the final push, comment `@coderabbitai review` on PR #2.
