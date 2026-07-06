@@ -21,8 +21,9 @@
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
-- Latest commit: `8140a54` (`Address CodeRabbit CRM data integrity findings`)
-- Last known good commit: `8140a54` locally; local working tree passed `npm.cmd run quality` at 2026-07-06 16:13 +09:00 before commit.
+- Latest implementation commit: `d097c9f` (`Address CodeRabbit CRM data integrity findings`)
+- Latest handoff commit: this handoff-only metadata commit on top of `d097c9f`; run `git log -1 --oneline` for its exact hash after commit.
+- Last known good implementation commit: `d097c9f` locally; local working tree passed `npm.cmd run quality` at 2026-07-06 16:13 +09:00 before commit.
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
 
 ## 3. What Was Done
@@ -71,7 +72,7 @@
 現在の状態：
 
 - Local full quality gate is green after the CodeRabbit-fix pass.
-- The branch has not yet been pushed after commit `8140a54`; push PR #2 after this handoff update.
+- The branch has not yet been pushed after the latest handoff update; push PR #2 after this commit.
 - CodeRabbit re-review is still needed after the next push. Because `.coderabbit.yaml` has `auto_pause_after_reviewed_commits: 2`, manually triggering CodeRabbit with `@coderabbitai review` may be necessary.
 - PR #2 body still needs to be checked/updated if CodeRabbit continues to warn that the PR template sections are missing.
 - The two top-level scores are still not marked 100/100 until post-push GitHub Actions, Vercel preview, and CodeRabbit re-review are green.
