@@ -24,6 +24,7 @@ import {
 } from "./related";
 import { filterSortRows } from "./search";
 import type { CrmRecord, DashboardSnapshot, EntityConfig, EntitySlug, QueryState, RelationKey, RelationOptions, TableName } from "./types";
+import { CrmValidationError } from "./validation";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
@@ -144,18 +145,27 @@ async function readRows(ctx: CrmContext, table: TableName) {
     return getDemoRows(table);
   }
 
-  const { data, error } = await ctx.supabase
-    .from(table)
-    .select("*")
-    .eq("organization_id", ctx.organizationId)
-    .is("deleted_at", null)
-    .limit(1000);
+  const pageSize = 1000;
+  const rows: CrmRecord[] = [];
 
-  if (error) {
-    throw new Error(error.message);
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await ctx.supabase
+      .from(table)
+      .select("*")
+      .eq("organization_id", ctx.organizationId)
+      .is("deleted_at", null)
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    rows.push(...((data ?? []) as CrmRecord[]));
+
+    if (!data || data.length < pageSize) {
+      return rows;
+    }
   }
-
-  return (data ?? []) as CrmRecord[];
 }
 
 async function readRowById(ctx: CrmContext, table: TableName, idValue: string) {
@@ -218,7 +228,7 @@ async function assertRelationConsistency(ctx: CrmContext, values: Record<string,
   const errors = relationConsistencyErrors(values, await readRelationRows(ctx, values));
 
   if (errors.length > 0) {
-    throw new Error(errors.join("\n"));
+    throw new CrmValidationError({ relation: errors.join("\n") });
   }
 }
 

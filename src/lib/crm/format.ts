@@ -1,6 +1,8 @@
 import { activationLevels } from "./options";
 import type { CrmRecord, RelationKey, RelationOptions } from "./types";
 
+const crmTimeZone = "Asia/Tokyo";
+
 export function toNumber(value: unknown) {
   if (typeof value === "number") return value;
   if (typeof value === "string" && value.trim() !== "") return Number(value);
@@ -54,19 +56,30 @@ export function formatDateTime(value: unknown) {
   return new Intl.DateTimeFormat("ja-JP", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: crmTimeZone,
   }).format(date);
+}
+
+function dateTimePartsInCrmTimeZone(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: crmTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
 }
 
 export function dateTimeInputValue(value: unknown) {
   if (typeof value !== "string") return "";
   const parsed = toDate(value);
   if (!parsed) return "";
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
-  const hours = String(parsed.getHours()).padStart(2, "0");
-  const minutes = String(parsed.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  const parts = dateTimePartsInCrmTimeZone(parsed);
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
 export function formatCurrency(value: unknown) {

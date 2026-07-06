@@ -240,7 +240,7 @@ function createTrials(companies: CrmRecord[], deals: CrmRecord[]): CrmRecord[] {
     return {
       id: id("trial", i),
       ...base(-24 + i),
-      company_id: company.id,
+      company_id: deal.company_id,
       deal_id: deal.id,
       start_date: date(-(i * 3)),
       end_date: date(21 - i),

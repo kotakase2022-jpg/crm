@@ -91,7 +91,7 @@ describe("entity input validation", () => {
 
     const values = parseEntityFormValues(entityConfigs.trials, formData);
 
-    expect(values.first_login_at).toBe(new Date("2026-07-04T09:30").toISOString());
+    expect(values.first_login_at).toBe("2026-07-04T00:30:00.000Z");
     expect(values.activation_level).toBe(7);
   });
 
@@ -134,7 +134,7 @@ describe("entity input validation", () => {
       type: "メモ",
       subject: "デモ後フォロー",
       content: "次回確認事項を整理",
-      occurred_at: new Date("2026-07-04T09:30").toISOString(),
+      occurred_at: "2026-07-04T00:30:00.000Z",
       has_next_action: true,
       next_action_date: "2026-07-05",
     });

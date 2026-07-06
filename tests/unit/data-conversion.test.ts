@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { convertLead } from "@/lib/crm/data";
+import { convertLead, createRecord } from "@/lib/crm/data";
 import { addDemoRow, getDemoRows } from "@/lib/crm/demo-data";
+import { entityConfigs } from "@/lib/crm/entities";
 import type { CrmRecord } from "@/lib/crm/types";
+import { CrmValidationError } from "@/lib/crm/validation";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
@@ -17,6 +19,24 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 describe("lead conversion data flow", () => {
+  it("surfaces relation consistency failures as validation errors", async () => {
+    const companies = getDemoRows("companies");
+    const deals = getDemoRows("deals");
+    const mismatchedDeal = deals.find((deal) => deal.company_id !== companies[0]?.id);
+
+    expect(companies[0]).toBeDefined();
+    expect(mismatchedDeal).toBeDefined();
+
+    await expect(
+      createRecord(entityConfigs.tasks, {
+        title: "Mismatched relation task",
+        status: "未完了",
+        company_id: companies[0]?.id,
+        deal_id: mismatchedDeal?.id,
+      }),
+    ).rejects.toBeInstanceOf(CrmValidationError);
+  });
+
   it("ignores blank converted deal ids and converts the lead", async () => {
     const timestamp = "2026-07-06T02:30:00.000Z";
     const leadId = "lead-blank-converted-deal";

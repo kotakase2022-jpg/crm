@@ -137,7 +137,7 @@ export function buildCsDashboard(snapshot: DashboardSnapshot) {
     kpis: {
       paidCompanies: uniqueRelationIdCount(paidContracts, "company_id"),
       activeCompanies: uniqueRelationIdCount(activeUsageRows, "company_id"),
-      documentsCreated: sumBy(snapshot.usage, "documents_created"),
+      documentsCreated: sumBy(latestUsageRows, "documents_created"),
       lowHealthCompanies: lowHealth.length,
       renewalSoon: renewalSoon.length,
       churnScheduled: snapshot.contracts.filter((contract) => hasValue(contract.status, "解約予定")).length,

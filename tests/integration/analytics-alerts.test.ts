@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildAlerts } from "@/lib/crm/alerts";
 import { buildCsDashboard, buildFunnel, buildSalesDashboard, normalizedHealthScore, riskyHealthScores } from "@/lib/crm/analytics";
 import { contractStatuses, dealStages, leadStatuses, ticketStatuses } from "@/lib/crm/options";
@@ -22,6 +22,10 @@ function snapshot(overrides: Partial<DashboardSnapshot> = {}): DashboardSnapshot
 }
 
 describe("CRM dashboard analytics", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("returns zeroed funnel and KPI values for empty data", () => {
     const empty = snapshot();
 
@@ -155,6 +159,20 @@ describe("CRM dashboard analytics", () => {
     expect(cs.kpis.activeCompanies).toBe(1);
   });
 
+  it("uses the latest usage row per company when totaling CS document volume", () => {
+    const data = snapshot({
+      usage: [
+        { id: "usage-old-high", company_id: " company-1 ", period_end: "2026-05-31", documents_created: 100 },
+        { id: "usage-latest-low", company_id: "company-1", period_end: "2026-06-30", documents_created: 5 },
+        { id: "usage-company-2", company_id: "company-2", period_end: "2026-06-30", documents_created: 7 },
+      ],
+    });
+
+    const cs = buildCsDashboard(data);
+
+    expect(cs.kpis.documentsCreated).toBe(12);
+  });
+
   it("ignores surrounding whitespace in stage and status KPI decisions", () => {
     const data = snapshot({
       leads: [{ id: "lead-1" }, { id: "lead-2" }, { id: "lead-3" }],
@@ -233,6 +251,10 @@ describe("CRM dashboard analytics", () => {
 });
 
 describe("CRM automation alerts", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("raises actionable sales and CS alerts from operational conditions", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 6, 3, 0, 30));

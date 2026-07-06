@@ -32,6 +32,25 @@ function copyAuthResponseMetadata(source: NextResponse, target: NextResponse) {
   }
 }
 
+type SupabaseProxyClient = ReturnType<typeof createServerClient>;
+
+async function hasAuthenticatedUser(supabase: SupabaseProxyClient) {
+  try {
+    const { data } = await supabase.auth.getClaims();
+    if (data?.claims) return true;
+  } catch {
+    // Fall back to getUser below. A transient claims/JWKS failure should not
+    // lock out a request when Supabase can still validate the session server-side.
+  }
+
+  try {
+    const { data } = await supabase.auth.getUser();
+    return Boolean(data.user);
+  } catch {
+    return false;
+  }
+}
+
 export async function updateSession(request: NextRequest) {
   const env = getSupabaseEnv();
 
@@ -55,9 +74,9 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getClaims();
+  const hasSession = await hasAuthenticatedUser(supabase);
 
-  if (!data?.claims && !shouldBypassAuthRedirect(request.nextUrl.pathname)) {
+  if (!hasSession && !shouldBypassAuthRedirect(request.nextUrl.pathname)) {
     const redirectResponse = NextResponse.redirect(buildLoginRedirectUrl(request.nextUrl));
     copyAuthResponseMetadata(supabaseResponse, redirectResponse);
     return redirectResponse;

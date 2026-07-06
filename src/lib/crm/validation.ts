@@ -2,6 +2,8 @@ import { z } from "zod";
 import { activityTypes } from "./options";
 import type { EntityConfig, FieldConfig } from "./types";
 
+const crmTimeZoneOffsetMinutes = 9 * 60;
+
 export class CrmValidationError extends Error {
   fieldErrors: Record<string, string>;
 
@@ -42,19 +44,21 @@ function parseDateTimeValue(value: string) {
   const second = Number(secondValue);
   const millisecond = Number(millisecondValue.padEnd(3, "0"));
 
-  const parsed = new Date(year, month - 1, day, hour, minute, second, millisecond);
   if (
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day ||
-    parsed.getHours() !== hour ||
-    parsed.getMinutes() !== minute ||
-    parsed.getSeconds() !== second ||
-    parsed.getMilliseconds() !== millisecond
+    !isValidDateOnly(`${yearValue}-${monthValue}-${dayValue}`) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59 ||
+    second < 0 ||
+    second > 59 ||
+    millisecond < 0 ||
+    millisecond > 999
   ) {
     return null;
   }
 
+  const parsed = new Date(Date.UTC(year, month - 1, day, hour, minute - crmTimeZoneOffsetMinutes, second, millisecond));
   return parsed.toISOString();
 }
 

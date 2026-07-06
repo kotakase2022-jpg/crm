@@ -26,6 +26,7 @@ type SupabaseServerClientOptions = {
 
 const supabaseMocks = vi.hoisted(() => ({
   getClaims: vi.fn(),
+  getUser: vi.fn(),
   createServerClient: vi.fn(),
 }));
 
@@ -42,10 +43,12 @@ describe("Supabase proxy helpers", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
     supabaseMocks.getClaims.mockReset();
+    supabaseMocks.getUser.mockReset();
     supabaseMocks.createServerClient.mockReset();
     supabaseMocks.createServerClient.mockReturnValue({
       auth: {
         getClaims: supabaseMocks.getClaims,
+        getUser: supabaseMocks.getUser,
       },
     });
   });
@@ -113,11 +116,36 @@ describe("Supabase proxy helpers", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
     supabaseMocks.getClaims.mockResolvedValue({ data: { claims: null } });
+    supabaseMocks.getUser.mockResolvedValue({ data: { user: null } });
 
     const response = await updateSession(new NextRequest("https://crm.example.test/deals?filter=hot"));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://crm.example.test/login?next=%2Fdeals%3Ffilter%3Dhot");
+  });
+
+  it("allows protected requests when claims are missing but getUser confirms the session", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example.test");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    supabaseMocks.getClaims.mockResolvedValue({ data: { claims: null } });
+    supabaseMocks.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+
+    const response = await updateSession(new NextRequest("https://crm.example.test/dashboard"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("falls back to getUser when claims lookup fails", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example.test");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    supabaseMocks.getClaims.mockRejectedValue(new Error("jwks unavailable"));
+    supabaseMocks.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+
+    const response = await updateSession(new NextRequest("https://crm.example.test/dashboard"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
   });
 
   it("keeps refreshed auth cookies and cache headers on unauthenticated redirects", async () => {
@@ -142,6 +170,7 @@ describe("Supabase proxy helpers", () => {
           );
           return { data: { claims: null } };
         },
+        getUser: async () => ({ data: { user: null } }),
       },
     }));
 
@@ -158,6 +187,7 @@ describe("Supabase proxy helpers", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
     supabaseMocks.getClaims.mockResolvedValue({ data: { claims: null } });
+    supabaseMocks.getUser.mockResolvedValue({ data: { user: null } });
 
     const response = await updateSession(new NextRequest("https://crm.example.test/login?next=/deals"));
 

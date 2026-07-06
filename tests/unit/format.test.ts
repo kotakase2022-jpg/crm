@@ -136,20 +136,11 @@ describe("crm format utilities", () => {
     expect(isSameLocalDate("not-a-date", new Date(2026, 6, 5, 12))).toBe(false);
   });
 
-  it("formats datetime-local input values in local time for edit forms", () => {
+  it("formats datetime-local input values in the CRM time zone for edit forms", () => {
     const persistedInstant = "2026-07-04T15:30:00.000Z";
-    const localDateTime = new Date(persistedInstant);
-    const expected = [
-      localDateTime.getFullYear(),
-      String(localDateTime.getMonth() + 1).padStart(2, "0"),
-      String(localDateTime.getDate()).padStart(2, "0"),
-    ].join("-");
-    const expectedTime = [String(localDateTime.getHours()).padStart(2, "0"), String(localDateTime.getMinutes()).padStart(2, "0")].join(":");
 
-    expect(dateTimeInputValue(persistedInstant)).toBe(`${expected}T${expectedTime}`);
-    if (localDateTime.getTimezoneOffset() !== 0) {
-      expect(dateTimeInputValue(persistedInstant)).not.toBe(persistedInstant.slice(0, 16));
-    }
+    expect(dateTimeInputValue(persistedInstant)).toBe("2026-07-05T00:30");
+    expect(dateTimeInputValue(persistedInstant)).not.toBe(persistedInstant.slice(0, 16));
   });
 
   it("keeps class name composition stable", () => {

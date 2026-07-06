@@ -1,4 +1,4 @@
-import { toNumber } from "./format";
+import { toFiniteNumber } from "./format";
 import type { TableName } from "./types";
 
 const managedFields = new Set([
@@ -19,15 +19,24 @@ function hasOwnField(values: Record<string, unknown>, field: string) {
   return Object.prototype.hasOwnProperty.call(values, field);
 }
 
+function annualAmount(value: unknown) {
+  const amount = toFiniteNumber(value, Number.NaN);
+  return Number.isFinite(amount) ? amount * 12 : null;
+}
+
 export function withComputedAmounts(table: TableName, values: Record<string, unknown>) {
   const next = { ...values };
 
   if (table === "deals" && hasOwnField(next, "expected_mrr")) {
-    next.expected_arr = toNumber(next.expected_mrr) * 12;
+    const expectedArr = annualAmount(next.expected_mrr);
+    if (expectedArr === null) delete next.expected_arr;
+    else next.expected_arr = expectedArr;
   }
 
   if (table === "subscriptions" && hasOwnField(next, "mrr")) {
-    next.arr = toNumber(next.mrr) * 12;
+    const arr = annualAmount(next.mrr);
+    if (arr === null) delete next.arr;
+    else next.arr = arr;
   }
 
   return next;

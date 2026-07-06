@@ -14,6 +14,7 @@ import { isDueTodayOrOverdueOpenTask } from "@/lib/crm/automation";
 import { getRelationOptions, getSnapshot } from "@/lib/crm/data";
 import { formatCurrency, formatDate, formatValue } from "@/lib/crm/format";
 import { relationHrefForField } from "@/lib/crm/related";
+import type { RelationOptions } from "@/lib/crm/types";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +27,19 @@ function MiniMetric({ label, value }: { label: string; value: React.ReactNode })
   );
 }
 
-function alertHref(alert: CrmAlert) {
-  if (alert.support_ticket_id) return `/tickets/${alert.support_ticket_id}`;
-  if (alert.deal_id) return `/deals/${alert.deal_id}`;
-  if (alert.lead_id) return `/leads/${alert.lead_id}`;
-  if (alert.company_id) return `/companies/${alert.company_id}`;
+function alertHref(alert: CrmAlert, relations: RelationOptions) {
+  const ticketHref = relationHrefForField("support_ticket_id", alert.support_ticket_id, relations);
+  if (ticketHref) return ticketHref;
+
+  const dealHref = relationHrefForField("deal_id", alert.deal_id, relations);
+  if (dealHref) return dealHref;
+
+  const leadHref = relationHrefForField("lead_id", alert.lead_id, relations);
+  if (leadHref) return leadHref;
+
+  const companyHref = relationHrefForField("company_id", alert.company_id, relations);
+  if (companyHref) return companyHref;
+
   return null;
 }
 
@@ -112,7 +121,7 @@ export default async function DashboardPage() {
           <CardContent className="grid gap-2">
             {alerts.length === 0 ? <p className="text-sm text-slate-500">現在、対応が必要なアラートはありません。</p> : null}
             {alerts.slice(0, 8).map((alert) => {
-              const href = alertHref(alert);
+              const href = alertHref(alert, relations);
               const content = (
                 <>
                   <div className="flex items-center justify-between gap-2">

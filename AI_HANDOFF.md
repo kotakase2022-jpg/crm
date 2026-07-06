@@ -5,178 +5,167 @@
 - Current owner: Codex
 - Next owner: Claude Code
 - Loop: 6
-- Loop number inferred from: Previous handoff had `Current owner: Claude Code`, `Next owner: Codex`, and noted that the next new development cycle should advance to Loop 6. This file records the Codex Loop 6 continuation.
+- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this pass continues Loop 6 by addressing PR #2 AI review findings before handing back to Claude Code.
 - Phase: Development / Autonomous Improvement / Verification / Handoff
-- Last updated: 2026-07-06 14:03:29 +09:00
+- Last updated: 2026-07-06 16:16:06 +09:00
 
 ## 1. Current Goal
 
 今回の目的：
 
-- Continue improving the existing CRM until both top-level scores can be proven at 100/100:
-  - all functions and screen transitions work as intended with no known defects or errors;
-  - the CRM feels highly usable, powerful, and indispensable for daily sales/CS work.
-- Keep CodeRabbit OSS as the standard PR reviewer.
-- Keep Cursor Bugbot optional/backup only.
-- Keep each change focused and CodeRabbit-reviewable.
+- Keep improving the CRM until the two top-level user goals can be proven at 100/100 by reproducible checks and review evidence.
+- Address high-value CodeRabbit OSS findings on PR #2 without broad refactors.
+- Keep Cursor Bugbot as optional backup only. It auto-ran on PR #2, but this pass did not manually invoke it.
+- Preserve existing CRM specs, Japanese UI, routing, data model, and quality-gate behavior.
 
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
-- Latest commit: `b1a44fda075201521b6414c8a108ef1319091806` (`Add CRM quality gate and lead import automation`)
-- Last known good commit: `b1a44fda075201521b6414c8a108ef1319091806`
-- Last known good working tree state: uncommitted working tree validated by `npm.cmd run quality` at 2026-07-06 14:03 +09:00.
-- PR: not created yet. CodeRabbit cannot review until a PR exists.
+- Latest commit: `8140a54` (`Address CodeRabbit CRM data integrity findings`)
+- Last known good commit: `8140a54` locally; local working tree passed `npm.cmd run quality` at 2026-07-06 16:13 +09:00 before commit.
+- PR: https://github.com/kotakase2022-jpg/crm/pull/2
 
 ## 3. What Was Done
 
 今回完了したこと：
 
-- Re-read required context:
-  - `AGENTS.md`
-  - `CLAUDE.md`
-  - `AI_HANDOFF.md`
-  - `README.md`
-  - `package.json`
-  - `docs/testing.md`
-  - `docs/ai-review.md`
-  - current git status / diff / latest commit
-- Treated this pass as Codex Loop 6 based on the previous Claude Code handoff.
-- Added a small list-sort regression test in `tests/unit/search.test.ts` proving imported leading whitespace does not disturb current company-name string sort behavior.
-  - The test passed before implementation changes, so no search implementation change was needed.
-- Found a user-facing display bug:
-  - `formatValue()` rendered whitespace-only strings as invisible text instead of the empty display marker `-`.
-  - Array display values such as issue tags preserved padded items and blank items, producing noisy list/detail output.
-- Added a failing regression test in `tests/unit/format.test.ts` before implementation:
-  - `formatValue("notes", "   ")` returned `"   "` instead of `"-"`.
-- Fixed `src/lib/crm/format.ts`:
-  - whitespace-only strings now render as `-`;
-  - array display values are trimmed, blank items are removed, and all-blank arrays render as `-`.
-- Ran focused tests, full quality gate, and diff whitespace check.
-- Updated this handoff for Claude Code review.
+- Confirmed PR #2 exists and initial remote gates were green before this fix pass:
+  - GitHub Actions `quality-gate`: success on the previous pushed commit.
+  - Vercel preview: success on the previous pushed commit.
+  - CodeRabbit OSS: review completed and posted findings.
+  - Cursor Bugbot: auto-ran as a neutral/optional check; not manually invoked.
+- Added failing regression tests first for the main CodeRabbit/Bugbot-overlapping findings, then fixed implementation:
+  - relation consistency failures now surface as `CrmValidationError`;
+  - CS document totals use the latest product usage row per company;
+  - Supabase proxy falls back from `getClaims()` to `getUser()` and handles claims lookup failure;
+  - invalid/non-finite MRR values no longer propagate Infinity/NaN ARR fields;
+  - datetime-local parsing is deterministic and treats CRM form input as Asia/Tokyo time;
+  - datetime-local edit values are rendered in the same CRM time zone;
+  - Supabase table reads paginate instead of silently truncating at 1000 rows;
+  - demo trial seed rows stay company-consistent with their linked deals;
+  - dashboard alert links are created only through validated relation options.
+- Re-ran focused tests and the full quality gate successfully.
 
 ## 4. Files Changed
 
 主な変更ファイル：
 
-- Latest Codex Loop 6 changes:
-  - `src/lib/crm/format.ts`
-  - `tests/unit/format.test.ts`
-  - `tests/unit/search.test.ts`
-  - `AI_HANDOFF.md`
-- Existing larger uncommitted Loop 5/Loop 6 diff remains in the working tree:
-  - CodeRabbit/process docs: `.coderabbit.yaml`, `.github/pull_request_template.md`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/testing.md`, `docs/ai-review.md`
-  - CRM app/domain/test hardening across `src/app/**`, `src/components/**`, `src/lib/**`, `tests/**`, `supabase/seed.sql`, `playwright.config.ts`, and `vitest.config.ts`
-- Nothing was staged, committed, pushed, deployed, or force-updated by this Codex pass.
+- `src/app/(crm)/dashboard/page.tsx`
+- `src/lib/crm/analytics.ts`
+- `src/lib/crm/data.ts`
+- `src/lib/crm/demo-data.ts`
+- `src/lib/crm/format.ts`
+- `src/lib/crm/persistence.ts`
+- `src/lib/crm/validation.ts`
+- `src/lib/supabase/proxy.ts`
+- `tests/integration/analytics-alerts.test.ts`
+- `tests/unit/data-conversion.test.ts`
+- `tests/unit/format.test.ts`
+- `tests/unit/persistence.test.ts`
+- `tests/unit/supabase-proxy.test.ts`
+- `tests/unit/validation.test.ts`
+- `AI_HANDOFF.md`
 
 ## 5. Current Status
 
 現在の状態：
 
-- Local full quality gate is green after the latest display-formatting fix.
-- `npm.cmd run quality` passed:
-  - typecheck passed
-  - lint passed
-  - test guard passed
-  - unit/integration: 25 files / 147 tests passed
-  - coverage passed: statements 92.72%, branches 85.63%, functions 99.01%, lines 95.22%
-  - Playwright E2E: 39 tests passed
-  - production build passed
-- `git diff --check` passed.
-- CodeRabbit GitHub App is installed for this repository, but CodeRabbit review has not run because no PR exists yet.
-- Working tree is still very large and uncommitted.
+- Local full quality gate is green after the CodeRabbit-fix pass.
+- The branch has not yet been pushed after commit `8140a54`; push PR #2 after this handoff update.
+- CodeRabbit re-review is still needed after the next push. Because `.coderabbit.yaml` has `auto_pause_after_reviewed_commits: 2`, manually triggering CodeRabbit with `@coderabbitai review` may be necessary.
+- PR #2 body still needs to be checked/updated if CodeRabbit continues to warn that the PR template sections are missing.
+- The two top-level scores are still not marked 100/100 until post-push GitHub Actions, Vercel preview, and CodeRabbit re-review are green.
 
 ## 6. Known Issues
 
 既知の問題：
 
-- CodeRabbit OSS standard review is still not run because the PR is not created.
-- The working tree remains large. Splitting into logical commits/PRs will help CodeRabbit review quality.
-- Supabase Preview/Production real-session auth/cookie refresh has not been manually verified in this final state.
-- Branch protection / stable CodeRabbit required check has not been verified.
-- The two top-level scores are not yet proven at 100/100 because CodeRabbit review, live-environment checks, and human/product acceptance evidence are still incomplete.
+- No live Supabase/Vercel authenticated session was manually verified in this pass.
+- CodeRabbit lower-priority suggestions were not all implemented:
+  - related-list filter precision in `entity-detail.tsx`;
+  - shared helper extraction between analytics/alerts;
+  - duplicate sort normalization reuse in `entity-table.tsx`;
+  - coverage include expansion for more source files.
+- `src/proxy.ts` matcher duplication was intentionally not changed yet because Next.js proxy matcher values must remain statically analyzable constants.
+- Git status may print warnings about `C:\Users\hiras/.config/git/ignore` permission; this has not blocked checks.
 
-## 7. CodeRabbit / Bugbot Findings
+## 7. Bugbot Findings
 
 Cursor Bugbotの指摘と対応状況：
 
-- CodeRabbit: installed for `kotakase2022-jpg/crm`, but no PR review yet.
-- Cursor Bugbot: not used in this Codex pass. It remains optional backup only.
-- No AI review findings were provided in the prompt.
-- If CodeRabbit findings appear, prioritize:
-  1. security / auth / permissions
-  2. data loss or data consistency
-  3. build/runtime failures
-  4. type/lint/test failures
-  5. missing tests
-  6. maintainability/readability
-  7. minor style issues
+- CodeRabbit OSS findings: partially addressed in this pass.
+  - Addressed: relation consistency validation errors, latest-usage document total, Supabase claims fallback, paginated reads, invalid ARR computation, deterministic Tokyo datetime handling, demo trial/deal company consistency, dashboard alert relation validation.
+  - Deferred/needs review: lower-priority maintainability and broader coverage suggestions listed in Known Issues.
+- Cursor Bugbot: auto-ran on PR #2 as an optional neutral check. It overlapped with the relation consistency, latest usage total, and Supabase proxy fallback findings; those overlapping issues were fixed here. No manual Bugbot retry was performed.
 
 ## 8. Verification Results
 
 実行した確認コマンドと結果：
 
 ```bash
-npm.cmd run test -- --run tests/unit/search.test.ts
-# Passed before implementation changes.
-# Test quality guard passed; 1 file / 17 tests passed.
-# The added string-sort whitespace regression matched existing behavior, so no search implementation change was needed.
+npm.cmd run test -- --run tests/integration/analytics-alerts.test.ts tests/unit/data-conversion.test.ts tests/unit/persistence.test.ts tests/unit/supabase-proxy.test.ts
+# Expected failure before implementation fixes.
+# 4 files failed with 5 regression failures:
+# - documentsCreated counted stale usage rows;
+# - relation consistency threw plain Error;
+# - invalid MRR propagated invalid ARR;
+# - proxy did not fall back to getUser and threw on claims failure.
 
-npm.cmd run test -- --run tests/unit/format.test.ts
-# Expected failure after adding whitespace-only display regression before implementation.
-# Failure showed formatValue("notes", "   ") returned invisible whitespace instead of "-".
+npm.cmd run test -- --run tests/integration/analytics-alerts.test.ts tests/unit/data-conversion.test.ts tests/unit/persistence.test.ts tests/unit/supabase-proxy.test.ts tests/unit/validation.test.ts tests/unit/format.test.ts
+# Passed after implementation fixes.
+# 6 files / 54 tests passed.
 
-npm.cmd run test -- --run tests/unit/format.test.ts tests/unit/search.test.ts
-# Passed after display-formatting fix.
-# Test quality guard passed; 2 files / 29 tests passed.
+npm.cmd run test -- --run tests/integration/analytics-alerts.test.ts tests/unit/data-conversion.test.ts tests/unit/persistence.test.ts tests/unit/supabase-proxy.test.ts tests/unit/validation.test.ts tests/unit/format.test.ts tests/unit/demo-data.test.ts
+# Passed after the dashboard/demo-data follow-up.
+# 7 files / 57 tests passed.
+
+npm.cmd run typecheck
+# Passed.
 
 npm.cmd run quality
-# Passed after display-formatting fix.
-# Test quality guard passed: 26 spec files checked.
-# Unit/integration: 25 files / 147 tests passed.
-# Coverage summary: statements 92.72%, branches 85.63%, functions 99.01%, lines 95.22%.
-# E2E: 39 Playwright Chromium tests passed.
-# Build: Next.js 16.2.10 production build passed.
-
-git diff --check
-# Passed after handoff update.
+# Passed.
+# typecheck passed.
+# lint passed.
+# test guard passed: 26 spec files checked.
+# unit/integration: 25 files / 152 tests passed.
+# coverage passed: statements 92.64%, branches 85.68%, functions 99.03%, lines 95.17%.
+# Playwright E2E: 39 Chromium tests passed.
+# Next.js production build passed.
 ```
-
-Manual/flow evidence:
-
-- Full Playwright E2E was included in `npm.cmd run quality`.
-- No separate live Supabase/Vercel production-like session was performed in this pass.
 
 ## 9. Next Recommended Action
 
 次にClaude Codeが最初にやるべきこと：
 
-1. Review the latest display-formatting fix:
+1. After the Codex push, inspect PR #2 latest diff and CodeRabbit re-review.
+2. Confirm remote GitHub Actions `quality-gate` and Vercel preview are green on the latest commit.
+3. Review the fixed high-risk areas:
+   - `src/lib/supabase/proxy.ts`
+   - `src/lib/crm/data.ts`
+   - `src/lib/crm/analytics.ts`
+   - `src/lib/crm/persistence.ts`
+   - `src/lib/crm/validation.ts`
    - `src/lib/crm/format.ts`
-   - `tests/unit/format.test.ts`
-   - `tests/unit/search.test.ts`
-2. Confirm that trimming display-only strings and arrays is acceptable for list/detail rendering while preserving underlying saved data.
-3. Prepare the large working tree for PR review:
-   - decide whether to split commits/PRs;
-   - ensure untracked files are included intentionally;
-   - create/update a PR so CodeRabbit OSS can finally review.
-4. Re-run `npm.cmd run quality` after any Claude or CodeRabbit fixes.
+4. Decide whether any deferred CodeRabbit maintainability suggestions should be handled before merge.
 
 ## 10. Suggested Review Scope for Claude Code
 
 Claude Codeに重点レビューしてほしい範囲：
 
-- Latest Loop 6 fix:
-  - `formatValue()` now treats whitespace-only strings as empty display values.
-  - array display values are trimmed and blank values are removed before joining.
-  - this is display-only normalization and should not mutate persisted CRM records.
-- Existing high-value areas still worth reviewing:
-  - relation id normalization and save-path consistency;
-  - lead conversion id reuse validation;
-  - dashboard alerts and KPI normalization;
-  - spreadsheet lead import duplicate/status normalization;
-  - proxy/auth redirect/cookie behavior;
-  - E2E coverage for daily CRM workflows.
+- Supabase auth proxy behavior:
+  - claims success path;
+  - claims missing but user valid path;
+  - claims failure fallback path;
+  - unauthenticated redirect preserving refreshed cookies/headers.
+- Date/time behavior:
+  - datetime-local input is stored as Asia/Tokyo;
+  - edit forms render persisted instants in Asia/Tokyo;
+  - existing E2E still passes.
+- Relation consistency and data integrity:
+  - mismatched company/contact/deal/ticket/subscription/trial relations produce user-facing validation errors;
+  - demo seed trial rows are company-consistent with linked deals.
+- KPI behavior:
+  - CS active companies and document totals use latest usage rows per company.
 
 ## 11. Do Not Touch
 
@@ -193,9 +182,8 @@ Claude Codeに重点レビューしてほしい範囲：
 Claude Codeへの補足：
 
 - Current self-score after this pass:
-  - Function/screen-transition/no-known-defect score: 98/100.
-  - CRM daily-use experience value score: 96/100.
-- Scores are not 100 because CodeRabbit review, real Supabase/Vercel verification, working-tree split/review, and human/product acceptance are still incomplete.
-- The active long-running objective remains open. Do not mark it complete until the evidence proves both top-level goals at 100/100.
+  - Function/screen-transition/no-known-defect score: 99/100 locally.
+  - CRM daily-use experience value score: 97/100 locally.
+- Scores are not 100 because post-push CI/Vercel/CodeRabbit evidence and live Supabase verification are still pending.
 - `npm` in PowerShell may hit the local execution-policy issue via `npm.ps1`; use `npm.cmd` on this machine.
-- Git status emits warnings about `C:\Users\hiras/.config/git/ignore` permission. This did not block local checks.
+- If CodeRabbit does not re-run after push, comment `@coderabbitai review` on PR #2.
