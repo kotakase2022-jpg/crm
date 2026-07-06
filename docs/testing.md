@@ -1,6 +1,6 @@
 # Testing and Quality Gate
 
-This repository must not be considered complete unless the mechanical quality gate succeeds. This applies to Codex, Cursor, and human contributors.
+This repository must not be considered complete unless the mechanical quality gate succeeds. This applies to Codex, Claude Code, Cursor, and human contributors.
 
 ## Development Flow
 
@@ -12,9 +12,31 @@ Normal flow:
 2. Make the change and add the required tests.
 3. Run `npm run quality` locally.
 4. Open a pull request using `.github/pull_request_template.md`.
-5. Merge only after GitHub Actions `quality-gate` succeeds.
+5. Let CodeRabbit OSS review the pull request.
+6. Fix critical/high CodeRabbit findings, or explicitly document any deferred finding with a reason.
+7. Merge only after GitHub Actions `quality-gate` succeeds.
 
 For Vercel production deployments, `main` is the production source branch. A production deployment should only happen after the PR has passed `quality-gate` and has been merged to `main`.
+
+## AI PR Review
+
+CodeRabbit OSS is the standard PR AI reviewer for this public/open-source repository. Cursor Bugbot is optional backup only and should be used only when CodeRabbit is unavailable or the user explicitly asks for an additional review.
+
+Operational rules:
+
+- Keep `.coderabbit.yaml` versioned and update it when important review scope changes.
+- Install and maintain the CodeRabbit GitHub App for this repository.
+- Do not enable paid CodeRabbit plans, private-repo billing, or usage-based add-ons without explicit user approval.
+- If the repository becomes private or OSS eligibility changes, pause and reassess the review workflow and cost before continuing.
+- Address CodeRabbit security, auth, permission, data-loss, runtime, build, type, lint, and test findings before lower-priority cleanup.
+- If a CodeRabbit finding is intentionally deferred, document the reason in the PR and `AI_HANDOFF.md`.
+- CodeRabbit review does not replace local checks, `npm run quality`, or GitHub Actions `quality-gate`.
+
+Setup references:
+
+- CodeRabbit GitHub App: https://github.com/apps/coderabbitai
+- CodeRabbit GitHub setup docs: https://docs.coderabbit.ai/platforms/github-com
+- CodeRabbit YAML configuration: https://docs.coderabbit.ai/getting-started/yaml-configuration
 
 ## Local Commands
 
@@ -153,6 +175,8 @@ If CI fails:
 3. Reproduce locally with `npm run test:e2e` or `npm run quality`.
 4. Fix the implementation unless the test specification is demonstrably wrong.
 
+CI and CodeRabbit have different jobs. CI is the required mechanical gate. CodeRabbit is the standard AI PR reviewer. A PR is not ready to merge until both the required CI gate is green and CodeRabbit critical/high findings are resolved or explicitly deferred.
+
 ## Branch Protection
 
 Enable GitHub branch protection for `main`. If automation cannot set these rules, configure them manually in GitHub:
@@ -164,7 +188,8 @@ Enable GitHub branch protection for `main`. If automation cannot set these rules
 5. Require the `quality-gate / typecheck-lint-test-e2e-build` status check.
 6. Enable `Require branches to be up to date before merging`.
 7. Restrict direct pushes to `main`.
-8. Do not allow bypassing the above settings unless a repository owner needs emergency recovery.
+8. If CodeRabbit exposes a stable required status check after GitHub App installation, repository owners may require it as an additional check.
+9. Do not allow bypassing the above settings unless a repository owner needs emergency recovery.
 
 The repository is not considered fully protected until this rule is active.
 

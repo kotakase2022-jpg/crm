@@ -25,6 +25,13 @@
 - [ ] `npm run quality` succeeded locally
 - [ ] GitHub Actions `quality-gate` is expected to pass before merge
 
+## AI Review
+
+- [ ] CodeRabbit OSS reviewed this PR, or the reason it has not run is documented below
+- [ ] CodeRabbit critical/high findings are fixed or explicitly deferred with rationale
+- [ ] Cursor Bugbot was not used, or was used only as optional backup with the reason documented below
+- [ ] AI review did not replace `npm run quality` or GitHub Actions `quality-gate`
+
 ## E2E Flows Verified
 
 - 
