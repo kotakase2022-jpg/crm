@@ -27,11 +27,11 @@ Goal status note:
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
-- Latest pushed commit before the final nitpick handoff commit: `9cc8bce` (`Update handoff after CodeRabbit fixes`)
-- Local unpushed change before this handoff commit: CodeRabbit Nitpick improvement in `tests/unit/data-conversion.test.ts`.
-- Latest local commit after this handoff update should contain:
+- Latest pushed code/test handoff commit: `0e2e2cb` (`Strengthen handoff after CodeRabbit nitpick`)
+- Any later commit should be handoff metadata only; run `git log -1 --oneline` for the exact latest hash.
+- Commit `0e2e2cb` contains:
   - relation-field assertion improvement for the CodeRabbit Nitpick;
-  - this updated `AI_HANDOFF.md`.
+  - updated `AI_HANDOFF.md` noting the user-requested pause.
 - Last known good local verification: `npm.cmd run quality` passed at 2026-07-06 16:25 +09:00 after the Nitpick test improvement.
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
 
@@ -82,11 +82,12 @@ Goal status note:
 現在の状態：
 
 - Local full quality gate is green after the latest Nitpick improvement.
+- Commit `0e2e2cb` has been pushed to PR #2.
 - Main PR #2 remote checks were green at commit `9cc8bce` before the final local Nitpick/handoff commit:
   - CodeRabbit: pass.
   - GitHub Actions `quality-gate`: pass.
   - Vercel: pass.
-- After committing/pushing this final handoff/Nitpick update, GitHub Actions, Vercel, and CodeRabbit may rerun. Claude Code should confirm them before merge.
+- After commit `0e2e2cb`, GitHub Actions, Vercel, and CodeRabbit may rerun. Claude Code should confirm them before merge.
 - PR #2 body has been updated to include Summary, Impact, Tests Added/Updated, Commands Run, Quality Gate, E2E Flows Verified, Safety Checklist, and Notes.
 - The two top-level scores are still not marked 100/100 because live Supabase/Vercel authenticated verification and final human/product acceptance evidence are still incomplete.
 
@@ -168,20 +169,19 @@ npm.cmd run quality
 
 次にClaude Codeが最初にやるべきこと：
 
-1. Confirm whether Codex has pushed the final Nitpick/handoff commit after this file update.
-2. If pushed, confirm PR #2 latest remote checks:
+1. Confirm PR #2 latest remote checks after commit `0e2e2cb` or any later handoff-only commit:
    - GitHub Actions `quality-gate`
    - Vercel preview
    - CodeRabbit
-3. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
-4. Review the previously fixed high-risk areas:
+2. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
+3. Review the previously fixed high-risk areas:
    - `src/lib/supabase/proxy.ts`
    - `src/lib/crm/data.ts`
    - `src/lib/crm/analytics.ts`
    - `src/lib/crm/persistence.ts`
    - `src/lib/crm/validation.ts`
    - `src/lib/crm/format.ts`
-5. Decide whether any deferred CodeRabbit maintainability suggestions should be handled before merge.
+4. Decide whether any deferred CodeRabbit maintainability suggestions should be handled before merge.
 
 ## 10. Suggested Review Scope for Claude Code
 
