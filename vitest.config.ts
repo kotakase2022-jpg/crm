@@ -20,6 +20,7 @@ export default defineConfig({
       reportsDirectory: "coverage",
       reporter: ["text", "json", "html", "lcov"],
       include: [
+        "src/lib/crm/access.ts",
         "src/lib/crm/activity-next-action.ts",
         "src/lib/crm/automation.ts",
         "src/lib/crm/alerts.ts",
@@ -33,6 +34,7 @@ export default defineConfig({
         "src/lib/crm/persistence.ts",
         "src/lib/crm/related.ts",
         "src/lib/crm/search.ts",
+        "src/lib/crm/usage.ts",
         "src/lib/crm/validation.ts",
         "src/lib/supabase/proxy.ts",
         "src/lib/utils.ts",
