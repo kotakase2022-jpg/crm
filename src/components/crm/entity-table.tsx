@@ -7,7 +7,7 @@ import { Input, Select } from "@/components/ui/input";
 import type { CrmRecord, EntityConfig, QueryState, RelationOptions } from "@/lib/crm/types";
 import { formatValue } from "@/lib/crm/format";
 import { relationHrefForField } from "@/lib/crm/related";
-import { defaultSortDirection, listSortHref } from "@/lib/crm/search";
+import { defaultSortDirection, listSortHref, normalizedSort } from "@/lib/crm/search";
 
 function fieldLabel(config: EntityConfig, field: string) {
   return config.fields.find((item) => item.name === field)?.label ?? labelFallback[field] ?? field;
@@ -51,7 +51,7 @@ export function EntityFilterBar({
   query: QueryState;
 }) {
   const options = filterOptions(config, rows);
-  const selectedSort = query.sort && config.sortFields.includes(query.sort) ? query.sort : config.sortFields[0] ?? "updated_at";
+  const selectedSort = normalizedSort(config, query.sort);
   const defaultDirection = defaultSortDirection(config, selectedSort);
   const hasActiveQuery =
     Boolean(query.q) ||
@@ -150,7 +150,7 @@ export function EntityTable({
             <tr>
               {config.listFields.map((field) => {
                 const sortable = config.sortFields.includes(field);
-                const selectedSort = query.sort && config.sortFields.includes(query.sort) ? query.sort : config.sortFields[0] ?? "updated_at";
+                const selectedSort = normalizedSort(config, query.sort);
                 const selectedDirection = query.direction ?? defaultSortDirection(config, selectedSort);
                 const isActiveSort = selectedSort === field;
                 const SortIcon = isActiveSort ? (selectedDirection === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;

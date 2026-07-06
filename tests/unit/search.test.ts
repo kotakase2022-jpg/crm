@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { entityConfigs } from "@/lib/crm/entities";
 import { localDateString, offsetLocalDateString } from "@/lib/crm/format";
 import { priorities, taskStatuses } from "@/lib/crm/options";
-import { defaultSortDirection, filterSortRows, listSortHref, matchesFilter, matchesSearch, nextSortDirection } from "@/lib/crm/search";
+import { defaultSortDirection, filterSortRows, listSortHref, matchesFilter, matchesSearch, nextSortDirection, normalizedSort } from "@/lib/crm/search";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -306,5 +306,10 @@ describe("CRM list search", () => {
 
     expect(nextSortDirection(entityConfigs.deals, { sort: "expected_mrr", direction: "desc" }, "expected_mrr")).toBe("asc");
     expect(nextSortDirection(entityConfigs.deals, { sort: "expected_contract_date", direction: "asc" }, "expected_mrr")).toBe("desc");
+  });
+
+  it("shares invalid sort normalization between list rendering and data ordering", () => {
+    expect(normalizedSort(entityConfigs.tasks, "not-a-real-sort")).toBe(entityConfigs.tasks.sortFields[0]);
+    expect(normalizedSort(entityConfigs.tasks, "priority")).toBe("priority");
   });
 });

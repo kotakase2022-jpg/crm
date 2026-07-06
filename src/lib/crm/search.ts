@@ -51,7 +51,7 @@ export function defaultSortDirection(config: EntityConfig, sort?: string): "asc"
   return "desc";
 }
 
-function normalizedSort(config: EntityConfig, sort?: string) {
+export function normalizedSort(config: EntityConfig, sort?: string) {
   return sort && config.sortFields.includes(sort) ? sort : config.sortFields[0] ?? "updated_at";
 }
 

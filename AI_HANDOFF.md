@@ -5,9 +5,9 @@
 - Current owner: Codex
 - Next owner: Claude Code
 - Loop: 6
-- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this pass continues Loop 6 by verifying final PR checks and resolving two low-risk deferred CodeRabbit maintainability suggestions.
+- Loop number inferred from: Previous handoffs advanced the Codex/Claude cycle to Loop 6; this pass continues Loop 6 by verifying PR checks and resolving one more low-risk deferred CodeRabbit maintainability suggestion.
 - Phase: Autonomous Improvement / Verification / Handoff
-- Last updated: 2026-07-06 16:38:28 +09:00
+- Last updated: 2026-07-06 16:47:27 +09:00
 
 ## 1. Current Goal
 
@@ -27,18 +27,19 @@ Goal status note:
 ## 2. Current Branch / Commit
 
 - Branch: `codex/ai-handoff-loop`
-- Latest pushed commit before this cleanup pass: `fa039ec` (`Clarify final handoff check status`)
-- This cleanup pass changes:
-  - `src/components/crm/toast-notice.tsx`
-  - `src/lib/crm/analytics.ts`
+- Latest pushed commit before this pass: `8b5663c` (`Clean up CRM review nits`)
+- This pass changes:
+  - `src/components/crm/entity-table.tsx`
+  - `src/lib/crm/search.ts`
+  - `tests/unit/search.test.ts`
   - `AI_HANDOFF.md`
-- Latest commit after this handoff update should contain the low-risk CodeRabbit cleanup and this updated handoff; run `git log -1 --oneline` for the exact hash after commit.
+- Latest commit after this handoff update should contain the sort-normalization cleanup and this updated handoff; run `git log -1 --oneline` for the exact hash after commit.
 - Latest pushed code/test commit: `0e2e2cb` (`Strengthen handoff after CodeRabbit nitpick`)
 - Any later commit should be handoff metadata only unless Claude Code chooses to address deferred low-priority CodeRabbit suggestions.
 - Commit `0e2e2cb` contains:
   - relation-field assertion improvement for the CodeRabbit Nitpick;
   - updated `AI_HANDOFF.md` noting the user-requested pause.
-- Last known good local verification: `npm.cmd run quality` passed at 2026-07-06 16:38 +09:00 after the toast/analytics cleanup.
+- Last known good local verification: `npm.cmd run quality` passed at 2026-07-06 16:47 +09:00 after the sort-normalization cleanup.
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
 
 ## 3. What Was Done
@@ -69,6 +70,15 @@ Goal status note:
 - Addressed two low-risk deferred CodeRabbit maintainability suggestions:
   - moved `validation-error` into the main toast messages map in `src/components/crm/toast-notice.tsx`;
   - centralized demo-stage ranges in `src/lib/crm/analytics.ts` so demo scheduled/done/funnel calculations share one derived source from `dealStages`.
+- Confirmed PR #2 latest remote checks were green at `8b5663c` before this pass:
+  - CodeRabbit: pass.
+  - GitHub Actions `quality-gate`: pass.
+  - Vercel: pass.
+  - Vercel Preview Comments: pass.
+- Addressed another low-risk deferred CodeRabbit maintainability suggestion:
+  - exported `normalizedSort` from `src/lib/crm/search.ts`;
+  - reused it from `EntityFilterBar` and `EntityTable` so filter controls, header sort indicators, and data sorting share the same invalid-sort fallback;
+  - added a regression assertion in `tests/unit/search.test.ts`.
 - Re-ran focused tests and the full quality gate successfully.
 
 ## 4. Files Changed
@@ -78,6 +88,7 @@ Goal status note:
 - `src/app/(crm)/dashboard/page.tsx`
 - `src/lib/crm/analytics.ts`
 - `src/components/crm/toast-notice.tsx`
+- `src/components/crm/entity-table.tsx`
 - `src/lib/crm/data.ts`
 - `src/lib/crm/demo-data.ts`
 - `src/lib/crm/format.ts`
@@ -90,20 +101,21 @@ Goal status note:
 - `tests/unit/persistence.test.ts`
 - `tests/unit/supabase-proxy.test.ts`
 - `tests/unit/validation.test.ts`
+- `tests/unit/search.test.ts`
 - `AI_HANDOFF.md`
 
 ## 5. Current Status
 
 現在の状態：
 
-- Local full quality gate is green after the latest low-risk cleanup.
-- PR #2 remote checks were green at commit `fa039ec` immediately before this cleanup:
+- Local full quality gate is green after the latest sort-normalization cleanup.
+- PR #2 remote checks were green at commit `8b5663c` immediately before this pass:
   - CodeRabbit: pass.
   - GitHub Actions `quality-gate`: pass.
   - Vercel: pass.
 - Vercel Preview Comments: pass.
-- Latest Vercel preview deployment before this cleanup: https://crm-git-codex-ai-handoff-loop-kotakase2022-jpgs-projects.vercel.app
-- After committing/pushing this cleanup, GitHub Actions, Vercel, and CodeRabbit may rerun. Claude Code should confirm the newest commit before merge.
+- Latest Vercel preview deployment before this pass: https://crm-git-codex-ai-handoff-loop-kotakase2022-jpgs-projects.vercel.app
+- After committing/pushing this pass, GitHub Actions, Vercel, and CodeRabbit may rerun. Claude Code should confirm the newest commit before merge.
 - PR #2 body has been updated to include Summary, Impact, Tests Added/Updated, Commands Run, Quality Gate, E2E Flows Verified, Safety Checklist, and Notes.
 - The two top-level scores are still not marked 100/100 because live Supabase/Vercel authenticated verification and final human/product acceptance evidence are still incomplete.
 
@@ -115,7 +127,6 @@ Goal status note:
 - CodeRabbit lower-priority suggestions were not all implemented:
   - related-list filter precision in `entity-detail.tsx`;
   - shared helper extraction between analytics/alerts;
-  - duplicate sort normalization reuse in `entity-table.tsx`;
   - coverage include expansion for more source files;
   - seed SQL test brittleness.
 - `src/proxy.ts` matcher duplication was intentionally not changed yet because Next.js proxy matcher values must remain statically analyzable constants.
@@ -126,7 +137,7 @@ Goal status note:
 Cursor Bugbotの指摘と対応状況：
 
 - CodeRabbit OSS findings:
-  - Addressed: relation consistency validation errors, latest-usage document total, Supabase claims fallback, paginated reads, invalid ARR computation, deterministic Tokyo datetime handling, demo trial/deal company consistency, dashboard alert relation validation, relation-field assertion specificity in `tests/unit/data-conversion.test.ts`, toast message map consistency, and analytics stage-list centralization.
+  - Addressed: relation consistency validation errors, latest-usage document total, Supabase claims fallback, paginated reads, invalid ARR computation, deterministic Tokyo datetime handling, demo trial/deal company consistency, dashboard alert relation validation, relation-field assertion specificity in `tests/unit/data-conversion.test.ts`, toast message map consistency, analytics stage-list centralization, and shared list sort normalization.
   - Deferred/needs Claude Code review: lower-priority maintainability and broader coverage suggestions listed in Known Issues.
 - Cursor Bugbot:
   - Auto-ran on PR #2 as an optional neutral check.
@@ -208,19 +219,44 @@ npm.cmd run quality
 # coverage passed: statements 92.68%, branches 85.68%, functions 99.04%, lines 95.20%.
 # Playwright E2E: 39 Chromium tests passed.
 # Next.js production build passed.
+
+gh pr checks 2
+# Passed at commit 8b5663c before this pass:
+# - quality-gate/typecheck-lint-test-e2e-build: pass
+# - CodeRabbit: pass
+# - Vercel: pass
+# - Vercel Preview Comments: pass
+
+npm.cmd run test -- --run tests/unit/search.test.ts tests/unit/entity-table.test.ts
+# Passed after shared sort-normalization cleanup.
+# 2 files / 19 tests passed.
+
+npm.cmd run typecheck
+# Passed.
+
+npm.cmd run quality
+# Passed after shared sort-normalization cleanup.
+# typecheck passed.
+# lint passed.
+# test guard passed: 26 spec files checked.
+# unit/integration: 25 files / 153 tests passed.
+# coverage passed: statements 92.68%, branches 85.68%, functions 99.04%, lines 95.20%.
+# Playwright E2E: 39 Chromium tests passed.
+# Next.js production build passed.
 ```
 
 ## 9. Next Recommended Action
 
 次にClaude Codeが最初にやるべきこと：
 
-1. Confirm PR #2 latest remote checks after the toast/analytics cleanup commit:
+1. Confirm PR #2 latest remote checks after the sort-normalization cleanup commit:
    - GitHub Actions `quality-gate`
    - Vercel preview
    - CodeRabbit
 2. Review the latest low-risk cleanup:
-   - `src/components/crm/toast-notice.tsx`
-   - `src/lib/crm/analytics.ts`
+   - `src/components/crm/entity-table.tsx`
+   - `src/lib/crm/search.ts`
+   - `tests/unit/search.test.ts`
 3. Review the latest CodeRabbit Nitpick fix in `tests/unit/data-conversion.test.ts`.
 4. Review the previously fixed high-risk areas:
    - `src/lib/supabase/proxy.ts`
@@ -253,7 +289,8 @@ Claude Codeに重点レビューしてほしい範囲：
   - CS active companies and document totals use latest usage rows per company.
 - Low-risk cleanup:
   - toast messages remain behaviorally unchanged while the message map is centralized;
-  - demo scheduled/done/funnel stages derive from `dealStages` instead of duplicated literals.
+  - demo scheduled/done/funnel stages derive from `dealStages` instead of duplicated literals;
+  - list filter controls, table headers, and data sorting all share `normalizedSort`.
 
 ## 11. Do Not Touch
 
@@ -269,10 +306,10 @@ Claude Codeに重点レビューしてほしい範囲：
 
 Claude Codeへの補足：
 
-- Codex resumed after the previous pause and made one small review-debt cleanup pass.
+- Codex resumed after the previous pause and made small review-debt cleanup passes.
 - Current self-score after this pass:
   - Function/screen-transition/no-known-defect score: 99/100 locally.
   - CRM daily-use experience value score: 97/100 locally.
-- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence was green at `fa039ec`; confirm whether the latest cleanup commit also completed before merge.
+- Scores are not 100 because live Supabase verification and human/product acceptance are still pending. PR #2 CI/Vercel/CodeRabbit evidence was green at `8b5663c`; confirm whether the latest sort-normalization cleanup commit also completed before merge.
 - `npm` in PowerShell may hit the local execution-policy issue via `npm.ps1`; use `npm.cmd` on this machine.
 - If CodeRabbit does not re-run after the final push, comment `@coderabbitai review` on PR #2.
