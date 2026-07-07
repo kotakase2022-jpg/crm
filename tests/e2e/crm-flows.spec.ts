@@ -589,6 +589,24 @@ test("related sections with hidden rows link to a filtered full list", async ({ 
   expect(listUrl.searchParams.get("relation_id")).toBe(companyId);
   await expect(page.locator("tbody tr")).toHaveCount(9);
   await expect(page.locator("tbody")).toContainText(lastContactName);
+
+  await page.locator('input[name="q"]').fill(lastContactName);
+  await page.locator('input[name="q"]').press("Enter");
+  const searchedUrl = new URL(page.url());
+  expect(searchedUrl.searchParams.get("relation_field")).toBe("company_id");
+  expect(searchedUrl.searchParams.get("relation_id")).toBe(companyId);
+  expect(searchedUrl.searchParams.get("q")).toBe(lastContactName);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+
+  await page.getByRole("link", { name: "条件クリア" }).click();
+  await expect(page).toHaveURL(new RegExp(`/contacts\\?relation_field=company_id&relation_id=${escapeRegExp(companyId)}$`));
+  const clearedUrl = new URL(page.url());
+  expect(clearedUrl.pathname).toBe("/contacts");
+  expect(clearedUrl.searchParams.get("relation_field")).toBe("company_id");
+  expect(clearedUrl.searchParams.get("relation_id")).toBe(companyId);
+  expect(clearedUrl.searchParams.has("q")).toBe(false);
+  await expect(page.locator("tbody tr")).toHaveCount(9);
+  await expect(page.locator("tbody")).toContainText(lastContactName);
   await strict.expectClean();
 });
 

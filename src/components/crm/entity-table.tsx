@@ -7,7 +7,7 @@ import { Input, Select } from "@/components/ui/input";
 import type { CrmRecord, EntityConfig, QueryState, RelationOptions } from "@/lib/crm/types";
 import { formatValue, optionLabelForField } from "@/lib/crm/format";
 import { relationHrefForField } from "@/lib/crm/related";
-import { defaultSortDirection, listSortHref, normalizedSort } from "@/lib/crm/search";
+import { defaultSortDirection, listClearHref, listSortHref, normalizedSort } from "@/lib/crm/search";
 
 function fieldLabel(config: EntityConfig, field: string) {
   return config.fields.find((item) => item.name === field)?.label ?? labelFallback[field] ?? field;
@@ -57,8 +57,6 @@ export function EntityFilterBar({
   const hasActiveQuery =
     Boolean(query.q) ||
     Boolean(query.filter) ||
-    Boolean(query.view) ||
-    Boolean(query.relationField && query.relationId) ||
     (query.sort && query.sort !== config.sortFields[0]) ||
     (query.direction && query.direction !== defaultDirection);
 
@@ -105,7 +103,7 @@ export function EntityFilterBar({
             適用
           </Button>
           {hasActiveQuery ? (
-            <Link href={`/${config.slug}`} className={buttonClassName("ghost", "w-full md:w-auto")}>
+            <Link href={listClearHref(config, query)} className={buttonClassName("ghost", "w-full md:w-auto")}>
               条件クリア
             </Link>
           ) : null}

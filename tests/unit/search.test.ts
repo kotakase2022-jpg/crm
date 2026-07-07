@@ -5,6 +5,7 @@ import { priorities, taskStatuses } from "@/lib/crm/options";
 import {
   defaultSortDirection,
   filterSortRows,
+  listClearHref,
   listSortHref,
   matchesFilter,
   matchesRelationFilter,
@@ -328,6 +329,30 @@ describe("CRM list search", () => {
 
     expect(nextSortDirection(entityConfigs.deals, { sort: "expected_mrr", direction: "desc" }, "expected_mrr")).toBe("asc");
     expect(nextSortDirection(entityConfigs.deals, { sort: "expected_contract_date", direction: "asc" }, "expected_mrr")).toBe("desc");
+  });
+
+  it("clears search and sort without dropping workflow context filters", () => {
+    expect(
+      listClearHref(entityConfigs.tasks, {
+        q: "契約",
+        filter: taskStatuses[0],
+        view: "today",
+        sort: "priority",
+        direction: "desc",
+      }),
+    ).toBe("/tasks?view=today");
+
+    expect(
+      listClearHref(entityConfigs.contacts, {
+        q: "佐藤",
+        relationField: "company_id",
+        relationId: "company-1",
+        sort: "name",
+        direction: "asc",
+      }),
+    ).toBe("/contacts?relation_field=company_id&relation_id=company-1");
+
+    expect(listClearHref(entityConfigs.leads, { q: "lead1@example.com" })).toBe("/leads");
   });
 
   it("filters related list drilldowns by exact relation ids instead of parent names", () => {
