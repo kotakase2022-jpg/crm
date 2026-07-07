@@ -13,7 +13,7 @@ import {
   ticketStatuses,
   ticketTypes,
 } from "./options";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { offsetLocalDateString } from "./format";
 import type { CrmRecord, TableName } from "./types";
@@ -460,9 +460,24 @@ function readPersistentDemoStore() {
 function writePersistentDemoStore() {
   if (!persistentDemoStoreFile) return;
   mkdirSync(path.dirname(persistentDemoStoreFile), { recursive: true });
-  const tempFile = `${persistentDemoStoreFile}.${process.pid}.tmp`;
+  const tempFile = `${persistentDemoStoreFile}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
   writeFileSync(tempFile, JSON.stringify(demoStore), "utf8");
-  renameSync(tempFile, persistentDemoStoreFile);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      renameSync(tempFile, persistentDemoStoreFile);
+      return;
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+      const canRetry = ["EACCES", "EPERM"].includes(code) && attempt < 4;
+      if (!canRetry) {
+        rmSync(tempFile, { force: true });
+        throw error;
+      }
+
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
 }
 
 function syncDemoStore() {

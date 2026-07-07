@@ -553,4 +553,25 @@ describe("CRM server actions", () => {
       `/login?error=${encodeURIComponent("メールアドレスまたはパスワードを確認してください。")}&next=${encodeURIComponent("/reports")}`,
     );
   });
+
+  it("sanitizes direct sign-up next targets before redirecting after auth failure", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signUp = vi.fn().mockResolvedValue({ error: new Error("User already registered") });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signUp } } as never);
+    const formData = new FormData();
+    formData.set("email", "cs@example.test");
+    formData.set("password", "secret");
+    formData.set("next", "https://evil.example/phishing");
+
+    const { signUpAction } = await import("@/lib/crm/actions");
+
+    await signUpAction(formData);
+
+    const redirectTarget = String(mocks.redirect.mock.calls.find(([target]) => String(target).startsWith("/login?error="))?.[0]);
+    const params = new URL(`https://crm.example.test${redirectTarget}`).searchParams;
+
+    expect(mocks.safeInternalRedirectPath).toHaveBeenCalledWith("https://evil.example/phishing");
+    expect(params.get("next")).toBe("/dashboard");
+    expect(redirectTarget).not.toContain("evil.example");
+  });
 });
