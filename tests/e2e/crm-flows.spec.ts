@@ -1037,6 +1037,18 @@ test("dashboards, reports, and settings expose operational decision signals", as
   const riskyCompanyHref = await page.getByTestId("dashboard-risky-company-link").first().getAttribute("href");
   expect(riskyCompanyHref).toMatch(/^\/companies\/[^/\s]+$/);
   expect(riskyCompanyHref).not.toContain("undefined");
+  const riskyCompanyPath = riskyCompanyHref ?? "";
+  const riskyCompanyId = riskyCompanyPath.split("/").at(-1) ?? "";
+  expect(riskyCompanyId).toBeTruthy();
+
+  await page.getByTestId("dashboard-risky-company-link").first().click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(riskyCompanyPath)}$`));
+  await expect(page.locator("main")).toContainText("ID:");
+  const taskCreateLink = page.locator(`main a[href="/tasks/new?company_id=${riskyCompanyId}"]`).first();
+  await expect(taskCreateLink).toBeVisible();
+  await taskCreateLink.click();
+  await expect(page).toHaveURL(new RegExp(`/tasks/new\\?company_id=${escapeRegExp(riskyCompanyId)}$`));
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(riskyCompanyId);
 
   await page.goto("/reports");
   await expect(page.locator("main")).toContainText("ARR");
