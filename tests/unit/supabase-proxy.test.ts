@@ -183,6 +183,41 @@ describe("Supabase proxy helpers", () => {
     expect(response.headers.get("pragma")).toBe("no-cache");
   });
 
+  it("does not reflect internal middleware request headers on unauthenticated redirects", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example.test");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    supabaseMocks.createServerClient.mockImplementation((_url: string, _key: string, options: SupabaseServerClientOptions) => ({
+      auth: {
+        getClaims: async () => {
+          await options.cookies.setAll(
+            [
+              {
+                name: "sb-refresh-token",
+                value: "refresh-token",
+                options: { httpOnly: true, path: "/", sameSite: "lax" },
+              },
+            ],
+            {
+              "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
+              "x-middleware-override-headers": "cookie,authorization",
+              "x-middleware-request-cookie": "sb-refresh-token=secret",
+            },
+          );
+          return { data: { claims: null } };
+        },
+        getUser: async () => ({ data: { user: null } }),
+      },
+    }));
+
+    const response = await updateSession(new NextRequest("https://crm.example.test/dashboard"));
+
+    expect(response.status).toBe(307);
+    expect(response.cookies.get("sb-refresh-token")?.value).toBe("refresh-token");
+    expect(response.headers.get("cache-control")).toBe("private, no-cache, no-store, must-revalidate, max-age=0");
+    expect(response.headers.get("x-middleware-override-headers")).toBeNull();
+    expect(response.headers.get("x-middleware-request-cookie")).toBeNull();
+  });
+
   it("does not redirect the login page while refreshing auth cookies", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");

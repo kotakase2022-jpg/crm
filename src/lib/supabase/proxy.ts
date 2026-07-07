@@ -26,7 +26,7 @@ function copyAuthResponseMetadata(source: NextResponse, target: NextResponse) {
 
   for (const [key, value] of source.headers) {
     const header = key.toLowerCase();
-    if (header !== "location" && header !== "set-cookie") {
+    if (header !== "location" && header !== "set-cookie" && !header.startsWith("x-middleware-")) {
       target.headers.set(key, value);
     }
   }
