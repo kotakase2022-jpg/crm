@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
 const envFile = path.join(process.cwd(), ".env.acceptance.local");
-const nonProductionConfirmation = "I_CONFIRM_THIS_IS_NOT_PRODUCTION";
+export const nonProductionConfirmation = "I_CONFIRM_THIS_IS_NOT_PRODUCTION";
 
-class AcceptanceFailure extends Error {
+export class AcceptanceFailure extends Error {
   constructor(message, details = []) {
     super(message);
     this.name = "AcceptanceFailure";
@@ -14,7 +15,7 @@ class AcceptanceFailure extends Error {
   }
 }
 
-function loadEnvFile(filePath) {
+export function loadEnvFile(filePath) {
   if (!existsSync(filePath)) return;
 
   const content = readFileSync(filePath, "utf8");
@@ -35,12 +36,12 @@ function fail(message, details = []) {
   throw new AcceptanceFailure(message, details);
 }
 
-function requiredEnv(name) {
+export function requiredEnv(name) {
   const value = process.env[name]?.trim();
   return value ? value : "";
 }
 
-function assertSafeTarget(rawUrl) {
+export function assertSafeTarget(rawUrl) {
   let parsed;
   try {
     parsed = new URL(rawUrl);
@@ -59,7 +60,7 @@ function assertSafeTarget(rawUrl) {
   }
 }
 
-function decodeJwtPayload(rawKey) {
+export function decodeJwtPayload(rawKey) {
   const [, payload] = rawKey.split(".");
   if (!payload) return null;
 
@@ -72,7 +73,7 @@ function decodeJwtPayload(rawKey) {
   }
 }
 
-function assertPublishableKey(rawKey) {
+export function assertPublishableKey(rawKey) {
   if (rawKey.startsWith("sb_secret_")) {
     fail("ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY must not be a Supabase secret/service-role key.", [
       "Use a publishable or anon key for live acceptance so RLS is actually exercised.",
@@ -184,7 +185,7 @@ async function cleanupLead({ supabase, organizationId, leadId, userId, softDelet
   }
 }
 
-async function run() {
+export async function run() {
   loadEnvFile(envFile);
 
   const requiredVariables = {
@@ -369,17 +370,23 @@ async function run() {
   }
 }
 
-try {
-  await run();
-} catch (error) {
-  if (error instanceof AcceptanceFailure) {
-    console.error(error.message);
-    for (const detail of error.details) {
-      console.error(`- ${detail}`);
-    }
-  } else {
-    console.error(error instanceof Error ? error.message : String(error));
-  }
+function isDirectCliRun() {
+  return Boolean(process.argv[1]) && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+}
 
-  process.exitCode = 1;
+if (isDirectCliRun()) {
+  try {
+    await run();
+  } catch (error) {
+    if (error instanceof AcceptanceFailure) {
+      console.error(error.message);
+      for (const detail of error.details) {
+        console.error(`- ${detail}`);
+      }
+    } else {
+      console.error(error instanceof Error ? error.message : String(error));
+    }
+
+    process.exitCode = 1;
+  }
 }
