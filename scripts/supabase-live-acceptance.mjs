@@ -68,22 +68,27 @@ function assertNoSupabaseError(step, response) {
 async function cleanupLead({ supabase, organizationId, leadId, userId, softDeleted }) {
   if (softDeleted || !organizationId || !leadId || !userId) return;
 
-  const cleanup = await supabase
-    .from("leads")
-    .update({
-      deleted_at: new Date().toISOString(),
-      updated_by: userId,
-    })
-    .eq("organization_id", organizationId)
-    .eq("id", leadId)
-    .is("deleted_at", null)
-    .select("id")
-    .maybeSingle();
+  try {
+    const cleanup = await supabase
+      .from("leads")
+      .update({
+        deleted_at: new Date().toISOString(),
+        updated_by: userId,
+      })
+      .eq("organization_id", organizationId)
+      .eq("id", leadId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
 
-  if (cleanup.error) {
-    console.error(`Cleanup warning: created acceptance lead could not be soft-deleted (${cleanup.error.message}).`);
-  } else if (cleanup.data) {
-    console.error("Cleanup completed: created acceptance lead was soft-deleted after a failed acceptance run.");
+    if (cleanup.error) {
+      console.error(`Cleanup warning: created acceptance lead could not be soft-deleted (${cleanup.error.message}).`);
+    } else if (cleanup.data) {
+      console.error("Cleanup completed: created acceptance lead was soft-deleted after a failed acceptance run.");
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Cleanup warning: created acceptance lead cleanup threw unexpectedly (${message}).`);
   }
 }
 
