@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { demoStore, getDemoRows } from "@/lib/crm/demo-data";
@@ -179,6 +179,130 @@ describe("demo CRM data", () => {
         process.env.CRM_DEMO_STORE_FILE = originalStoreFile;
       }
 
+      delete globalStore.__crmDemoStore;
+      vi.resetModules();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("retries transient Windows rename locks when writing the E2E demo store", async () => {
+    const originalMode = process.env.E2E_TEST_MODE;
+    const originalStoreFile = process.env.CRM_DEMO_STORE_FILE;
+    const tempDir = mkdtempSync(path.join(tmpdir(), "crm-demo-store-retry-"));
+    const storeFile = path.join(tempDir, "store.json");
+    const leadId = "lead-persistent-store-retry-test";
+    const globalStore = globalThis as typeof globalThis & { __crmDemoStore?: typeof demoStore };
+    let renameAttempts = 0;
+
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+
+      return {
+        ...actual,
+        renameSync: vi.fn((from: string, to: string) => {
+          renameAttempts += 1;
+          if (renameAttempts === 1) {
+            const error = new Error("locked destination") as NodeJS.ErrnoException;
+            error.code = "EPERM";
+            throw error;
+          }
+
+          return actual.renameSync(from, to);
+        }),
+      };
+    });
+
+    try {
+      process.env.E2E_TEST_MODE = "demo";
+      process.env.CRM_DEMO_STORE_FILE = storeFile;
+      delete globalStore.__crmDemoStore;
+
+      vi.resetModules();
+      const demoDataModule = await import("@/lib/crm/demo-data");
+      demoDataModule.addDemoRow("leads", {
+        id: leadId,
+        organization_id: "demo-org",
+        created_at: "2026-07-08T00:00:00.000Z",
+        updated_at: "2026-07-08T00:00:00.000Z",
+        created_by: "demo-user",
+        updated_by: "demo-user",
+        name: "Retry store lead",
+        company_name: "Retry Store Construction",
+        contact_name: "Retry Contact",
+        email: "retry-store@example.test",
+        status: "test-status",
+      });
+
+      expect(renameAttempts).toBeGreaterThanOrEqual(2);
+      expect(readFileSync(storeFile, "utf8")).toContain(leadId);
+    } finally {
+      if (originalMode === undefined) {
+        delete process.env.E2E_TEST_MODE;
+      } else {
+        process.env.E2E_TEST_MODE = originalMode;
+      }
+
+      if (originalStoreFile === undefined) {
+        delete process.env.CRM_DEMO_STORE_FILE;
+      } else {
+        process.env.CRM_DEMO_STORE_FILE = originalStoreFile;
+      }
+
+      vi.doUnmock("node:fs");
+      delete globalStore.__crmDemoStore;
+      vi.resetModules();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not hide persistent rename failures when writing the E2E demo store", async () => {
+    const originalMode = process.env.E2E_TEST_MODE;
+    const originalStoreFile = process.env.CRM_DEMO_STORE_FILE;
+    const tempDir = mkdtempSync(path.join(tmpdir(), "crm-demo-store-failure-"));
+    const storeFile = path.join(tempDir, "store.json");
+    const globalStore = globalThis as typeof globalThis & { __crmDemoStore?: typeof demoStore };
+    let renameAttempts = 0;
+
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+
+      return {
+        ...actual,
+        renameSync: vi.fn(() => {
+          renameAttempts += 1;
+          const error = new Error("still locked") as NodeJS.ErrnoException;
+          error.code = "EPERM";
+          throw error;
+        }),
+      };
+    });
+
+    try {
+      process.env.E2E_TEST_MODE = "demo";
+      process.env.CRM_DEMO_STORE_FILE = storeFile;
+      delete globalStore.__crmDemoStore;
+
+      vi.resetModules();
+      const demoDataModule = await import("@/lib/crm/demo-data");
+
+      expect(() => demoDataModule.getDemoRows("leads")).toThrow("still locked");
+
+      expect(renameAttempts).toBe(5);
+      expect(readdirSync(tempDir).filter((file) => file.endsWith(".tmp"))).toEqual([]);
+    } finally {
+      if (originalMode === undefined) {
+        delete process.env.E2E_TEST_MODE;
+      } else {
+        process.env.E2E_TEST_MODE = originalMode;
+      }
+
+      if (originalStoreFile === undefined) {
+        delete process.env.CRM_DEMO_STORE_FILE;
+      } else {
+        process.env.CRM_DEMO_STORE_FILE = originalStoreFile;
+      }
+
+      vi.doUnmock("node:fs");
       delete globalStore.__crmDemoStore;
       vi.resetModules();
       rmSync(tempDir, { recursive: true, force: true });
