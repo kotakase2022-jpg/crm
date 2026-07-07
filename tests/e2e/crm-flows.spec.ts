@@ -596,6 +596,12 @@ test("company related create action prefills the parent company on a new contact
   await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
   await expect(page.locator('select[name="company_id"] option:checked')).toContainText(companyName);
 
+  await page.locator('select[name="company_id"]').locator("xpath=ancestor::form").evaluate((form) => form.setAttribute("novalidate", "novalidate"));
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(new RegExp(`/contacts/new\\?toast=validation-error&company_id=${escapeRegExp(companyId)}$`));
+  await expect(page.getByTestId("toast-notice")).toContainText("入力した項目を確認");
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+
   await page.getByRole("link", { name: "キャンセル" }).click();
   await expect(page).toHaveURL(new RegExp(`${escapeRegExp(companyPath)}$`));
 

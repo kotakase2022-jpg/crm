@@ -107,7 +107,7 @@ describe("CRM server actions", () => {
     expect(Math.max(...revalidateOrders)).toBeLessThan(redirectOrder);
   }
 
-  function mockConfig(slug: "deals" | "tasks" | "tickets") {
+  function mockConfig(slug: "deals" | "tasks" | "tickets", fields: Array<Record<string, unknown>> = []) {
     const tableBySlug = {
       deals: "deals",
       tasks: "tasks",
@@ -126,7 +126,7 @@ describe("CRM server actions", () => {
       sortFields: [],
       listFields: [],
       detailFields: [],
-      fields: [],
+      fields,
     } as never);
   }
 
@@ -171,6 +171,29 @@ describe("CRM server actions", () => {
     expect(createRecord).not.toHaveBeenCalled();
     expect(revalidatedPaths()).toEqual([]);
     expect(mocks.redirect).toHaveBeenCalledWith("/tasks/new?toast=validation-error");
+  });
+
+  it("preserves parent relation context when create validation fails", async () => {
+    mockConfig("tasks", [
+      { name: "company_id", label: "Company", type: "select", relation: "companies" },
+      { name: "deal_id", label: "Deal", type: "select", relation: "deals" },
+      { name: "title", label: "Title", type: "text", required: true },
+    ]);
+    vi.mocked(parseEntityFormValues).mockImplementation(() => {
+      throw new CrmValidationError({ title: "Required" });
+    });
+    const formData = new FormData();
+    formData.set("company_id", " company-1 ");
+    formData.set("deal_id", "deal-1");
+    formData.set("title", "");
+
+    const { createEntityAction } = await import("@/lib/crm/actions");
+
+    await createEntityAction("tasks", formData);
+
+    expect(createRecord).not.toHaveBeenCalled();
+    expect(revalidatedPaths()).toEqual([]);
+    expect(mocks.redirect).toHaveBeenCalledWith("/tasks/new?toast=validation-error&company_id=company-1&deal_id=deal-1");
   });
 
   it("revalidates entity detail, related records, operational views, and task alerts after deal updates", async () => {

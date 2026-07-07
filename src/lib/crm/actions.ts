@@ -48,6 +48,19 @@ function revalidateRelatedRecordViews(record: Record<string, unknown>) {
   }
 }
 
+function createValidationErrorHref(config: ReturnType<typeof mustGetConfig>, formData: FormData) {
+  const params = new URLSearchParams({ toast: "validation-error" });
+
+  for (const field of config.fields) {
+    if (!field.relation) continue;
+    const rawValue = formData.get(field.name);
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+    if (value) params.set(field.name, value);
+  }
+
+  return `/${config.slug}/new?${params.toString()}`;
+}
+
 export async function createEntityAction(entity: EntitySlug, formData: FormData) {
   const config = mustGetConfig(entity);
   let record: Awaited<ReturnType<typeof createRecord>> | null = null;
@@ -64,7 +77,7 @@ export async function createEntityAction(entity: EntitySlug, formData: FormData)
     }
   }
 
-  if (validationFailed) return redirect(`/${entity}/new?toast=validation-error`);
+  if (validationFailed) return redirect(createValidationErrorHref(config, formData));
   if (!record) throw new Error("Create action did not return a record.");
 
   revalidatePath(`/${entity}`);
