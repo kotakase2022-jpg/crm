@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildAlerts } from "@/lib/crm/alerts";
+import { alertSeverityLabel, buildAlerts } from "@/lib/crm/alerts";
 import { buildCsDashboard, buildFunnel, buildSalesDashboard, normalizedHealthScore, riskyHealthScores } from "@/lib/crm/analytics";
 import { contractStatuses, dealStages, leadStatuses, ticketStatuses } from "@/lib/crm/options";
 import type { DashboardSnapshot } from "@/lib/crm/types";
@@ -253,6 +253,12 @@ describe("CRM dashboard analytics", () => {
 describe("CRM automation alerts", () => {
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("provides Japanese severity labels for dashboard alert badges", () => {
+    expect(alertSeverityLabel("danger")).toBe("緊急");
+    expect(alertSeverityLabel("warning")).toBe("注意");
+    expect(alertSeverityLabel("info")).toBe("確認");
   });
 
   it("raises actionable sales and CS alerts from operational conditions", () => {

@@ -7,7 +7,7 @@ import { Badge, toneForValue } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { runAutomationAction } from "@/lib/crm/actions";
-import { buildAlerts } from "@/lib/crm/alerts";
+import { alertSeverityLabel, buildAlerts } from "@/lib/crm/alerts";
 import type { CrmAlert } from "@/lib/crm/alerts";
 import { buildCsDashboard, buildFunnel, buildSalesDashboard, normalizedHealthScore, riskyHealthScores } from "@/lib/crm/analytics";
 import { isDueTodayOrOverdueOpenTask } from "@/lib/crm/automation";
@@ -126,7 +126,7 @@ export default async function DashboardPage() {
                 <>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-slate-950">{alert.title}</p>
-                    <Badge tone={alert.severity === "danger" ? "red" : alert.severity === "warning" ? "yellow" : "blue"}>{alert.severity}</Badge>
+                    <Badge tone={alert.severity === "danger" ? "red" : alert.severity === "warning" ? "yellow" : "blue"}>{alertSeverityLabel(alert.severity)}</Badge>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-500">{alert.description}</p>
                 </>

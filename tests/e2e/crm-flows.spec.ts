@@ -359,6 +359,8 @@ test("dashboard alerts link directly to the related CRM record", async ({ page }
   await page.goto("/dashboard");
   const alertLink = page.getByTestId("dashboard-alert-link").filter({ hasText: dealName });
   await expect(alertLink).toBeVisible();
+  await expect(alertLink).toContainText("注意");
+  await expect(alertLink).not.toContainText(/danger|warning|info/);
 
   await alertLink.click();
   await expect(page).toHaveURL(new RegExp(`${dealPath}$`));

@@ -18,6 +18,16 @@ export type CrmAlert = {
   support_ticket_id?: string | null;
 };
 
+const alertSeverityLabels: Record<CrmAlert["severity"], string> = {
+  danger: "緊急",
+  warning: "注意",
+  info: "確認",
+};
+
+export function alertSeverityLabel(severity: CrmAlert["severity"]) {
+  return alertSeverityLabels[severity];
+}
+
 function dateOffset(days: number) {
   return offsetLocalDateString(days);
 }
