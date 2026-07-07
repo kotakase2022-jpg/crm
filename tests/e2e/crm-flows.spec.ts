@@ -50,8 +50,8 @@ test("login page exposes auth feedback accessibly", async ({ page }) => {
   await page.goto(`/login?error=${encodeURIComponent(authError)}&notice=${encodeURIComponent(notice)}&next=%2Fdeals%3Fstage%3Ddemo`);
 
   await expect(page.locator('input[name="next"]')).toHaveValue("/deals?stage=demo");
-  await expect(page.getByRole("alert")).toContainText(authError);
-  await expect(page.getByRole("status")).toContainText(notice);
+  await expect(page.locator("main").getByRole("alert")).toContainText(authError);
+  await expect(page.locator("main").getByRole("status")).toContainText(notice);
   await strict.expectClean();
 });
 
