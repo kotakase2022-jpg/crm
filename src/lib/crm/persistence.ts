@@ -46,6 +46,16 @@ export function prepareRecordForPersistence(table: TableName, values: Record<str
   return withComputedAmounts(table, stripManagedFields(values));
 }
 
+export function prepareRecordForUpdate(table: TableName, values: Record<string, unknown>) {
+  const payload = stripManagedFields(values);
+
+  if (Object.prototype.hasOwnProperty.call(values, "deleted_at")) {
+    payload.deleted_at = values.deleted_at;
+  }
+
+  return withComputedAmounts(table, payload);
+}
+
 export function ensureRequiredRelation(values: Record<string, unknown>, relationKey: string) {
   const value = values[relationKey];
   if (typeof value !== "string" || value.trim() === "") {

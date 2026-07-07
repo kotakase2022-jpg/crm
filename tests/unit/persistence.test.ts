@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ensureRequiredRelation, prepareRecordForPersistence, stripManagedFields, withComputedAmounts } from "@/lib/crm/persistence";
+import { ensureRequiredRelation, prepareRecordForPersistence, prepareRecordForUpdate, stripManagedFields, withComputedAmounts } from "@/lib/crm/persistence";
 
 describe("persistence shaping", () => {
   it("removes managed fields before client supplied values reach persistence", () => {
@@ -37,6 +37,26 @@ describe("persistence shaping", () => {
     });
 
     expect(payload).toEqual({ mrr: 50000, plan: "standard", arr: 600000 });
+  });
+
+  it("preserves explicit deleted_at only for update payloads", () => {
+    expect(
+      prepareRecordForPersistence("leads", {
+        name: "Do not create as deleted",
+        deleted_at: "2026-07-08T00:00:00.000Z",
+      }),
+    ).toEqual({ name: "Do not create as deleted" });
+
+    expect(
+      prepareRecordForUpdate("leads", {
+        name: "Soft deleted lead",
+        deleted_at: "2026-07-08T00:00:00.000Z",
+        organization_id: "unsafe-org",
+      }),
+    ).toEqual({
+      name: "Soft deleted lead",
+      deleted_at: "2026-07-08T00:00:00.000Z",
+    });
   });
 
   it("guards required relations before saving dependent records", () => {

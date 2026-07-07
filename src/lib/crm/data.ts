@@ -9,7 +9,7 @@ import { assertCanWriteTable } from "./access";
 import { addDemoRow, demoStore, getDemoRows, newDemoId, nowIso, updateDemoRow } from "./demo-data";
 import { entityConfigs } from "./entities";
 import { localDateString, offsetLocalDateString, recordTitle, relationOptionLabel } from "./format";
-import { prepareRecordForPersistence, withComputedAmounts } from "./persistence";
+import { prepareRecordForPersistence, prepareRecordForUpdate, withComputedAmounts } from "./persistence";
 import {
   activityRelationForEntity,
   completeRelationValues,
@@ -338,7 +338,7 @@ async function updateRow(ctx: CrmContext, table: TableName, idValue: string, val
     return updated;
   }
 
-  const persistedValues = prepareRecordForPersistence(table, values);
+  const persistedValues = prepareRecordForUpdate(table, values);
   const { data, error } = await ctx.supabase
     .from(table)
     .update({
