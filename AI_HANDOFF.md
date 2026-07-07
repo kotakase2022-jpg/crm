@@ -7,14 +7,14 @@
 - Loop: 10
 - Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`; Loop 10 is the current Codex improvement branch from `origin/main`.
 - Phase: Handoff
-- Last updated: 2026-07-08 06:34:41 +09:00
+- Last updated: 2026-07-08 06:48:03 +09:00
 
 ## 1. Current Goal
 
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn added Supabase list pagination regression coverage so CRM list/snapshot reads cannot silently drop records after the first 1000 rows.
+- This turn added server-action auth redirect sanitization coverage so direct malicious `next` form posts cannot leak users to external URLs after sign-in/sign-up success or failure.
 
 Current score:
 
@@ -27,26 +27,32 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD/RLS a
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `18e2139` (`Cover Supabase list pagination`)
+- Latest code commit: `cffedd4` (`Cover auth redirect sanitization actions`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `18e2139`
+- Last known good local commit: `cffedd4`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this loop continuation.
-- CodeRabbit OSS review status: green on PR #3 at remote head `cf2c208`; re-check after pushing `18e2139` and this handoff.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `cf2c208`; local `npm.cmd run quality` passes after `18e2139`.
-- Vercel preview: green on PR #3 at remote head `cf2c208`; re-check after pushing this handoff.
+- CodeRabbit OSS review status: green on PR #3 at remote head `aa94b62`; re-check after pushing `cffedd4` and this handoff.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `aa94b62`; local `npm.cmd run quality` passes after `cffedd4`.
+- Vercel preview: green on PR #3 at remote head `aa94b62`; re-check after pushing this handoff.
 
 ## 3. What Was Done
 
 Completed this turn:
 
 - Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, and `docs/testing.md`.
-- Confirmed PR #3 latest remote head `a14942f` was green before the previous handoff.
-- Re-checked PR #3 latest remote head `cf2c208`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
+- Re-checked PR #3 latest remote head `aa94b62`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
 - Confirmed PR #3 remains open, non-draft, mergeable, and blocked only by `REVIEW_REQUIRED`.
-- Confirmed this branch is not behind `origin/main` after PR #2 merge (`git rev-list --left-right --count origin/main...HEAD` returned `0 54` before `18e2139`).
+- Confirmed this branch is clean and in sync with its remote before the new auth test commit.
+- Strengthened the `tests/unit/actions.test.ts` navigation mock so it mirrors the real safe internal redirect behavior instead of passing any string through.
+- Added unit coverage proving direct `signInAction` posts sanitize external `next` values on both success and auth failure.
+- Added unit coverage proving direct `signUpAction` posts sanitize external `next` values before the confirmation notice redirect.
+- Re-ran focused server-action unit coverage, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
+
+Earlier Loop 10 continuation also completed:
+
 - Added unit coverage proving Supabase list reads continue from `range(0, 999)` to `range(1000, 1999)` and include records from the final short page.
-- Re-ran focused Supabase data-access unit coverage, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
+- Pushed `18e2139` and handoff `aa94b62`; PR #3 checks were all green at `aa94b62`.
 
 Important earlier Loop 10 context:
 
@@ -91,7 +97,7 @@ Important earlier PR #3 context:
 
 Main files changed this turn:
 
-- `tests/unit/data-supabase.test.ts`
+- `tests/unit/actions.test.ts`
 - `AI_HANDOFF.md`
 
 Important earlier PR #3 files:
@@ -116,10 +122,10 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `18e2139`.
+- Local code quality is green after `cffedd4`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `cf2c208` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green. Push `18e2139` and this handoff, then re-check.
+- PR #3 remote head `aa94b62` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green. Push `cffedd4` and this handoff, then re-check.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -138,7 +144,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `cf2c208`; re-check after pushing `18e2139` and this handoff commit.
+- Review status: Passed on PR #3 at remote head `aa94b62`; re-check after pushing `cffedd4` and this handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -152,7 +158,7 @@ Cursor Bugbot optional backup:
 - Status: Not run.
 - Findings: none.
 - Actions taken: none.
-- Reason: The current change is narrow, test-only, covered by focused E2E and the full quality gate, and CodeRabbit OSS is the standard review path for this public repository.
+- Reason: The current change is narrow, test-only, covered by focused unit tests and the full quality gate, and CodeRabbit OSS is the standard review path for this public repository.
 
 ## 9. Verification Results
 
@@ -161,32 +167,29 @@ Current turn commands:
 ```bash
 gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
 # Passed.
-# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head cf2c208.
-# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at cf2c208.
-
-git rev-list --left-right --count origin/main...HEAD
-# Passed before 18e2139.
-# Output: 0 54.
-# Branch was not behind origin/main after PR #2 was merged.
+# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head aa94b62.
+# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at aa94b62.
 
 gh pr checks 3 --repo kotakase2022-jpg/crm
-# Passed before new commits.
+# Passed before cffedd4 and this handoff.
 # CodeRabbit: pass
 # Vercel: pass
 # Vercel Preview Comments: pass
 # typecheck-lint-test-e2e-build: pass
 
-npm.cmd run test -- --run tests/unit/data-supabase.test.ts
-# Passed after 18e2139. 1 file / 4 tests.
+npm.cmd run test -- --run tests/unit/actions.test.ts
+# First run failed after adding the direct auth-failure next-target assertion because the Next.js redirect mock records later calls instead of throwing.
+# Test extraction was corrected to inspect the specific `/login?error=...` redirect call.
+# Re-run passed after cffedd4. 1 file / 20 tests.
 
 git diff --check
 # Passed.
 
 npm.cmd run quality
-# Passed after 18e2139.
+# Passed after cffedd4.
 # typecheck: passed
 # lint: passed
-# test: passed (28 files / 183 tests)
+# test: passed (28 files / 186 tests)
 # coverage: passed
 #   statements 93.69%
 #   branches 86.54%
@@ -204,6 +207,18 @@ npm.cmd run acceptance:supabase
 Previous Loop 10 verification retained for context:
 
 ```bash
+npm.cmd run test -- --run tests/unit/data-supabase.test.ts
+# Passed after 18e2139. 1 file / 4 tests.
+
+npm.cmd run quality
+# Passed after 18e2139.
+# typecheck: passed
+# lint: passed
+# test: passed (28 files / 183 tests)
+# coverage: passed
+# test:e2e: passed (45 Chromium tests)
+# build: passed (Next.js 16.2.10 production build)
+
 npm.cmd run test:e2e -- -g "ticket related task creation keeps the support context through save"
 # First run failed because the test read page.url() immediately after clicking a Next.js Link.
 # The page had already rendered the task form, so the test was corrected to wait with toHaveURL().
@@ -288,25 +303,27 @@ npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -8`.
-2. Confirm `18e2139` and this handoff commit are pushed to PR #3.
+2. Confirm `cffedd4` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `18e2139` and this handoff commit.
-5. Review the new Supabase pagination regression test in `tests/unit/data-supabase.test.ts`; it should protect `readRows()` from silently dropping records after the first 1000 rows.
-6. Review the persistent-demo-store unit test and E2E-only store sharing implementation for CI safety.
-7. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
-8. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
-9. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
-10. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
-11. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
-12. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
-13. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
-14. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
+4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `cffedd4` and this handoff commit.
+5. Review the auth redirect sanitization tests in `tests/unit/actions.test.ts`; they should prove direct malicious `next` posts cannot escape the app after sign-in/sign-up success or failure.
+6. Review the Supabase pagination regression test in `tests/unit/data-supabase.test.ts`; it should protect `readRows()` from silently dropping records after the first 1000 rows.
+7. Review the persistent-demo-store unit test and E2E-only store sharing implementation for CI safety.
+8. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
+9. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
+10. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
+11. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
+12. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
+13. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
+14. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
+15. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
 
 ## 11. Suggested Review Scope for Claude Code
 
 Please review:
 
 - Does the new ticket-task E2E prove a real CS path from support ticket detail to a next-action task while preserving ticket, company, and contact context?
+- Do the new auth redirect sanitization tests cover direct server-action posts, not only the login page's hidden `next` input?
 - Does the new Supabase pagination regression test prove that list/snapshot reads keep fetching after the first 1000 rows and preserve deterministic ordering before each page?
 - Does the new unit test in `tests/unit/demo-data.test.ts` adequately prevent regression of the CI route-worker demo-store reload behavior?
 - Is the E2E-only demo store file sharing in `playwright.config.ts` / `demo-data.ts` safe, deterministic, and limited to `E2E_TEST_MODE=demo`?
