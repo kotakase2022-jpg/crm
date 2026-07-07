@@ -466,6 +466,19 @@ test("lead spreadsheet import settings rejects unsupported URLs without crashing
   await strict.expectClean();
 });
 
+test("lead spreadsheet import result toasts show imported and skipped counts", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/leads/import-settings?toast=import-success&imported=2&skipped=1");
+  await expect(page.getByTestId("toast-notice")).toContainText("2");
+  await expect(page.getByTestId("toast-notice")).toContainText("1");
+
+  await page.goto("/leads/import-settings?toast=import-failed&imported=0&skipped=3");
+  await expect(page.getByTestId("toast-notice")).toContainText("0");
+  await expect(page.getByTestId("toast-notice")).toContainText("3");
+  await strict.expectClean();
+});
+
 test("deal stage board follows search results and preserves query when drilling into a stage", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const marker = `E2E Stage Drill ${Date.now()}`;
