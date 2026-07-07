@@ -408,6 +408,28 @@ describe("CRM server actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/dashboard");
   });
 
+  it("redirects sign-in failures back to login with an error and safe next path", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signInWithPassword = vi.fn().mockResolvedValue({ error: new Error("Invalid login credentials") });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signInWithPassword } } as never);
+    const formData = new FormData();
+    formData.set("email", "sales@example.test");
+    formData.set("password", "wrong-password");
+    formData.set("next", "/deals?stage=demo");
+
+    const { signInAction } = await import("@/lib/crm/actions");
+
+    await signInAction(formData);
+
+    expect(signInWithPassword).toHaveBeenCalledWith({
+      email: "sales@example.test",
+      password: "wrong-password",
+    });
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      `/login?error=${encodeURIComponent("Invalid login credentials")}&next=${encodeURIComponent("/deals?stage=demo")}`,
+    );
+  });
+
   it("normalizes sign-up email without altering the password", async () => {
     vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
     const signUp = vi.fn().mockResolvedValue({ error: null });

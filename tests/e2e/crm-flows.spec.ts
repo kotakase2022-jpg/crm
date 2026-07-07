@@ -42,6 +42,17 @@ test("login page sanitizes external next redirects", async ({ page }) => {
   await strict.expectClean();
 });
 
+test("login page exposes auth feedback accessibly", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/login?error=Invalid%20login%20credentials&notice=Check%20your%20email&next=%2Fdeals%3Fstage%3Ddemo");
+
+  await expect(page.locator('input[name="next"]')).toHaveValue("/deals?stage=demo");
+  await expect(page.getByRole("alert")).toContainText("Invalid login credentials");
+  await expect(page.getByRole("status")).toContainText("Check your email");
+  await strict.expectClean();
+});
+
 const createScenarios = [
   {
     entity: "companies",

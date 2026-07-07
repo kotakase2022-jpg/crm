@@ -32,8 +32,16 @@ export default async function LoginPage({
               <p className="text-sm text-slate-500">Supabase Authでログイン</p>
             </div>
           </div>
-          {error ? <p className="mb-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
-          {notice ? <p className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</p> : null}
+          {error ? (
+            <p className="mb-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {notice ? (
+            <p className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700" role="status">
+              {notice}
+            </p>
+          ) : null}
           <form action={signInAction} className="grid gap-3">
             <input type="hidden" name="next" value={next} />
             <div>
