@@ -14,7 +14,7 @@
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn hardened the live non-production Supabase acceptance check so cleanup failures cannot hide the original acceptance failure.
+- This turn strengthened the live non-production Supabase acceptance check so it also verifies anonymous publishable-key clients cannot read a newly created lead.
 
 Current score:
 
@@ -27,18 +27,27 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD accep
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `c9dca56` (`Prevent acceptance cleanup from masking failures`)
+- Latest code commit: `80de4bb` (`Assert anonymous isolation in Supabase acceptance`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `c9dca56`
+- Last known good local commit: `80de4bb`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this handoff.
-- CodeRabbit OSS review status: green on PR #3 at remote head `da01581` before the latest cleanup-exception hardening commit; re-check after pushing this handoff.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `da01581`; local `npm.cmd run quality` passes after `c9dca56`.
-- Vercel preview: green on PR #3 at remote head `da01581` before the latest cleanup-exception hardening commit; re-check after pushing this handoff.
+- CodeRabbit OSS review status: green on PR #3 at remote head `d272576` before the anonymous-isolation acceptance commit; re-check after pushing this handoff.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `d272576`; local `npm.cmd run quality` passes after `80de4bb`.
+- Vercel preview: green on PR #3 at remote head `d272576` before the anonymous-isolation acceptance commit; re-check after pushing this handoff.
 
 ## 3. What Was Done
 
 Completed this turn:
+
+- Confirmed PR #3 was green at remote head `d272576`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed; review decision remained `REVIEW_REQUIRED`, and review threads were empty.
+- Added an anonymous publishable-key read isolation check to `npm run acceptance:supabase`. After the authenticated test user creates a lead, the script now verifies that a client without an authenticated user cannot read that live lead before proceeding to update/read/soft-delete checks.
+- Documented the stronger anonymous-isolation acceptance coverage in `docs/testing.md`.
+- Added a unit guard to keep the acceptance harness explicit about the remote non-production confirmation and anonymous isolation checks.
+- Re-ran `npm.cmd run acceptance:supabase` in the current environment and confirmed it still fails cleanly with missing dedicated `ACCEPTANCE_*` variables and no stack trace.
+- Ran focused package-script tests, `git diff --check`, and the full local `npm.cmd run quality` gate successfully after anonymous-isolation hardening.
+
+Previous cleanup-exception hardening in Loop 10:
 
 - Confirmed PR #3 was green at remote head `da01581`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed; review decision remained `REVIEW_REQUIRED`.
 - Hardened `npm run acceptance:supabase` cleanup so unexpected cleanup exceptions are reported as cleanup warnings instead of masking the original acceptance failure.
@@ -108,6 +117,8 @@ Earlier Loop 10 context already in PR #3:
 Main files changed this turn:
 
 - `scripts/supabase-live-acceptance.mjs`
+- `docs/testing.md`
+- `tests/unit/package-scripts.test.ts`
 - `AI_HANDOFF.md`
 
 Important earlier PR #3 files:
@@ -130,10 +141,10 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `c9dca56`.
+- Local code quality is green after `80de4bb`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `da01581` is green for CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`; the `c9dca56` cleanup-exception hardening commit and this handoff still need to be pushed and re-checked.
+- PR #3 remote head `d272576` is green for CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`; the `80de4bb` anonymous-isolation hardening commit and this handoff still need to be pushed and re-checked.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -151,7 +162,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `da01581` before the cleanup-exception hardening commit; re-check after pushing this handoff commit.
+- Review status: Passed on PR #3 at remote head `d272576` before the anonymous-isolation acceptance commit; re-check after pushing this handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -180,7 +191,7 @@ npm.cmd run acceptance:supabase
 # The handled failure printed no stack trace.
 
 npm.cmd run test -- --run tests/unit/package-scripts.test.ts
-# Passed. 1 file / 2 tests.
+# Passed. 1 file / 3 tests.
 
 git diff --check
 # Passed.
@@ -189,7 +200,7 @@ npm.cmd run quality
 # Passed.
 # typecheck: passed
 # lint: passed
-# test: passed (28 files / 179 tests)
+# test: passed (28 files / 180 tests)
 # coverage: passed
 #   statements 93.69%
 #   branches 86.54%
@@ -199,7 +210,7 @@ npm.cmd run quality
 # build: passed (Next.js 16.2.10 production build)
 
 gh pr checks 3 --repo kotakase2022-jpg/crm
-# Passed at remote head da01581 before the cleanup-exception hardening commit:
+# Passed at remote head d272576 before the anonymous-isolation acceptance commit:
 # CodeRabbit pass
 # Vercel pass
 # Vercel Preview Comments pass
@@ -270,9 +281,9 @@ gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,merge
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -6`.
-2. Confirm `c9dca56` and this handoff commit are pushed to PR #3.
+2. Confirm `80de4bb` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate` rerun is green after `c9dca56` and this handoff commit.
+4. Confirm the latest `quality-gate` rerun is green after `80de4bb` and this handoff commit.
 5. Confirm CodeRabbit OSS has no Critical/High findings on the latest PR head.
 6. Review the new `npm run acceptance:supabase` script for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
 7. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
@@ -288,6 +299,7 @@ Please review:
 - If cleanup itself throws unexpectedly, does it emit a warning and preserve the original acceptance failure as the command failure?
 - Does the script avoid service-role credentials, production defaults, and mock/demo fallback?
 - Is the remote-target confirmation strong enough to prevent accidental production Supabase writes?
+- Does the anonymous publishable-key read check fail the acceptance command if unauthenticated clients can read the created lead?
 - Does the script's create/read/update/soft-delete lead flow prove the remaining authenticated RLS persistence gap well enough when run against staging/local Supabase?
 - Does the login auth feedback E2E now target the application-visible alert/status without weakening the accessibility assertion?
 - Does `saveLeadImportSetting()` correctly reject missing/deleted/out-of-organization updates in both demo and Supabase modes?
@@ -302,6 +314,7 @@ Please review:
 
 - The latest change adds a dedicated live non-production Supabase acceptance command. It is intentionally outside `npm run quality` because CI and normal local gates must not write to external databases.
 - Running `npm.cmd run acceptance:supabase` with real acceptance credentials writes and then soft-deletes one lead in the target Supabase project. Use only local/staging projects with disposable test data.
+- The latest acceptance hardening checks anonymous read isolation before updating and soft-deleting the created lead, so a permissive public lead read policy should fail the command.
 - The cleanup hardening is best effort; if Supabase rejects cleanup after a mid-run failure, the script prints a cleanup warning and still fails the acceptance command.
 - Remote Supabase targets require the exact `ACCEPTANCE_NON_PRODUCTION_CONFIRMATION=I_CONFIRM_THIS_IS_NOT_PRODUCTION` guard.
 - The current shell cannot complete live acceptance because no acceptance env vars are present and local Supabase CLI execution is blocked by Windows Application Control policy.
