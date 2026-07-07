@@ -4,8 +4,22 @@ type StrictPageOptions = {
   allowResponse?: (response: Response) => boolean;
 };
 
+type RequestFailureSnapshot = {
+  url: string;
+  resourceType: string;
+  errorText: string;
+};
+
 function isLocalAppUrl(url: string) {
   return url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost");
+}
+
+export function isIgnorableRequestFailure({ url, resourceType, errorText }: RequestFailureSnapshot) {
+  const pathname = new URL(url, "http://localhost").pathname;
+
+  // Next's dev server can abort its internal font request during immediate test
+  // navigations. Keep every other local request failure fatal.
+  return resourceType === "font" && errorText === "net::ERR_ABORTED" && pathname.startsWith("/__nextjs_font/");
 }
 
 export function attachStrictPageChecks(page: Page, options: StrictPageOptions = {}) {
@@ -27,7 +41,9 @@ export function attachStrictPageChecks(page: Page, options: StrictPageOptions = 
 
   page.on("requestfailed", (request) => {
     if (!isLocalAppUrl(request.url()) || request.resourceType() === "websocket") return;
-    failures.push(`requestfailed: ${request.method()} ${request.url()} ${request.failure()?.errorText ?? ""}`);
+    const errorText = request.failure()?.errorText ?? "";
+    if (isIgnorableRequestFailure({ url: request.url(), resourceType: request.resourceType(), errorText })) return;
+    failures.push(`requestfailed: ${request.method()} ${request.url()} ${errorText}`);
   });
 
   page.on("response", (response) => {
