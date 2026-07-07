@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import path from "node:path";
+import { tmpdir } from "node:os";
 import { demoStore, getDemoRows } from "@/lib/crm/demo-data";
 import { relationConsistencyErrors } from "@/lib/crm/related";
 import type { CrmRecord } from "@/lib/crm/types";
@@ -121,5 +124,64 @@ describe("demo CRM data", () => {
     });
 
     expect(failures).toEqual([]);
+  });
+
+  it("persists E2E demo rows through the configured store file across module instances", async () => {
+    const originalMode = process.env.E2E_TEST_MODE;
+    const originalStoreFile = process.env.CRM_DEMO_STORE_FILE;
+    const tempDir = mkdtempSync(path.join(tmpdir(), "crm-demo-store-"));
+    const storeFile = path.join(tempDir, "store.json");
+    const leadId = "lead-persistent-store-test";
+    const globalStore = globalThis as typeof globalThis & { __crmDemoStore?: typeof demoStore };
+
+    try {
+      process.env.E2E_TEST_MODE = "demo";
+      process.env.CRM_DEMO_STORE_FILE = storeFile;
+      delete globalStore.__crmDemoStore;
+
+      vi.resetModules();
+      const firstModule = await import("@/lib/crm/demo-data");
+      firstModule.addDemoRow("leads", {
+        id: leadId,
+        organization_id: "demo-org",
+        created_at: "2026-07-08T00:00:00.000Z",
+        updated_at: "2026-07-08T00:00:00.000Z",
+        created_by: "demo-user",
+        updated_by: "demo-user",
+        name: "Persistent store lead",
+        company_name: "Persistent Store Construction",
+        contact_name: "Persistent Contact",
+        email: "persistent-store@example.test",
+        status: "test-status",
+      });
+
+      expect(readFileSync(storeFile, "utf8")).toContain(leadId);
+
+      delete globalStore.__crmDemoStore;
+      vi.resetModules();
+      const secondModule = await import("@/lib/crm/demo-data");
+      const restored = secondModule.getDemoRows("leads").find((row) => row.id === leadId);
+
+      expect(restored).toMatchObject({
+        id: leadId,
+        company_name: "Persistent Store Construction",
+      });
+    } finally {
+      if (originalMode === undefined) {
+        delete process.env.E2E_TEST_MODE;
+      } else {
+        process.env.E2E_TEST_MODE = originalMode;
+      }
+
+      if (originalStoreFile === undefined) {
+        delete process.env.CRM_DEMO_STORE_FILE;
+      } else {
+        process.env.CRM_DEMO_STORE_FILE = originalStoreFile;
+      }
+
+      delete globalStore.__crmDemoStore;
+      vi.resetModules();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
