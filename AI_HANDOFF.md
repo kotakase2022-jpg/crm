@@ -20,8 +20,8 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` at merge commit `42d0b81` (`Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
 - Latest code commit: `d285923` (`Preserve create context after validation errors`)
-- Latest handoff commit before preview-smoke update: `b6157d5` (`Record loop 10 review results`)
-- Last known good commit: `d285923` with `npm.cmd run quality` passing
+- Latest branch commit: current branch head after `Record Chrome preview smoke result` (see `git log --oneline -1` for exact hash)
+- Previous green branch commit: `1166877` with PR #3 CodeRabbit / Vercel / GitHub Actions quality-gate passing
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - CodeRabbit OSS review status: pass; no actionable comments
 - GitHub Actions `quality-gate`: pass on PR #3 (`typecheck-lint-test-e2e-build`)
@@ -56,13 +56,13 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 
 現在の状態:
 
-- Branch contains one code commit: `d285923`.
+- Branch contains one code commit (`d285923`) plus handoff/status commits through `Record Chrome preview smoke result`.
 - Local full gate is green.
 - PR #3 CodeRabbit, Vercel, and GitHub Actions checks are green.
-- Working tree should only contain this final handoff update until it is committed.
+- Working tree should be clean after this final handoff update is committed.
 - No production DB writes, production API writes, migrations, RLS changes, or Vercel setting changes were made.
-- Functional score: 99 / 100. Major local and CI evidence is green, but live authenticated Supabase/Vercel acceptance testing is still not complete.
-- CRM experience score: 99 / 100. This loop improves a real daily workflow failure, but live user acceptance is still needed before claiming 100.
+- Functional score: 99 / 100. Major local and CI evidence is green, and Chrome reached the live preview app shell, but live authenticated Supabase create/edit acceptance testing is still not complete.
+- CRM experience score: 99 / 100. This loop improves a real daily workflow failure, but authenticated user acceptance is still needed before claiming 100.
 
 ## 6. Known Issues
 
@@ -70,7 +70,8 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 
 - No critical/high code issue is currently known.
 - Live Supabase/Vercel authenticated manual verification remains incomplete.
-- Vercel Preview smoke check reached Vercel login/SSO protection instead of the app, so public preview app behavior could not be verified without an authenticated Vercel browser/session.
+- Headless Vercel Preview smoke was blocked by Vercel login/SSO protection, but a Chrome session with existing browser state reached the actual CRM login page successfully.
+- Chrome live-preview smoke confirmed `/dashboard` redirects to `/login?next=%2Fdashboard` for unauthenticated access with no console errors. Real test-account login and authenticated CRUD were not verified.
 - `codex/persistent-quality-gate-ops` still exists locally and remotely as a stale branch from older work. Do not delete it without explicit human confirmation.
 - PowerShell may render Japanese text as mojibake in some outputs; this appears to be terminal encoding, not source corruption.
 
@@ -144,6 +145,14 @@ https://crm-git-codex-loop10-crm-ux-h-a78895-kotakase2022-jpgs-projects.vercel.a
 # Blocked by Vercel login/SSO protection before reaching the app.
 # /login and /dashboard returned HTTP 200 for Vercel login pages, not CRM pages.
 # Console errors came from Vercel/identity-provider resources (403/429/GSI), not from the CRM runtime.
+
+Chrome session preview smoke against:
+https://crm-git-codex-loop10-crm-ux-h-a78895-kotakase2022-jpgs-projects.vercel.app
+# Passed for live preview app-shell reachability.
+# `/login` showed the actual CRM login page: title "建設帳票CRM", heading "建設帳票CRM", email/password inputs, login and signup buttons.
+# `/dashboard` redirected to `/login?next=%2Fdashboard` while unauthenticated.
+# Console errors: 0 for `/login`, `/dashboard` redirect, empty login submit, and dummy invalid-login submit checks.
+# Authenticated Supabase CRUD was not verified because no safe test account credentials were available in this session.
 ```
 
 ## 10. Next Recommended Action
@@ -155,7 +164,7 @@ https://crm-git-codex-loop10-crm-ux-h-a78895-kotakase2022-jpgs-projects.vercel.a
 3. Review `tests/unit/actions.test.ts` and `tests/e2e/crm-flows.spec.ts` for sufficient regression coverage.
 4. Confirm PR #3 still has CodeRabbit / Vercel / `quality-gate` green.
 5. Review the CodeRabbit walkthrough. It reported no actionable comments.
-6. Use an authenticated Vercel session or disable preview protection for a test window if live preview acceptance must be verified.
+6. If live authenticated acceptance must be verified, use a non-production Supabase test account and confirm login plus one safe create/edit/read flow on preview.
 7. Re-run `npm.cmd run quality` if any code changes are made.
 
 ## 11. Suggested Review Scope for Claude Code
@@ -176,7 +185,7 @@ Claude Codeに重点レビューしてほしい範囲:
 - No production DB, production API, RLS, migration, or Vercel project setting was changed.
 - The URL may include relation IDs after validation failure, which was already the design for related create links. Free-text fields are intentionally not preserved.
 - Live Supabase/Vercel authenticated acceptance testing is still the main remaining evidence gap for a 100/100 claim.
-- Preview URL is protected by Vercel login/SSO from this headless check, so it does not yet prove live CRM runtime behavior.
+- Chrome preview smoke proves live app-shell reachability, but not authenticated CRM data workflows.
 - CodeRabbit review metadata reported `Plan: Pro Plus`; owner should verify this matches the intended OSS/cost-control setup.
 
 ## 13. Do Not Touch
