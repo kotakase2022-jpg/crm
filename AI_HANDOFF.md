@@ -19,11 +19,12 @@
 
 - Branch: `codex/ai-handoff-loop`
 - Latest code commit: `1bdb41a` (`Prefill creates from related lists`)
-- Latest handoff commit before this update: `15010eb` (`Record task view link handoff`)
+- Latest handoff commit before this update: `f9e7fb2` (`Record related list create handoff`)
 - Previous Loop 9 code commits: `845bc2d` (`Preserve task view context links`), `4602543` (`Preserve workflow context when clearing filters`), `25c3272` (`Ignore malformed relation list filters`), `4e3dcef` (`Document proxy matcher and stabilize font abort checks`), `68a816f` (`Cover related deal stage drilldown in E2E`), `0fa785e` (`Preserve relation filters in stage board links`), `35afc68` (`Order Supabase paged reads deterministically`), `fb67b67` (`Avoid reflecting middleware headers on auth redirects`), `c9006ab` (`Localize dashboard alert severity labels`)
 - Last known good local commit: `1bdb41a` (`npm.cmd run quality` passed locally)
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
-- CodeRabbit OSS review status: **pass** after the related-list create prefill push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state for `1bdb41a`.
+- CodeRabbit OSS review status: **pass** after the related-list create prefill push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state for `f9e7fb2`.
+- Human review status: **APPROVED** by `2026ddr` on PR #2 at latest checked commit `f9e7fb2`.
 - Review threads: **all resolved** after GitHub GraphQL check on 2026-07-07 (JST).
 
 ## 3. What Was Done
@@ -64,8 +65,9 @@
 - ローカルでは `npm.cmd run quality` が green（`1bdb41a` 時点）。
 - remote PR #2でも CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` が green。
 - GitHub review threadsは全件resolved。
+- PR #2の `reviewDecision` は `APPROVED`、`mergeStateStatus` は `CLEAN`。
 - 今回のコード差分は関連一覧の作成CTAで親relation scopeをフォームへ引き継ぐ改善と、その回帰テストに限定。
-- 機能・画面遷移・不具合ゼロ評価: 99 / 100。主要ローカルE2EとPR checksはgreenだが、ライブSupabase/Vercel認証環境での人間操作確認とPR人間レビューが残るため満点扱いしない。
+- 機能・画面遷移・不具合ゼロ評価: 99 / 100。主要ローカルE2E、PR checks、人間レビューはgreen/承認済みだが、ライブSupabase/Vercel認証環境での人間操作確認とマージ後確認が残るため満点扱いしない。
 - CRM体験価値評価: 99 / 100。関連一覧で検索条件やタスクviewを切り替えても親顧客の業務文脈を失わず、さらに関連一覧から作成する時も親会社などを再選択しなくてよくなった。実運用受け入れ確認が未完了のため満点扱いしない。
 
 ## 6. Known Issues
@@ -73,10 +75,10 @@
 既知の問題：
 
 - 重大な未解決問題なし。
-- PR #2 は `REVIEW_REQUIRED`。人間レビュー・承認・マージ判断が必要。
+- PR #2 は `APPROVED` / `CLEAN`。マージは本番デプロイにつながる可能性があるため、ユーザーの明示指示待ち。
 - ライブ Supabase/Vercel 認証セッションでの手動確認は未実施。
 - `src/proxy.ts` の matcher重複threadは、Next.js static matcher制約によりimport共通化しない判断を継続。`4e3dcef` でコードコメントを追加し、既存unit testで同期を担保している。
-- review threadsは全件resolved済みだが、`reviewDecision` は人間承認がないため `REVIEW_REQUIRED` のまま。
+- review threadsは全件resolved済み。`reviewDecision` は `APPROVED`。
 
 ## 7. CodeRabbit Review
 
@@ -156,8 +158,10 @@ gh pr checks 2 --watch --interval 10 --repo kotakase2022-jpg/crm
 # Passed after the related-list create prefill push.
 # CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass (3m39s).
 
-gh pr view 2 --json reviewDecision,statusCheckRollup --repo kotakase2022-jpg/crm
-# reviewDecision: REVIEW_REQUIRED
+gh pr view 2 --json reviewDecision,reviews,statusCheckRollup,headRefOid,isDraft,mergeStateStatus,url --repo kotakase2022-jpg/crm
+# reviewDecision: APPROVED
+# mergeStateStatus: CLEAN
+# headRefOid: f9e7fb29ae951c68fa1e06f83e23e802fe244e6e
 # status checks: CodeRabbit / Vercel / Vercel Preview Comments / quality-gate all green.
 
 gh api graphql ... reviewThreads
@@ -165,6 +169,9 @@ gh api graphql ... reviewThreads
 
 git status --short --branch
 # Clean and synced with origin/codex/ai-handoff-loop before editing this handoff file after `1bdb41a`.
+
+gh pr checks 2 --repo kotakase2022-jpg/crm
+# Passed after human approval update. CodeRabbit / Vercel / Vercel Preview Comments / quality-gate all green.
 ```
 
 ## 10. Next Recommended Action
@@ -176,13 +183,13 @@ git status --short --branch
 3. GraphQL上のreview threadsが全件resolvedのままか確認する。
 4. `src/lib/crm/search.ts` の `listCreateHref()` が、関連一覧からの新規作成で親relationだけを引き継ぎ、検索語・ソート・viewを持ち込まない設計で問題ないかレビューする。
 5. `src/app/(crm)/[entity]/page.tsx` の `PageHeader` actionHrefが、通常一覧と関連一覧の両方で自然に動くかレビューする。
-6. PR #2の人間レビューが整い、CodeRabbit / quality-gate / Vercelがgreenならマージ判断へ進める。
+6. ユーザーが明示的にマージを指示したら、PR #2をマージし、main側のquality/Vercel状態を確認する。
 
 ## 11. Suggested Review Scope for Claude Code
 
 Claude Codeに重点レビューしてほしい範囲：
 
-- PR #2のreview threadsが全件resolvedになった状態で、人間レビューに進んで問題ないか。
+- PR #2のreview threadsが全件resolved、checks green、人間承認済みの状態で、マージに進んで問題ないか。
 - `src/app/(crm)/[entity]/page.tsx` の作成CTAが、通常一覧では従来通り `/{entity}/new`、関連一覧では `/{entity}/new?{relation_field}={relation_id}` になること。
 - `src/lib/crm/search.ts` の `listCreateHref()` が未知relation_fieldを無視し、検索語やfilter/sort/viewを新規作成URLへ持ち込まないこと。
 - `tests/e2e/crm-flows.spec.ts` の関連一覧→作成→prefill→キャンセル復帰シナリオが、CRM実務導線として十分か。
@@ -207,7 +214,7 @@ Claude Codeに重点レビューしてほしい範囲：
 - 今回はSupabaseスキーマ、RLS、保存処理、Cron、Vercel設定には触れていない。
 - URL生成/クエリ正規化は一覧表示側と新規作成フォームへのprefillリンクのみ。保存データや永続化形式は変更していない。
 - ライブ環境の確認は未実施。ローカルdemo modeのE2Eとunit/build、PR checksで担保している。
-- PR #2は人間レビュー待ち。
+- PR #2は人間レビュー承認済み。マージは未実行。
 
 ## 13. Do Not Touch
 
@@ -228,6 +235,6 @@ Claude Codeへの補足：
 - 直近のタスククイックビューリンクで業務コンテキストを保持する改善もPR #2内でgreen。
 - 前回の「条件クリア」で業務コンテキストを保持する改善もPR #2内でgreen。
 - `npm.cmd run quality` は `1bdb41a` のコード差分込みでgreen。
-- PR #2 checksもgreen。
+- PR #2 checksもgreen、reviewDecisionはAPPROVED。
 - GitHub review threadsは全件resolved済み。
 - PowerShellでは `npm.cmd` / `npx.cmd` が安定。パスに括弧や角括弧があるNext.js App Routerファイルは `Get-Content -LiteralPath` を使うこと。
