@@ -6,6 +6,14 @@ import { createClient } from "@supabase/supabase-js";
 const envFile = path.join(process.cwd(), ".env.acceptance.local");
 const nonProductionConfirmation = "I_CONFIRM_THIS_IS_NOT_PRODUCTION";
 
+class AcceptanceFailure extends Error {
+  constructor(message, details = []) {
+    super(message);
+    this.name = "AcceptanceFailure";
+    this.details = details;
+  }
+}
+
 function loadEnvFile(filePath) {
   if (!existsSync(filePath)) return;
 
@@ -24,11 +32,7 @@ function loadEnvFile(filePath) {
 }
 
 function fail(message, details = []) {
-  console.error(message);
-  for (const detail of details) {
-    console.error(`- ${detail}`);
-  }
-  process.exit(1);
+  throw new AcceptanceFailure(message, details);
 }
 
 function requiredEnv(name) {
@@ -44,7 +48,7 @@ function assertSafeTarget(rawUrl) {
     fail("ACCEPTANCE_SUPABASE_URL is not a valid URL.");
   }
 
-  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
   if (localHosts.has(parsed.hostname)) return;
 
   if (process.env.ACCEPTANCE_NON_PRODUCTION_CONFIRMATION !== nonProductionConfirmation) {
@@ -61,137 +65,182 @@ function assertNoSupabaseError(step, response) {
   }
 }
 
-loadEnvFile(envFile);
+async function cleanupLead({ supabase, organizationId, leadId, userId, softDeleted }) {
+  if (softDeleted || !organizationId || !leadId || !userId) return;
 
-const requiredVariables = {
-  ACCEPTANCE_SUPABASE_URL: requiredEnv("ACCEPTANCE_SUPABASE_URL"),
-  ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY: requiredEnv("ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY"),
-  ACCEPTANCE_TEST_EMAIL: requiredEnv("ACCEPTANCE_TEST_EMAIL"),
-  ACCEPTANCE_TEST_PASSWORD: requiredEnv("ACCEPTANCE_TEST_PASSWORD"),
-};
+  const cleanup = await supabase
+    .from("leads")
+    .update({
+      deleted_at: new Date().toISOString(),
+      updated_by: userId,
+    })
+    .eq("organization_id", organizationId)
+    .eq("id", leadId)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
 
-const missing = Object.entries(requiredVariables)
-  .filter(([, value]) => !value)
-  .map(([name]) => name);
-
-if (missing.length > 0) {
-  fail("Missing non-production Supabase acceptance environment variables.", [
-    ...missing,
-    "Create .env.acceptance.local or export the variables in your shell. This file is gitignored.",
-  ]);
+  if (cleanup.error) {
+    console.error(`Cleanup warning: created acceptance lead could not be soft-deleted (${cleanup.error.message}).`);
+  } else if (cleanup.data) {
+    console.error("Cleanup completed: created acceptance lead was soft-deleted after a failed acceptance run.");
+  }
 }
 
-assertSafeTarget(requiredVariables.ACCEPTANCE_SUPABASE_URL);
+async function run() {
+  loadEnvFile(envFile);
 
-const supabase = createClient(requiredVariables.ACCEPTANCE_SUPABASE_URL, requiredVariables.ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+  const requiredVariables = {
+    ACCEPTANCE_SUPABASE_URL: requiredEnv("ACCEPTANCE_SUPABASE_URL"),
+    ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY: requiredEnv("ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY"),
+    ACCEPTANCE_TEST_EMAIL: requiredEnv("ACCEPTANCE_TEST_EMAIL"),
+    ACCEPTANCE_TEST_PASSWORD: requiredEnv("ACCEPTANCE_TEST_PASSWORD"),
+  };
 
-const marker = `acceptance-${Date.now()}-${randomUUID()}`;
-const now = new Date().toISOString();
+  const missing = Object.entries(requiredVariables)
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missing.length > 0) {
+    fail("Missing non-production Supabase acceptance environment variables.", [
+      ...missing,
+      "Create .env.acceptance.local or export the variables in your shell. This file is gitignored.",
+    ]);
+  }
+
+  assertSafeTarget(requiredVariables.ACCEPTANCE_SUPABASE_URL);
+
+  const supabase = createClient(requiredVariables.ACCEPTANCE_SUPABASE_URL, requiredVariables.ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  const marker = `acceptance-${Date.now()}-${randomUUID()}`;
+  const now = new Date().toISOString();
+  let organizationId = "";
+  let leadId = "";
+  let userId = "";
+  let softDeleted = false;
+
+  try {
+    const signIn = await supabase.auth.signInWithPassword({
+      email: requiredVariables.ACCEPTANCE_TEST_EMAIL,
+      password: requiredVariables.ACCEPTANCE_TEST_PASSWORD,
+    });
+    assertNoSupabaseError("Supabase Auth sign-in", signIn);
+
+    userId = signIn.data.user?.id ?? "";
+    if (!userId) fail("Supabase Auth sign-in did not return a user id.");
+
+    const profile = await supabase.rpc("ensure_user_profile", {
+      default_org_name: "CRM Acceptance Test",
+    });
+    assertNoSupabaseError("Profile bootstrap", profile);
+
+    const profileRow = Array.isArray(profile.data) ? profile.data[0] : profile.data;
+    organizationId = profileRow?.organization_id ?? "";
+    if (!organizationId) fail("Profile bootstrap did not return an organization id.");
+
+    const created = await supabase
+      .from("leads")
+      .insert({
+        organization_id: organizationId,
+        name: `Acceptance Lead ${marker}`,
+        company_name: `Acceptance Construction ${marker}`,
+        contact_name: "Acceptance Contact",
+        email: "acceptance@example.test",
+        source: "acceptance",
+        notes: marker,
+        created_by: userId,
+        updated_by: userId,
+      })
+      .select("id, organization_id, name, notes, deleted_at")
+      .single();
+    assertNoSupabaseError("Lead create", created);
+
+    leadId = created.data?.id ?? "";
+    if (!leadId) fail("Lead create did not return an id.");
+
+    const updated = await supabase
+      .from("leads")
+      .update({
+        phone: "03-0000-0000",
+        notes: `${marker} updated`,
+        updated_by: userId,
+      })
+      .eq("organization_id", organizationId)
+      .eq("id", leadId)
+      .is("deleted_at", null)
+      .select("id, phone, notes, deleted_at")
+      .single();
+    assertNoSupabaseError("Lead update", updated);
+
+    if (updated.data?.phone !== "03-0000-0000" || updated.data?.notes !== `${marker} updated`) {
+      fail("Lead update returned unexpected data.");
+    }
+
+    const readBack = await supabase
+      .from("leads")
+      .select("id, organization_id, phone, notes, deleted_at")
+      .eq("organization_id", organizationId)
+      .eq("id", leadId)
+      .is("deleted_at", null)
+      .single();
+    assertNoSupabaseError("Lead read-back", readBack);
+
+    if (readBack.data?.id !== leadId || readBack.data?.organization_id !== organizationId) {
+      fail("Lead read-back returned data outside the expected organization scope.");
+    }
+
+    const deleted = await supabase
+      .from("leads")
+      .update({
+        deleted_at: now,
+        updated_by: userId,
+      })
+      .eq("organization_id", organizationId)
+      .eq("id", leadId)
+      .is("deleted_at", null)
+      .select("id, deleted_at")
+      .single();
+    assertNoSupabaseError("Lead soft delete", deleted);
+
+    if (!deleted.data?.deleted_at) fail("Lead soft delete did not persist deleted_at.");
+    softDeleted = true;
+
+    const hiddenAfterDelete = await supabase
+      .from("leads")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("id", leadId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    assertNoSupabaseError("Post-delete visibility check", hiddenAfterDelete);
+
+    if (hiddenAfterDelete.data) {
+      fail("Soft-deleted lead is still visible in active lead queries.");
+    }
+
+    console.log("Supabase acceptance passed: auth, profile bootstrap, lead create/read/update/soft-delete, and organization scoping.");
+  } finally {
+    await cleanupLead({ supabase, organizationId, leadId, userId, softDeleted });
+    await supabase.auth.signOut().catch(() => {});
+  }
+}
 
 try {
-  const signIn = await supabase.auth.signInWithPassword({
-    email: requiredVariables.ACCEPTANCE_TEST_EMAIL,
-    password: requiredVariables.ACCEPTANCE_TEST_PASSWORD,
-  });
-  assertNoSupabaseError("Supabase Auth sign-in", signIn);
-
-  const userId = signIn.data.user?.id;
-  if (!userId) fail("Supabase Auth sign-in did not return a user id.");
-
-  const profile = await supabase.rpc("ensure_user_profile", {
-    default_org_name: "CRM Acceptance Test",
-  });
-  assertNoSupabaseError("Profile bootstrap", profile);
-
-  const profileRow = Array.isArray(profile.data) ? profile.data[0] : profile.data;
-  const organizationId = profileRow?.organization_id;
-  if (!organizationId) fail("Profile bootstrap did not return an organization id.");
-
-  const created = await supabase
-    .from("leads")
-    .insert({
-      organization_id: organizationId,
-      name: `Acceptance Lead ${marker}`,
-      company_name: `Acceptance Construction ${marker}`,
-      contact_name: "Acceptance Contact",
-      email: "acceptance@example.test",
-      source: "acceptance",
-      notes: marker,
-      created_by: userId,
-      updated_by: userId,
-    })
-    .select("id, organization_id, name, notes, deleted_at")
-    .single();
-  assertNoSupabaseError("Lead create", created);
-
-  const leadId = created.data?.id;
-  if (!leadId) fail("Lead create did not return an id.");
-
-  const updated = await supabase
-    .from("leads")
-    .update({
-      phone: "03-0000-0000",
-      notes: `${marker} updated`,
-      updated_by: userId,
-    })
-    .eq("organization_id", organizationId)
-    .eq("id", leadId)
-    .is("deleted_at", null)
-    .select("id, phone, notes, deleted_at")
-    .single();
-  assertNoSupabaseError("Lead update", updated);
-
-  if (updated.data?.phone !== "03-0000-0000" || updated.data?.notes !== `${marker} updated`) {
-    fail("Lead update returned unexpected data.");
+  await run();
+} catch (error) {
+  if (error instanceof AcceptanceFailure) {
+    console.error(error.message);
+    for (const detail of error.details) {
+      console.error(`- ${detail}`);
+    }
+  } else {
+    console.error(error instanceof Error ? error.message : String(error));
   }
 
-  const readBack = await supabase
-    .from("leads")
-    .select("id, organization_id, phone, notes, deleted_at")
-    .eq("organization_id", organizationId)
-    .eq("id", leadId)
-    .is("deleted_at", null)
-    .single();
-  assertNoSupabaseError("Lead read-back", readBack);
-
-  if (readBack.data?.id !== leadId || readBack.data?.organization_id !== organizationId) {
-    fail("Lead read-back returned data outside the expected organization scope.");
-  }
-
-  const deleted = await supabase
-    .from("leads")
-    .update({
-      deleted_at: now,
-      updated_by: userId,
-    })
-    .eq("organization_id", organizationId)
-    .eq("id", leadId)
-    .is("deleted_at", null)
-    .select("id, deleted_at")
-    .single();
-  assertNoSupabaseError("Lead soft delete", deleted);
-
-  if (!deleted.data?.deleted_at) fail("Lead soft delete did not persist deleted_at.");
-
-  const hiddenAfterDelete = await supabase
-    .from("leads")
-    .select("id")
-    .eq("organization_id", organizationId)
-    .eq("id", leadId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  assertNoSupabaseError("Post-delete visibility check", hiddenAfterDelete);
-
-  if (hiddenAfterDelete.data) {
-    fail("Soft-deleted lead is still visible in active lead queries.");
-  }
-
-  console.log("Supabase acceptance passed: auth, profile bootstrap, lead create/read/update/soft-delete, and organization scoping.");
-} finally {
-  await supabase.auth.signOut().catch(() => {});
+  process.exitCode = 1;
 }
