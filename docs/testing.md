@@ -190,6 +190,8 @@ Set both optional variables only when the second disposable user belongs to a di
 
 Only use a local or staging Supabase target with disposable test users and data. Do not run this command against production Supabase projects, production APIs, or real customer data. If the environment variables are missing, the command fails rather than silently passing or falling back to mock data.
 
+`ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY` must be a publishable or anon key. Do not use a Supabase service-role key or `sb_secret_...` key for live acceptance; the command fails before network access if it detects one because service-role keys bypass RLS and would make the isolation checks meaningless.
+
 ## CI
 
 `.github/workflows/quality-gate.yml` runs on pull requests and pushes to `main` or `master`.

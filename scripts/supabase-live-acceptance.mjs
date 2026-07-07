@@ -59,6 +59,34 @@ function assertSafeTarget(rawUrl) {
   }
 }
 
+function decodeJwtPayload(rawKey) {
+  const [, payload] = rawKey.split(".");
+  if (!payload) return null;
+
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function assertPublishableKey(rawKey) {
+  if (rawKey.startsWith("sb_secret_")) {
+    fail("ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY must not be a Supabase secret/service-role key.", [
+      "Use a publishable or anon key for live acceptance so RLS is actually exercised.",
+    ]);
+  }
+
+  const payload = decodeJwtPayload(rawKey);
+  if (payload?.role === "service_role") {
+    fail("ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY must not be a legacy service_role JWT.", [
+      "Use a publishable or anon key for live acceptance so RLS is actually exercised.",
+    ]);
+  }
+}
+
 function assertNoSupabaseError(step, response) {
   if (response.error) {
     fail(`${step} failed.`, [response.error.message]);
@@ -186,6 +214,7 @@ async function run() {
   }
 
   assertSafeTarget(requiredVariables.ACCEPTANCE_SUPABASE_URL);
+  assertPublishableKey(requiredVariables.ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY);
 
   const supabase = createClient(requiredVariables.ACCEPTANCE_SUPABASE_URL, requiredVariables.ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, {
     auth: {

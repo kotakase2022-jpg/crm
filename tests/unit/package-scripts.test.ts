@@ -17,6 +17,9 @@ describe("package scripts", () => {
 
   it("keeps live Supabase acceptance guarded by authenticated RLS and anonymous isolation checks", () => {
     expect(acceptanceScript).toContain("ACCEPTANCE_NON_PRODUCTION_CONFIRMATION");
+    expect(acceptanceScript).toContain("assertPublishableKey");
+    expect(acceptanceScript).toContain("service_role");
+    expect(acceptanceScript).toContain("sb_secret_");
     expect(acceptanceScript).toContain("assertAnonymousLeadIsHidden");
     expect(acceptanceScript).toContain("Anonymous lead visibility check failed.");
     expect(acceptanceScript).toContain("ACCEPTANCE_OTHER_TEST_EMAIL");
