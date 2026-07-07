@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseCsv } from "@/lib/crm/csv";
-import { runAllLeadImportsFromCron } from "@/lib/crm/lead-imports";
+import { runAllLeadImportsFromCron, saveLeadImportSetting } from "@/lib/crm/lead-imports";
 import { leadStatuses } from "@/lib/crm/options";
 import {
   assertTrustedSpreadsheetCsvUrl,
@@ -16,6 +16,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   createAdminClient: vi.fn(),
+  getCrmContext: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -27,14 +28,28 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: mocks.createAdminClient,
 }));
+vi.mock("@/lib/crm/data", () => ({
+  getCrmContext: mocks.getCrmContext,
+}));
 
 function fixture(name: string) {
   return readFileSync(path.join(process.cwd(), "tests/fixtures/csv", name), "utf8");
 }
 
+function validSettingForm(id = "setting-1") {
+  const formData = new FormData();
+  formData.set("id", id);
+  formData.set("name", "Ads import");
+  formData.set("spreadsheet_url", "https://docs.google.com/spreadsheets/d/sheet-id/edit");
+  formData.set("default_status", defaultLeadImportStatus);
+  formData.set("enabled", "on");
+  return formData;
+}
+
 describe("lead spreadsheet imports", () => {
   beforeEach(() => {
     mocks.createAdminClient.mockReset();
+    mocks.getCrmContext.mockReset();
   });
 
   afterEach(() => {
@@ -184,6 +199,60 @@ describe("lead spreadsheet imports", () => {
     expect(settingUpdate.eq).toHaveBeenCalledWith("id", "setting-1");
     expect(settingUpdate.is).toHaveBeenCalledWith("deleted_at", null);
   });
+
+  it("updates Supabase import settings only inside the current organization", async () => {
+    const update = updateReturning({ id: "setting-1" });
+    const supabase = {
+      from: vi.fn(() => update),
+    };
+    mocks.getCrmContext.mockResolvedValue({
+      mode: "supabase",
+      organizationId: "org-1",
+      userId: "user-1",
+      role: "admin",
+      supabase,
+    });
+
+    await expect(saveLeadImportSetting(validSettingForm())).resolves.toBe("setting-1");
+
+    expect(supabase.from).toHaveBeenCalledWith("lead_import_settings");
+    expect(update.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(update.eq).toHaveBeenCalledWith("id", "setting-1");
+    expect(update.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(update.select).toHaveBeenCalledWith("id");
+    expect(update.single).toHaveBeenCalled();
+  });
+
+  it("does not treat missing Supabase import setting updates as saved", async () => {
+    const update = updateReturning(null, { message: "No rows returned" });
+    const supabase = {
+      from: vi.fn(() => update),
+    };
+    mocks.getCrmContext.mockResolvedValue({
+      mode: "supabase",
+      organizationId: "org-1",
+      userId: "user-1",
+      role: "admin",
+      supabase,
+    });
+
+    await expect(saveLeadImportSetting(validSettingForm("missing-setting"))).rejects.toThrow("No rows returned");
+
+    expect(update.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(update.eq).toHaveBeenCalledWith("id", "missing-setting");
+    expect(update.single).toHaveBeenCalled();
+  });
+
+  it("does not treat missing demo import setting updates as saved", async () => {
+    mocks.getCrmContext.mockResolvedValue({
+      mode: "demo",
+      organizationId: "demo-org",
+      userId: "demo-user",
+      role: "admin",
+    });
+
+    await expect(saveLeadImportSetting(validSettingForm("missing-demo-setting"))).rejects.toThrow("見つかりません");
+  });
 });
 
 function selectQuery(data: Array<Record<string, unknown>>) {
@@ -215,6 +284,17 @@ function updateQuery() {
     update: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     is: vi.fn(() => Promise.resolve({ error: null })),
+  };
+  return builder;
+}
+
+function updateReturning(data: Record<string, unknown> | null, error: { message: string } | null = null) {
+  const builder = {
+    update: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    is: vi.fn(() => builder),
+    select: vi.fn(() => builder),
+    single: vi.fn(() => Promise.resolve({ data, error })),
   };
   return builder;
 }

@@ -422,10 +422,11 @@ export async function saveLeadImportSetting(formData: FormData) {
 
   if (ctx.mode === "demo") {
     if (values.id) {
-      updateDemoRow("lead_import_settings", values.id, {
+      const updated = updateDemoRow("lead_import_settings", values.id, {
         ...values,
         updated_by: ctx.userId,
       });
+      if (!updated) throw new Error("取込設定が見つかりません。");
       return values.id;
     }
 
@@ -457,7 +458,9 @@ export async function saveLeadImportSetting(formData: FormData) {
       })
       .eq("organization_id", ctx.organizationId)
       .eq("id", values.id)
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      .select("id")
+      .single();
 
     if (error) throw new Error(error.message);
     return values.id;
