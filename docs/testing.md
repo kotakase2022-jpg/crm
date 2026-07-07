@@ -171,7 +171,7 @@ Optional test variables:
 npm run acceptance:supabase
 ```
 
-The command signs in with Supabase Auth, bootstraps the profile/organization through `ensure_user_profile`, creates a lead, reads it back, updates it, soft-deletes it, and confirms the soft-deleted lead is hidden from active lead queries. It uses the publishable key and the authenticated user's RLS context, not the service role key.
+The command signs in with Supabase Auth, bootstraps the profile/organization through `ensure_user_profile`, creates a lead, confirms an anonymous publishable-key client cannot read the live lead, reads it back, updates it, soft-deletes it, and confirms the soft-deleted lead is hidden from active lead queries. It uses the publishable key and the authenticated user's RLS context, not the service role key.
 
 Set these variables in `.env.acceptance.local` or in the shell. `.env.acceptance.local` is ignored by git.
 

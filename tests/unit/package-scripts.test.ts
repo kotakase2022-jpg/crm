@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const packageJson = JSON.parse(readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+const acceptanceScript = readFileSync(path.join(process.cwd(), "scripts", "supabase-live-acceptance.mjs"), "utf8");
 
 describe("package scripts", () => {
   it("uses a guarded Husky prepare script for production-safe installs", () => {
@@ -12,5 +13,12 @@ describe("package scripts", () => {
   it("keeps live Supabase acceptance explicit and outside the default quality gate", () => {
     expect(packageJson.scripts["acceptance:supabase"]).toBe("node scripts/supabase-live-acceptance.mjs");
     expect(packageJson.scripts.quality).not.toContain("acceptance:supabase");
+  });
+
+  it("keeps live Supabase acceptance guarded by authenticated RLS and anonymous isolation checks", () => {
+    expect(acceptanceScript).toContain("ACCEPTANCE_NON_PRODUCTION_CONFIRMATION");
+    expect(acceptanceScript).toContain("assertAnonymousLeadIsHidden");
+    expect(acceptanceScript).toContain("Anonymous lead visibility check failed.");
+    expect(acceptanceScript).toContain("anonymous read isolation");
   });
 });

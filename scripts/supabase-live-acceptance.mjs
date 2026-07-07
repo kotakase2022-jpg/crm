@@ -65,6 +65,30 @@ function assertNoSupabaseError(step, response) {
   }
 }
 
+function isExpectedAnonymousReadError(error) {
+  const message = error.message.toLowerCase();
+  return ["permission", "row-level", "rls", "not allowed"].some((expected) => message.includes(expected));
+}
+
+async function assertAnonymousLeadIsHidden({ supabaseUrl, publishableKey, leadId }) {
+  const anonymousSupabase = createClient(supabaseUrl, publishableKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  const anonymousRead = await anonymousSupabase.from("leads").select("id").eq("id", leadId).maybeSingle();
+
+  if (anonymousRead.data) {
+    fail("Anonymous lead visibility check failed.", ["A publishable-key client without an authenticated user could read the created lead."]);
+  }
+
+  if (anonymousRead.error && !isExpectedAnonymousReadError(anonymousRead.error)) {
+    fail("Anonymous lead visibility check failed unexpectedly.", [anonymousRead.error.message]);
+  }
+}
+
 async function cleanupLead({ supabase, organizationId, leadId, userId, softDeleted }) {
   if (softDeleted || !organizationId || !leadId || !userId) return;
 
@@ -168,6 +192,12 @@ async function run() {
     leadId = created.data?.id ?? "";
     if (!leadId) fail("Lead create did not return an id.");
 
+    await assertAnonymousLeadIsHidden({
+      supabaseUrl: requiredVariables.ACCEPTANCE_SUPABASE_URL,
+      publishableKey: requiredVariables.ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY,
+      leadId,
+    });
+
     const updated = await supabase
       .from("leads")
       .update({
@@ -228,7 +258,7 @@ async function run() {
       fail("Soft-deleted lead is still visible in active lead queries.");
     }
 
-    console.log("Supabase acceptance passed: auth, profile bootstrap, lead create/read/update/soft-delete, and organization scoping.");
+    console.log("Supabase acceptance passed: auth, profile bootstrap, anonymous read isolation, lead create/read/update/soft-delete, and organization scoping.");
   } finally {
     await cleanupLead({ supabase, organizationId, leadId, userId, softDeleted });
     await supabase.auth.signOut().catch(() => {});
