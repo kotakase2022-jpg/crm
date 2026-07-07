@@ -7,7 +7,7 @@ import { Input, Select } from "@/components/ui/input";
 import type { CrmRecord, EntityConfig, QueryState, RelationOptions } from "@/lib/crm/types";
 import { formatValue, optionLabelForField } from "@/lib/crm/format";
 import { relationHrefForField } from "@/lib/crm/related";
-import { defaultSortDirection, listClearHref, listSortHref, normalizedSort } from "@/lib/crm/search";
+import { defaultSortDirection, listClearHref, listSortHref, listViewHref, normalizedSort } from "@/lib/crm/search";
 
 function fieldLabel(config: EntityConfig, field: string) {
   return config.fields.find((item) => item.name === field)?.label ?? labelFallback[field] ?? field;
@@ -110,13 +110,13 @@ export function EntityFilterBar({
         </form>
         {config.slug === "tasks" ? (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <Link className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50" href="/tasks?view=today">
+            <Link className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50" href={listViewHref(config, query, "today")}>
               今日のタスク
             </Link>
-            <Link className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50" href="/tasks?view=overdue">
+            <Link className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50" href={listViewHref(config, query, "overdue")}>
               期限切れ
             </Link>
-            <Link className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50" href="/tasks">
+            <Link className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50" href={listViewHref(config, query)}>
               全件
             </Link>
           </div>

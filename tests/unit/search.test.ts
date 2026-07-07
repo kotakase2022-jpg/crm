@@ -7,6 +7,7 @@ import {
   filterSortRows,
   listClearHref,
   listSortHref,
+  listViewHref,
   matchesFilter,
   matchesRelationFilter,
   matchesSearch,
@@ -353,6 +354,32 @@ describe("CRM list search", () => {
     ).toBe("/contacts?relation_field=company_id&relation_id=company-1");
 
     expect(listClearHref(entityConfigs.leads, { q: "lead1@example.com" })).toBe("/leads");
+  });
+
+  it("builds task quick view links without dropping search or related list context", () => {
+    expect(
+      listViewHref(
+        entityConfigs.tasks,
+        {
+          q: "契約",
+          relationField: "company_id",
+          relationId: "company-1",
+          view: "overdue",
+          sort: "priority",
+          direction: "desc",
+        },
+        "today",
+      ),
+    ).toBe(`/tasks?q=${encodeURIComponent("契約")}&view=today&relation_field=company_id&relation_id=company-1`);
+
+    expect(
+      listViewHref(entityConfigs.tasks, {
+        q: "契約",
+        relationField: "company_id",
+        relationId: "company-1",
+        view: "today",
+      }),
+    ).toBe(`/tasks?q=${encodeURIComponent("契約")}&relation_field=company_id&relation_id=company-1`);
   });
 
   it("filters related list drilldowns by exact relation ids instead of parent names", () => {

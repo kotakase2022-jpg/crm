@@ -304,6 +304,61 @@ test("task quick views keep their view filter when searching", async ({ page }) 
   await strict.expectClean();
 });
 
+test("task quick links preserve the parent company scope", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Task Scope Company ${unique}`;
+  const todayTask = `E2E Scoped Today Task ${unique}`;
+  const futureTask = `E2E Scoped Future Task ${unique}`;
+  const todayDate = localDateInputValue();
+  const futureDate = localDateInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.goto(`/tasks/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="title"]').fill(todayTask);
+  await page.locator('input[name="due_date"]').fill(todayDate);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+
+  await page.goto(`/tasks/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="title"]').fill(futureTask);
+  await page.locator('input[name="due_date"]').fill(futureDate);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+
+  await page.goto(`/tasks?relation_field=company_id&relation_id=${companyId}`);
+  await expect(page.locator("tbody tr")).toHaveCount(2);
+
+  await page.getByRole("link", { name: "今日のタスク" }).click();
+  await expect(page).toHaveURL(/\/tasks\?.*view=today/);
+  let url = new URL(page.url());
+  expect(url.searchParams.get("view")).toBe("today");
+  expect(url.searchParams.get("relation_field")).toBe("company_id");
+  expect(url.searchParams.get("relation_id")).toBe(companyId);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(todayTask);
+  await expect(page.locator("tbody")).not.toContainText(futureTask);
+
+  await page.getByRole("link", { name: "全件" }).click();
+  await expect(page).toHaveURL(new RegExp(`/tasks\\?relation_field=company_id&relation_id=${escapeRegExp(companyId)}$`));
+  url = new URL(page.url());
+  expect(url.searchParams.has("view")).toBe(false);
+  expect(url.searchParams.get("relation_field")).toBe("company_id");
+  expect(url.searchParams.get("relation_id")).toBe(companyId);
+  await expect(page.locator("tbody tr")).toHaveCount(2);
+  await expect(page.locator("tbody")).toContainText(todayTask);
+  await expect(page.locator("tbody")).toContainText(futureTask);
+  await strict.expectClean();
+});
+
 test("list column headers sort records while preserving the current search", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();

@@ -133,6 +133,20 @@ export function listClearHref(config: EntityConfig, query: QueryState) {
   return queryString ? `/${config.slug}?${queryString}` : `/${config.slug}`;
 }
 
+export function listViewHref(config: EntityConfig, query: QueryState, view?: string) {
+  const params = new URLSearchParams();
+
+  if (query.q) params.set("q", query.q);
+  if (view) params.set("view", view);
+  if (query.relationField && query.relationId) {
+    params.set("relation_field", query.relationField);
+    params.set("relation_id", query.relationId);
+  }
+
+  const queryString = params.toString();
+  return queryString ? `/${config.slug}?${queryString}` : `/${config.slug}`;
+}
+
 function isEmptySortValue(value: unknown) {
   return value === null || value === undefined || value === "" || (typeof value === "string" && value.trim() === "");
 }
