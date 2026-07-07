@@ -18,7 +18,7 @@ import path from "node:path";
 import { offsetLocalDateString } from "./format";
 import type { CrmRecord, TableName } from "./types";
 
-type DemoStore = Record<TableName, CrmRecord[]>;
+export type DemoStore = Record<TableName, CrmRecord[]>;
 
 const orgId = "demo-org";
 const userId = "demo-user";
@@ -444,40 +444,116 @@ export const demoStore = (globalDemoStore.__crmDemoStore ??= createStore());
 const rawPersistentDemoStoreFile = process.env.CRM_DEMO_STORE_FILE?.trim();
 const persistentDemoStoreFile = process.env.E2E_TEST_MODE === "demo" && rawPersistentDemoStoreFile ? rawPersistentDemoStoreFile : null;
 
+function waitForFileRetry() {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+}
+
 function replaceDemoStore(nextStore: DemoStore) {
   for (const table of Object.keys(nextStore) as TableName[]) {
     demoStore[table] = nextStore[table] ?? [];
   }
 }
 
-function readPersistentDemoStore() {
+function readPersistentDemoStoreSnapshot() {
   if (!persistentDemoStoreFile || !existsSync(persistentDemoStoreFile)) return;
   const content = readFileSync(persistentDemoStoreFile, "utf8");
   if (!content.trim()) return;
-  replaceDemoStore(JSON.parse(content) as DemoStore);
+  return JSON.parse(content) as DemoStore;
+}
+
+function rowVersion(record: CrmRecord) {
+  const updated = typeof record.updated_at === "string" ? Date.parse(record.updated_at) : NaN;
+  if (Number.isFinite(updated)) return updated;
+
+  const created = typeof record.created_at === "string" ? Date.parse(record.created_at) : NaN;
+  return Number.isFinite(created) ? created : 0;
+}
+
+export function mergeDemoStoresForPersistentWrite(currentStore: DemoStore, latestStore: DemoStore | undefined) {
+  if (!latestStore) return currentStore;
+
+  const merged = {} as DemoStore;
+  const tableNames = new Set<TableName>([...(Object.keys(currentStore) as TableName[]), ...(Object.keys(latestStore) as TableName[])]);
+
+  for (const table of tableNames) {
+    const latestRows = latestStore[table] ?? [];
+    const currentRows = currentStore[table] ?? [];
+    const rowsById = new Map<string, CrmRecord>();
+
+    for (const row of latestRows) {
+      rowsById.set(String(row.id), row);
+    }
+
+    for (const row of currentRows) {
+      const idValue = String(row.id);
+      const existing = rowsById.get(idValue);
+      if (!existing || rowVersion(row) >= rowVersion(existing)) {
+        rowsById.set(idValue, row);
+      }
+    }
+
+    const orderedIds = new Set<string>([...currentRows.map((row) => String(row.id)), ...latestRows.map((row) => String(row.id))]);
+    merged[table] = [...orderedIds].flatMap((idValue) => {
+      const row = rowsById.get(idValue);
+      return row ? [row] : [];
+    });
+  }
+
+  return merged;
+}
+
+function readPersistentDemoStore() {
+  const snapshot = readPersistentDemoStoreSnapshot();
+  if (snapshot) replaceDemoStore(snapshot);
+}
+
+function withPersistentDemoStoreLock<T>(operation: () => T) {
+  if (!persistentDemoStoreFile) return operation();
+  const lockDir = `${persistentDemoStoreFile}.lock`;
+
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      mkdirSync(lockDir);
+      break;
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+      if (code !== "EEXIST" || attempt === 49) throw error;
+      waitForFileRetry();
+    }
+  }
+
+  try {
+    return operation();
+  } finally {
+    rmSync(lockDir, { recursive: true, force: true });
+  }
 }
 
 function writePersistentDemoStore() {
   if (!persistentDemoStoreFile) return;
-  mkdirSync(path.dirname(persistentDemoStoreFile), { recursive: true });
-  const tempFile = `${persistentDemoStoreFile}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-  writeFileSync(tempFile, JSON.stringify(demoStore), "utf8");
+  return withPersistentDemoStoreLock(() => {
+    const latestStore = readPersistentDemoStoreSnapshot();
+    replaceDemoStore(mergeDemoStoresForPersistentWrite(demoStore, latestStore));
+    mkdirSync(path.dirname(persistentDemoStoreFile), { recursive: true });
+    const tempFile = `${persistentDemoStoreFile}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+    writeFileSync(tempFile, JSON.stringify(demoStore), "utf8");
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    try {
-      renameSync(tempFile, persistentDemoStoreFile);
-      return;
-    } catch (error) {
-      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
-      const canRetry = ["EACCES", "EPERM"].includes(code) && attempt < 4;
-      if (!canRetry) {
-        rmSync(tempFile, { force: true });
-        throw error;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        renameSync(tempFile, persistentDemoStoreFile);
+        return;
+      } catch (error) {
+        const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+        const canRetry = ["EACCES", "EPERM"].includes(code) && attempt < 4;
+        if (!canRetry) {
+          rmSync(tempFile, { force: true });
+          throw error;
+        }
+
+        waitForFileRetry();
       }
-
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
     }
-  }
+  });
 }
 
 function syncDemoStore() {

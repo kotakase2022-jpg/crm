@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import { demoStore, getDemoRows } from "@/lib/crm/demo-data";
+import { demoStore, getDemoRows, mergeDemoStoresForPersistentWrite } from "@/lib/crm/demo-data";
 import { relationConsistencyErrors } from "@/lib/crm/related";
-import type { CrmRecord } from "@/lib/crm/types";
+import type { CrmRecord, TableName } from "@/lib/crm/types";
+import type { DemoStore } from "@/lib/crm/demo-data";
 
 function byId(rows: CrmRecord[]) {
   return new Map(rows.map((row) => [String(row.id), row]));
@@ -13,6 +14,12 @@ function byId(rows: CrmRecord[]) {
 function stringField(row: CrmRecord, field: string) {
   const value = row[field];
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function cloneDemoStore(store: DemoStore) {
+  return Object.fromEntries(
+    (Object.entries(store) as Array<[TableName, CrmRecord[]]>).map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]),
+  ) as DemoStore;
 }
 
 describe("demo CRM data", () => {
@@ -61,6 +68,54 @@ describe("demo CRM data", () => {
 
     expect(globalStore).toBe(demoStore);
     expect(globalStore?.leads.length).toBeGreaterThan(0);
+  });
+
+  it("merges E2E persistent-store writes without dropping rows from newer route workers", () => {
+    const staleWriterStore = cloneDemoStore(demoStore);
+    const latestFileStore = cloneDemoStore(demoStore);
+    const staleLead = staleWriterStore.leads[0];
+    const latestLead = latestFileStore.leads[0];
+    const currentOnlyLead = {
+      ...staleLead,
+      id: "lead-current-writer",
+      updated_at: "2026-07-08T00:02:00.000Z",
+      name: "Current writer lead",
+    };
+    const latestOnlyLead = {
+      ...latestLead,
+      id: "lead-newer-worker",
+      updated_at: "2026-07-08T00:03:00.000Z",
+      name: "Newer worker lead",
+    };
+    const sameId = "lead-shared-update";
+
+    staleWriterStore.leads = [
+      {
+        ...staleLead,
+        id: sameId,
+        updated_at: "2026-07-08T00:01:00.000Z",
+        name: "Stale writer version",
+      },
+      currentOnlyLead,
+      ...staleWriterStore.leads,
+    ];
+    latestFileStore.leads = [
+      {
+        ...latestLead,
+        id: sameId,
+        updated_at: "2026-07-08T00:04:00.000Z",
+        name: "Latest file version",
+      },
+      latestOnlyLead,
+      ...latestFileStore.leads,
+    ];
+
+    const merged = mergeDemoStoresForPersistentWrite(staleWriterStore, latestFileStore);
+    const leadMap = byId(merged.leads);
+
+    expect(leadMap.get("lead-current-writer")?.name).toBe("Current writer lead");
+    expect(leadMap.get("lead-newer-worker")?.name).toBe("Newer worker lead");
+    expect(leadMap.get(sameId)?.name).toBe("Latest file version");
   });
 
   it("keeps every demo relation id resolvable", () => {
