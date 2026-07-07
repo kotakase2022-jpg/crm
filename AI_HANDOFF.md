@@ -22,7 +22,7 @@ CodeRabbit OSS を標準レビュー、Cursor Bugbot を任意・予備として
 - Latest handoff-related commit before Loop 9 code: `978f85c` (`Record Claude review for status labels`)
 - Last known good code commit: `c9006ab` (`npm.cmd run quality` passed locally)
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
-- CodeRabbit OSS review status: PR #2 remote status was **pass** before Loop 9 local commits. After this handoff is pushed, re-check CodeRabbit / Vercel / `quality-gate` on the latest remote commit.
+- CodeRabbit OSS review status: **pass** on PR #2 after Loop 9 push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state.
 
 ## 3. What Was Done
 
@@ -55,7 +55,7 @@ CodeRabbit OSS を標準レビュー、Cursor Bugbot を任意・予備として
 - ローカルでは `npm.cmd run quality` が green。
 - Loop 9 のコード差分は `c9006ab` にコミット済み。
 - `AI_HANDOFF.md` は本ファイル更新で Loop 9 の引き継ぎ状態へ更新済み。
-- PR #2 はオープン中。Loop 9 のローカルコミットを push 後、CodeRabbit / Vercel / `quality-gate` を再確認すること。
+- PR #2 はオープン中。Loop 9 push後、CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` は green。
 - 機能・画面遷移・不具合ゼロ評価: 99 / 100。機械的品質ゲートは green だが、ライブSupabase/Vercel認証環境での手動確認が未完了のため満点扱いしない。
 - CRM体験価値評価: 98 / 100。日本語UIの生値漏れを1つ減らしたが、実運用担当者による受け入れ確認と本番相当データでの操作確認が未完了のため満点扱いしない。
 
@@ -64,7 +64,6 @@ CodeRabbit OSS を標準レビュー、Cursor Bugbot を任意・予備として
 既知の問題：
 
 - 重大な未解決問題なし。
-- Loop 9 のpush後リモートチェックは、このハンドオフ作成時点では未確認。PR #2で CodeRabbit / Vercel / `quality-gate` を確認すること。
 - ライブ Supabase/Vercel 認証セッションでの手動確認は未実施。主要CRUD、リード変換、アラートリンク、認証proxy、スプレッドシート取込設定は本番相当環境で人間確認推奨。
 - PR #2 は `REVIEW_REQUIRED`。人間レビュー・承認・マージ判断が必要。
 - `src/proxy.ts` の matcher 重複は Next.js 静的解析制約により意図的に未統合。
@@ -73,12 +72,12 @@ CodeRabbit OSS を標準レビュー、Cursor Bugbot を任意・予備として
 
 CodeRabbit OSSの指摘と対応状況：
 
-- Review status: Loop 9 コミット前の PR #2 remote status は **pass**。
+- Review status: **pass**（Loop 9 push後に `gh pr checks 2 --watch --interval 10` で確認）。
 - Critical findings: なし。
 - Resolved findings: CodeRabbit起因の新規指摘なし。Loop 9では自発的UX改善としてアラート重要度の英語内部値漏れを修正。
 - Deferred findings: なし。
 - False positives / not applicable: なし。
-- 次にClaude Codeが確認すべきこと: 最新push後のCodeRabbitコメント有無とstatusを確認し、critical/highが出ていれば最優先で対応すること。
+- 次にClaude Codeが確認すべきこと: 新しいpushが追加されていないかを確認し、CodeRabbit critical/highが出ていれば最優先で対応すること。
 
 ## 8. Optional Bugbot Findings
 
@@ -100,6 +99,9 @@ gh pr view 2 --json number,title,state,headRefName,baseRefName,url,mergeStateSta
 gh pr checks 2
 # Passed before Loop 9 push. CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass.
 
+gh pr checks 2 --watch --interval 10
+# Passed after Loop 9 push. CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass (3m3s).
+
 npm.cmd run test -- --run tests/integration/analytics-alerts.test.ts
 # Passed. 1 file / 17 tests.
 
@@ -120,8 +122,8 @@ npm.cmd run quality
 
 次にClaude Codeが最初にやるべきこと：
 
-1. `git status` と `git log --oneline -5` で、`c9006ab` と本ハンドオフ更新がリモートへ反映されているか確認する。
-2. `gh pr checks 2` で最新remote commitの CodeRabbit / Vercel / `quality-gate` が green か確認する。
+1. `git status` と `git log --oneline -5` で、最新remote stateを確認する。
+2. `gh pr checks 2` で CodeRabbit / Vercel / `quality-gate` が green のままか確認する（新しいpushがあれば再確認）。
 3. CodeRabbitに新規critical/highコメントがあれば最優先で修正する。
 4. 今回の差分が表示専用で、アラート生成ロジック・保存値・リンク解決を変えていないことをレビューする。
 5. 可能であればライブ Supabase/Vercel 認証環境で、ダッシュボードアラート、主要CRUD、リード変換、スプレッドシート取込設定を手動確認する。
