@@ -21,11 +21,11 @@ export function Badge({ children, tone = "default", className }: { children: Rea
 }
 
 export function toneForValue(value: unknown): BadgeTone {
-  const text = String(value ?? "");
-  if (["受注", "有料", "完了", "健全", "低", "高"].includes(text)) return text === "高" ? "red" : "green";
-  if (["危険", "失注", "解約予定", "解約済み", "未対応", "緊急"].includes(text)) return "red";
+  const text = String(value ?? "").trim();
+  if (["受注", "有料", "完了", "健全", "低", "高", "customer"].includes(text)) return text === "高" ? "red" : "green";
+  if (["危険", "失注", "解約予定", "解約済み", "未対応", "緊急", "churned"].includes(text)) return "red";
   if (["注意", "停止", "中", "対応中", "顧客確認中"].includes(text)) return "yellow";
-  if (["トライアル", "新規", "新規（広告経由）", "新規（広告以外）", "未接触", "デモ設定", "デモ実施", "トライアル開始"].includes(text)) return "blue";
+  if (["トライアル", "新規", "新規（広告経由）", "新規（広告以外）", "未接触", "デモ設定", "デモ実施", "トライアル開始", "prospect"].includes(text)) return "blue";
   if (["アップセル", "商談化"].includes(text)) return "purple";
   return "default";
 }

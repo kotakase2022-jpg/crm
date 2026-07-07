@@ -7,7 +7,7 @@ import { buttonClassName } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
 import { runLeadImportSettingAction, saveLeadImportSettingAction } from "@/lib/crm/actions";
-import { defaultLeadImportStatus, getLeadImportView } from "@/lib/crm/lead-imports";
+import { defaultLeadImportStatus, getLeadImportView, safeLeadImportStatus } from "@/lib/crm/lead-imports";
 import { leadStatuses } from "@/lib/crm/options";
 import { formatDateTime, formatValue } from "@/lib/crm/format";
 
@@ -74,7 +74,7 @@ export default async function LeadImportSettingsPage() {
                   <Select
                     id="default_status"
                     name="default_status"
-                    defaultValue={String(setting?.default_status ?? defaultLeadImportStatus)}
+                    defaultValue={safeLeadImportStatus(String(setting?.default_status ?? defaultLeadImportStatus))}
                     disabled={!canManage}
                   >
                     {leadStatuses.map((status) => (

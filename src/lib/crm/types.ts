@@ -49,7 +49,7 @@ export type FieldType =
   | "multiselect"
   | "checkbox";
 
-export type RelationKey = "companies" | "contacts" | "leads" | "deals" | "tickets";
+export type RelationKey = "companies" | "contacts" | "leads" | "deals" | "tickets" | "trials" | "contracts";
 
 export type FieldConfig = {
   name: string;
@@ -57,6 +57,7 @@ export type FieldConfig = {
   type: FieldType;
   required?: boolean;
   options?: readonly string[];
+  optionLabels?: Partial<Record<string, string>>;
   relation?: RelationKey;
   placeholder?: string;
   min?: number;
@@ -90,6 +91,8 @@ export type QueryState = {
   sort?: string;
   direction?: "asc" | "desc";
   view?: string;
+  relationField?: string;
+  relationId?: string;
 };
 
 export type RelationOption = {

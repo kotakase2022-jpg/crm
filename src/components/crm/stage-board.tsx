@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Badge, toneForValue } from "@/components/ui/badge";
 import { dealStages } from "@/lib/crm/options";
-import { formatCurrency } from "@/lib/crm/format";
+import { formatCurrency, toFiniteNumber } from "@/lib/crm/format";
 import type { CrmRecord, QueryState } from "@/lib/crm/types";
 
-function stageListHref(stage: string, query: QueryState) {
+export function stageListHref(stage: string, query: QueryState) {
   const params = new URLSearchParams();
 
   if (query.q) params.set("q", query.q);
@@ -12,8 +12,20 @@ function stageListHref(stage: string, query: QueryState) {
   if (query.sort) params.set("sort", query.sort);
   if (query.direction) params.set("direction", query.direction);
   if (query.view) params.set("view", query.view);
+  if (query.relationField && query.relationId) {
+    params.set("relation_field", query.relationField);
+    params.set("relation_id", query.relationId);
+  }
 
   return `/deals?${params.toString()}`;
+}
+
+function normalizedStage(value: unknown) {
+  return typeof value === "string" ? value.trim() : String(value ?? "");
+}
+
+export function dealsForStage(deals: CrmRecord[], stage: string) {
+  return deals.filter((deal) => normalizedStage(deal.stage) === stage);
 }
 
 export function StageBoard({ deals, query }: { deals: CrmRecord[]; query: QueryState }) {
@@ -21,8 +33,8 @@ export function StageBoard({ deals, query }: { deals: CrmRecord[]; query: QueryS
     <div className="mb-5 overflow-x-auto pb-2" aria-label="商談ステージボード" data-testid="deal-stage-board">
       <div className="grid min-w-[1100px] grid-cols-10 gap-3">
         {dealStages.map((stage) => {
-          const stageDeals = deals.filter((deal) => deal.stage === stage);
-          const amount = stageDeals.reduce((sum, deal) => sum + Number(deal.expected_mrr ?? 0), 0);
+          const stageDeals = dealsForStage(deals, stage);
+          const amount = stageDeals.reduce((sum, deal) => sum + toFiniteNumber(deal.expected_mrr), 0);
           const hiddenCount = Math.max(0, stageDeals.length - 4);
           const listHref = stageListHref(stage, query);
 

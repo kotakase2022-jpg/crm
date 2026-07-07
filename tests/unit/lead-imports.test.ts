@@ -2,10 +2,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseCsv } from "@/lib/crm/csv";
+import { leadStatuses } from "@/lib/crm/options";
 import {
   assertTrustedSpreadsheetCsvUrl,
   defaultLeadImportStatus,
+  importSourceIdSet,
   normalizeLeadImportRow,
+  recentLeadImportRuns,
+  safeLeadImportStatus,
   spreadsheetUrlToCsvUrl,
 } from "@/lib/crm/lead-import-utils";
 
@@ -55,6 +59,14 @@ describe("lead spreadsheet imports", () => {
     });
   });
 
+  it("rejects header alias collisions instead of overwriting spreadsheet values", () => {
+    const { rows } = parseCsv("リード名,会社名,メール,email\nLead A,Sample Construction,alias@example.test,raw@example.test\n");
+
+    expect(() => normalizeLeadImportRow(rows[0], defaultLeadImportStatus)).toThrow(
+      "Spreadsheet import has duplicate header after normalization: email",
+    );
+  });
+
   it("falls back to the configured import status when a row status is unsupported", () => {
     const lead = normalizeLeadImportRow(
       {
@@ -66,5 +78,48 @@ describe("lead spreadsheet imports", () => {
     );
 
     expect(lead.status).toBe("新規（広告以外）");
+  });
+
+  it("normalizes persisted default statuses before validating import settings", () => {
+    const nonDefaultStatus = leadStatuses.find((status) => status !== defaultLeadImportStatus);
+    expect(nonDefaultStatus).toBeDefined();
+    expect(safeLeadImportStatus(` ${nonDefaultStatus} `)).toBe(nonDefaultStatus);
+    expect(safeLeadImportStatus(` ${defaultLeadImportStatus} `)).toBe(defaultLeadImportStatus);
+    expect(safeLeadImportStatus(" unsupported ")).toBe(defaultLeadImportStatus);
+  });
+
+  it("normalizes persisted import source ids before duplicate checks", () => {
+    const sourceIds = importSourceIdSet([
+      { external_source_id: " email:lead@example.test " },
+      { external_source_id: "" },
+      { external_source_id: "   " },
+      { external_source_id: null },
+    ]);
+
+    expect([...sourceIds]).toEqual(["email:lead@example.test"]);
+    expect(sourceIds.has("email:lead@example.test")).toBe(true);
+  });
+
+  it("shows the most recent import runs first without mutating the original list", () => {
+    const runs = Array.from({ length: 12 }, (_, index) => ({
+      id: `run-${index + 1}`,
+      started_at: `2026-07-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+    }));
+
+    const recent = recentLeadImportRuns(runs);
+
+    expect(recent.map((run) => run.id)).toEqual([
+      "run-12",
+      "run-11",
+      "run-10",
+      "run-9",
+      "run-8",
+      "run-7",
+      "run-6",
+      "run-5",
+      "run-4",
+      "run-3",
+    ]);
+    expect(runs.map((run) => run.id).slice(0, 3)).toEqual(["run-1", "run-2", "run-3"]);
   });
 });

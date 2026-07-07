@@ -100,6 +100,12 @@ export const issueTags = [
 
 export const leadStatuses = ["未設定", "新規（広告経由）", "新規（広告以外）", "未接触", "接触済み", "商談化", "失注"] as const;
 export const leadSources = ["Web問い合わせ", "紹介", "展示会", "資料DL", "広告", "既存顧客紹介", "その他"] as const;
+export const companyStatuses = ["prospect", "customer", "churned"] as const;
+export const companyStatusLabels: Record<(typeof companyStatuses)[number], string> = {
+  prospect: "見込み",
+  customer: "顧客",
+  churned: "解約済み",
+};
 export const taskStatuses = ["未完了", "完了"] as const;
 export const priorities = ["低", "中", "高", "緊急"] as const;
 export const trialLikelihood = ["低", "中", "高"] as const;

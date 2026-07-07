@@ -3,6 +3,7 @@ import { signInAction, signUpAction } from "@/lib/crm/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { safeInternalRedirectPath } from "@/lib/crm/navigation";
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -14,7 +15,7 @@ export default async function LoginPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const next = first(params.next) ?? "/dashboard";
+  const next = safeInternalRedirectPath(first(params.next));
   const error = first(params.error);
   const notice = first(params.notice);
 

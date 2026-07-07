@@ -18,6 +18,16 @@ describe("persistence shaping", () => {
     expect(withComputedAmounts("subscriptions", { mrr: "30000" }).arr).toBe(360000);
   });
 
+  it("does not propagate invalid MRR values into computed ARR fields", () => {
+    expect(withComputedAmounts("deals", { expected_mrr: Number.POSITIVE_INFINITY })).not.toHaveProperty("expected_arr");
+    expect(withComputedAmounts("subscriptions", { mrr: "not-a-number" })).not.toHaveProperty("arr");
+  });
+
+  it("does not overwrite ARR values when partial updates omit the source MRR field", () => {
+    expect(withComputedAmounts("deals", { stage: "Demo done" })).toEqual({ stage: "Demo done" });
+    expect(withComputedAmounts("subscriptions", { status: "paid" })).toEqual({ status: "paid" });
+  });
+
   it("combines stripping and computed fields for save payloads", () => {
     const payload = prepareRecordForPersistence("subscriptions", {
       id: "contract-1",

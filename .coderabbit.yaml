@@ -1,0 +1,48 @@
+language: "ja-JP"
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  review_details: false
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 2
+    drafts: false
+  path_filters:
+    - "!coverage/**"
+    - "!playwright-report/**"
+    - "!test-results/**"
+    - "!node_modules/**"
+    - "!out/**"
+    - "!dist/**"
+  path_instructions:
+    - path: "src/lib/supabase/**"
+      instructions: |
+        Supabase/Auth/RLS-sensitive code. Prioritize authentication flow, cookie/header handling,
+        organization-level data isolation, service-role key leakage, and redirect safety.
+    - path: "src/lib/crm/**"
+      instructions: |
+        CRM domain logic. Prioritize data integrity, validation, soft-delete behavior, relation consistency,
+        alert correctness, KPI correctness, and malformed external/imported data handling.
+    - path: "src/app/**"
+      instructions: |
+        Next.js App Router code. Prioritize Server Action redirect/revalidation behavior, route safety,
+        runtime errors, form UX, and user-visible CRM workflow regressions.
+    - path: "tests/**"
+      instructions: |
+        Test code must not delete, skip, mark todo, comment out, or weaken meaningful coverage.
+        Check that critical CRM flows have assertions for state changes, persistence, errors, and navigation.
+    - path: "supabase/**"
+      instructions: |
+        Database changes are security-sensitive. Prioritize organization_id isolation, RLS coverage,
+        auditability, soft-delete expectations, and migration/seed consistency.
+    - path: "docs/**"
+      instructions: |
+        Documentation should keep CodeRabbit OSS PR review, GitHub Actions quality-gate,
+        branch protection, and AI handoff rules consistent.
+
+chat:
+  auto_reply: true

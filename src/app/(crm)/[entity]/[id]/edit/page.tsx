@@ -21,7 +21,11 @@ export default async function EntityEditPage({ params }: { params: Promise<{ ent
   return (
     <>
       <PageHeader title={`${config.singular}編集`} description="変更内容を確認して保存してください。" />
-      {canEdit ? <EntityForm config={config} record={record} relations={relations} action={action} /> : <PermissionNotice action="編集" />}
+      {canEdit ? (
+        <EntityForm config={config} record={record} relations={relations} action={action} cancelHref={`/${config.slug}/${id}`} />
+      ) : (
+        <PermissionNotice action="編集" />
+      )}
     </>
   );
 }

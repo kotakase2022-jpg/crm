@@ -8,10 +8,17 @@ import { StageBoard } from "@/components/crm/stage-board";
 import { canWriteTable } from "@/lib/crm/access";
 import { getCrmContext, getRelationOptions, listRecords } from "@/lib/crm/data";
 import { getEntityConfig } from "@/lib/crm/entities";
+import { listCreateHref, normalizeRelationQuery } from "@/lib/crm/search";
 import type { QueryState } from "@/lib/crm/types";
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function direction(value: string | string[] | undefined) {
+  const current = first(value);
+  if (current === "asc" || current === "desc") return current;
+  return undefined;
 }
 
 export default async function EntityListPage({
@@ -26,22 +33,25 @@ export default async function EntityListPage({
   if (!config) notFound();
 
   const rawQuery = await searchParams;
-  const query: QueryState = {
+  const query: QueryState = normalizeRelationQuery(config, {
     q: first(rawQuery.q),
     filter: first(rawQuery.filter),
     sort: first(rawQuery.sort),
-    direction: first(rawQuery.direction) === "asc" ? "asc" : "desc",
+    direction: direction(rawQuery.direction),
     view: first(rawQuery.view),
-  };
+    relationField: first(rawQuery.relation_field),
+    relationId: first(rawQuery.relation_id),
+  });
   const [context, rows, allRows, relations] = await Promise.all([getCrmContext(), listRecords(config, query), listRecords(config), getRelationOptions()]);
   const canCreate = canWriteTable(context.role, config.table);
+  const createHref = canCreate ? listCreateHref(config, query) : undefined;
 
   return (
     <>
       <PageHeader
         title={`${config.plural}一覧`}
         description={config.description}
-        actionHref={canCreate ? `/${config.slug}/new` : undefined}
+        actionHref={createHref}
         actionLabel={canCreate ? `${config.singular}作成` : undefined}
       >
         {config.slug === "leads" && canCreate ? (
@@ -53,7 +63,7 @@ export default async function EntityListPage({
       </PageHeader>
       {config.slug === "deals" ? <StageBoard deals={rows} query={query} /> : null}
       <EntityFilterBar config={config} rows={allRows} query={query} />
-      <EntityTable config={config} rows={rows} relations={relations} />
+      <EntityTable config={config} rows={rows} relations={relations} query={query} />
     </>
   );
 }

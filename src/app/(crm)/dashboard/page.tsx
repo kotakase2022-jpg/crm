@@ -7,10 +7,14 @@ import { Badge, toneForValue } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { runAutomationAction } from "@/lib/crm/actions";
-import { buildAlerts } from "@/lib/crm/alerts";
-import { buildCsDashboard, buildFunnel, buildSalesDashboard } from "@/lib/crm/analytics";
+import { alertSeverityLabel, buildAlerts } from "@/lib/crm/alerts";
+import type { CrmAlert } from "@/lib/crm/alerts";
+import { buildCsDashboard, buildFunnel, buildSalesDashboard, normalizedHealthScore, riskyHealthScores } from "@/lib/crm/analytics";
+import { isDueTodayOrOverdueOpenTask } from "@/lib/crm/automation";
 import { getRelationOptions, getSnapshot } from "@/lib/crm/data";
-import { daysUntil, formatCurrency, formatDate, formatValue, toNumber } from "@/lib/crm/format";
+import { formatCurrency, formatDate, formatValue } from "@/lib/crm/format";
+import { relationHrefForField } from "@/lib/crm/related";
+import type { RelationOptions } from "@/lib/crm/types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,20 +27,30 @@ function MiniMetric({ label, value }: { label: string; value: React.ReactNode })
   );
 }
 
+function alertHref(alert: CrmAlert, relations: RelationOptions) {
+  const ticketHref = relationHrefForField("support_ticket_id", alert.support_ticket_id, relations);
+  if (ticketHref) return ticketHref;
+
+  const dealHref = relationHrefForField("deal_id", alert.deal_id, relations);
+  if (dealHref) return dealHref;
+
+  const leadHref = relationHrefForField("lead_id", alert.lead_id, relations);
+  if (leadHref) return leadHref;
+
+  const companyHref = relationHrefForField("company_id", alert.company_id, relations);
+  if (companyHref) return companyHref;
+
+  return null;
+}
+
 export default async function DashboardPage() {
   const [snapshot, relations] = await Promise.all([getSnapshot(), getRelationOptions()]);
   const sales = buildSalesDashboard(snapshot);
   const cs = buildCsDashboard(snapshot);
   const funnel = buildFunnel(snapshot);
   const alerts = buildAlerts(snapshot);
-  const today = new Date().toISOString().slice(0, 10);
-  const todaysTasks = snapshot.tasks
-    .filter((task) => task.status !== "完了" && (task.due_date === today || (daysUntil(task.due_date) ?? 1) < 0))
-    .slice(0, 8);
-  const riskyCompanies = snapshot.healthScores
-    .filter((score) => toNumber(score.total_score) < 60)
-    .sort((a, b) => toNumber(a.total_score) - toNumber(b.total_score))
-    .slice(0, 8);
+  const todaysTasks = snapshot.tasks.filter(isDueTodayOrOverdueOpenTask).slice(0, 8);
+  const riskyCompanies = riskyHealthScores(snapshot.healthScores);
 
   return (
     <>
@@ -105,15 +119,34 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="grid gap-2">
-            {alerts.slice(0, 8).map((alert) => (
-              <div key={alert.key} className="rounded-md border border-slate-100 bg-white p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-950">{alert.title}</p>
-                  <Badge tone={alert.severity === "danger" ? "red" : alert.severity === "warning" ? "yellow" : "blue"}>{alert.severity}</Badge>
+            {alerts.length === 0 ? <p className="text-sm text-slate-500">現在、対応が必要なアラートはありません。</p> : null}
+            {alerts.slice(0, 8).map((alert) => {
+              const href = alertHref(alert, relations);
+              const content = (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-950">{alert.title}</p>
+                    <Badge tone={alert.severity === "danger" ? "red" : alert.severity === "warning" ? "yellow" : "blue"}>{alertSeverityLabel(alert.severity)}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{alert.description}</p>
+                </>
+              );
+
+              return href ? (
+                <Link
+                  key={alert.key}
+                  href={href}
+                  data-testid="dashboard-alert-link"
+                  className="rounded-md border border-slate-100 bg-white p-3 hover:border-slate-300 hover:bg-slate-50"
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div key={alert.key} data-testid="dashboard-alert-card" className="rounded-md border border-slate-100 bg-white p-3">
+                  {content}
                 </div>
-                <p className="mt-1 text-xs leading-5 text-slate-500">{alert.description}</p>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -122,15 +155,28 @@ export default async function DashboardPage() {
             <h3 className="font-semibold text-slate-950">CS要注意顧客</h3>
           </CardHeader>
           <CardContent className="grid gap-2">
-            {riskyCompanies.map((score) => (
-              <Link key={score.id} href={`/companies/${score.company_id}`} className="rounded-md border border-slate-100 bg-slate-50 p-3 hover:border-slate-300">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-950">{formatValue("company_id", score.company_id, relations)}</p>
-                  <Badge tone={toneForValue(score.churn_risk)}>{String(score.churn_risk)}</Badge>
+            {riskyCompanies.map((score) => {
+              const href = relationHrefForField("company_id", score.company_id, relations);
+              const content = (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-950">{formatValue("company_id", score.company_id, relations)}</p>
+                    <Badge tone={toneForValue(score.churn_risk)}>{String(score.churn_risk)}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">ヘルススコア: {normalizedHealthScore(score)}点</p>
+                </>
+              );
+
+              return href ? (
+                <Link key={score.id} href={href} data-testid="dashboard-risky-company-link" className="rounded-md border border-slate-100 bg-slate-50 p-3 hover:border-slate-300">
+                  {content}
+                </Link>
+              ) : (
+                <div key={score.id} data-testid="dashboard-risky-company-card" className="rounded-md border border-slate-100 bg-slate-50 p-3">
+                  {content}
                 </div>
-                <p className="mt-1 text-xs text-slate-500">ヘルススコア: {String(score.total_score)}点</p>
-              </Link>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       </div>

@@ -117,7 +117,28 @@ npm run build
 
 ## Testing / Quality Gate
 
-Strict local and CI quality checks are documented in `docs/testing.md`.
+Strict local and CI quality checks are documented in `docs/testing.md`. AI PR review operation is documented in `docs/ai-review.md`.
+
+## AI PR Review
+
+CodeRabbit OSS is the standard AI PR reviewer for this public repository. Keep `.coderabbit.yaml` in version control and install the CodeRabbit GitHub App for this repository before relying on PR AI review.
+
+- CodeRabbit OSS review is expected on every pull request.
+- Critical/high CodeRabbit findings must be fixed or explicitly deferred with a reason in the PR and `AI_HANDOFF.md`.
+- Cursor Bugbot is optional backup only and should be used only when CodeRabbit is unavailable or the user explicitly asks for an additional review.
+- Do not enable paid CodeRabbit plans, private-repo billing, or usage-based add-ons without explicit user approval.
+- If the repository becomes private or OSS eligibility changes, reassess the review workflow and cost before continuing.
+- CodeRabbit review does not replace `npm run quality` or GitHub Actions `quality-gate`.
+
+Setup references:
+
+- CodeRabbit GitHub App: https://github.com/apps/coderabbitai
+- CodeRabbit GitHub setup docs: https://docs.coderabbit.ai/platforms/github-com
+- CodeRabbit plans: https://docs.coderabbit.ai/management/plans
+
+## AI Development Handoff
+
+Codex and Claude Code work in an alternating loop on this repository, with CodeRabbit OSS as the standard PR reviewer. Before stopping or transferring work, update `AI_HANDOFF.md` with the current branch, changed files, verification results, CodeRabbit review status, optional Bugbot backup status if used, and the next recommended action.
 
 ## Spreadsheet Lead Import
 
@@ -147,6 +168,6 @@ Run the full gate before handoff:
 npm run quality
 ```
 
-GitHub branch protection should require the `quality-gate / typecheck-lint-test-e2e-build` workflow before merging to `main`.
+GitHub branch protection should require the `quality-gate / typecheck-lint-test-e2e-build` workflow before merging to `main`. If a stable CodeRabbit status check is available after GitHub App installation, repository owners may also require it; do not replace the mechanical quality gate with AI review.
 
-All ongoing development should use pull requests. Do not push directly to `main`; Vercel production deployments should come from `main` only after the GitHub Actions `quality-gate` workflow has passed. Codex, Cursor, and human contributors should not consider work complete until `npm run quality` and CI are green.
+All ongoing development should use pull requests. Do not push directly to `main`; Vercel production deployments should come from `main` only after the GitHub Actions `quality-gate` workflow has passed. Codex, Claude Code, Cursor, and human contributors should not consider work complete until `npm run quality`, CI, and required PR review steps are green or explicitly deferred.

@@ -1,4 +1,4 @@
-import { toNumber } from "./format";
+import { toFiniteNumber } from "./format";
 import type { CrmRecord } from "./types";
 
 export type HealthBreakdown = {
@@ -33,25 +33,30 @@ export function calculateHealthScore(args: {
   renewalDays?: number | null;
   subjectiveScore?: number;
 }): HealthBreakdown {
-  const loginCount = toNumber(args.usage?.login_count);
-  const documents = toNumber(args.usage?.documents_created);
-  const activeUsers = toNumber(args.usage?.active_users_count);
-  const setup = toNumber(args.usage?.setup_completion_rate);
+  const loginCount = toFiniteNumber(args.usage?.login_count);
+  const documents = toFiniteNumber(args.usage?.documents_created);
+  const activeUsers = toFiniteNumber(args.usage?.active_users_count);
+  const setup = toFiniteNumber(args.usage?.setup_completion_rate);
+  const openTicketCount = Math.max(0, toFiniteNumber(args.openTicketCount));
+  const renewalDays =
+    args.renewalDays === null || args.renewalDays === undefined || !Number.isFinite(args.renewalDays)
+      ? null
+      : args.renewalDays;
 
-  const login_frequency_score = Math.min(20, Math.round(loginCount / 2));
-  const document_count_score = Math.min(25, Math.round(documents / 4));
-  const active_users_score = Math.min(15, activeUsers * 2);
-  const setup_score = Math.min(10, Math.round(setup / 10));
-  const support_score = Math.max(0, 10 - (args.openTicketCount ?? 0) * 3);
+  const login_frequency_score = Math.min(20, Math.max(0, Math.round(loginCount / 2)));
+  const document_count_score = Math.min(25, Math.max(0, Math.round(documents / 4)));
+  const active_users_score = Math.min(15, Math.max(0, activeUsers * 2));
+  const setup_score = Math.min(10, Math.max(0, Math.round(setup / 10)));
+  const support_score = Math.min(10, Math.max(0, 10 - openTicketCount * 3));
   const renewal_score =
-    args.renewalDays === null || args.renewalDays === undefined
+    renewalDays === null
       ? 5
-      : args.renewalDays < 0
+      : renewalDays < 0
         ? 2
-        : args.renewalDays <= 30
+        : renewalDays <= 30
           ? 6
           : 10;
-  const cs_subjective_score = Math.min(10, Math.max(0, args.subjectiveScore ?? 7));
+  const cs_subjective_score = Math.min(10, Math.max(0, toFiniteNumber(args.subjectiveScore ?? 7, 7)));
   const total_score =
     login_frequency_score +
     document_count_score +
