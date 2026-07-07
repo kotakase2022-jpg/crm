@@ -4,7 +4,7 @@ import { dealStages } from "@/lib/crm/options";
 import { formatCurrency, toFiniteNumber } from "@/lib/crm/format";
 import type { CrmRecord, QueryState } from "@/lib/crm/types";
 
-function stageListHref(stage: string, query: QueryState) {
+export function stageListHref(stage: string, query: QueryState) {
   const params = new URLSearchParams();
 
   if (query.q) params.set("q", query.q);
@@ -12,6 +12,10 @@ function stageListHref(stage: string, query: QueryState) {
   if (query.sort) params.set("sort", query.sort);
   if (query.direction) params.set("direction", query.direction);
   if (query.view) params.set("view", query.view);
+  if (query.relationField && query.relationId) {
+    params.set("relation_field", query.relationField);
+    params.set("relation_id", query.relationId);
+  }
 
   return `/deals?${params.toString()}`;
 }
