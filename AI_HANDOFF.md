@@ -14,7 +14,7 @@
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn strengthened the live non-production Supabase acceptance check so it also verifies anonymous publishable-key clients cannot read a newly created lead.
+- This turn strengthened the live non-production Supabase acceptance check with an optional authenticated cross-organization RLS isolation check.
 
 Current score:
 
@@ -27,18 +27,29 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD accep
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `80de4bb` (`Assert anonymous isolation in Supabase acceptance`)
+- Latest code commit: `e08669b` (`Add optional cross-organization acceptance check`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `80de4bb`
+- Last known good local commit: `e08669b`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this handoff.
-- CodeRabbit OSS review status: green on PR #3 at remote head `d272576` before the anonymous-isolation acceptance commit; re-check after pushing this handoff.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `d272576`; local `npm.cmd run quality` passes after `80de4bb`.
-- Vercel preview: green on PR #3 at remote head `d272576` before the anonymous-isolation acceptance commit; re-check after pushing this handoff.
+- CodeRabbit OSS review status: green on PR #3 at remote head `6170da8` before the optional cross-organization acceptance commit; re-check after pushing this handoff.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `6170da8`; local `npm.cmd run quality` passes after `e08669b`.
+- Vercel preview: green on PR #3 at remote head `6170da8` before the optional cross-organization acceptance commit; re-check after pushing this handoff.
 
 ## 3. What Was Done
 
 Completed this turn:
+
+- Confirmed PR #3 was green at remote head `6170da8`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed; review decision remained `REVIEW_REQUIRED`, and review threads were empty.
+- Added optional authenticated cross-organization isolation coverage to `npm run acceptance:supabase`. If `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` are both provided, the script signs in as that disposable second user, bootstraps/reads its organization id, fails if it is the same organization as the primary test user, and verifies the second organization cannot read the primary organization's created lead.
+- Added fail-closed handling for partially configured optional cross-organization variables so an incomplete acceptance setup fails before any network call.
+- Documented the optional stronger RLS isolation variables in `.env.example` and `docs/testing.md`.
+- Updated the package-script guard test so the cross-organization isolation check cannot be removed silently.
+- Re-ran `npm.cmd run acceptance:supabase` in the current environment and confirmed it still fails cleanly with missing dedicated `ACCEPTANCE_*` variables and no stack trace.
+- Re-ran `npm.cmd run acceptance:supabase` with dummy required local values and only `ACCEPTANCE_OTHER_TEST_EMAIL` set; it failed before network access with the expected "set both optional variables or leave both empty" message.
+- Ran focused package-script tests, `git diff --check`, and the full local `npm.cmd run quality` gate successfully after optional cross-organization hardening.
+
+Previous anonymous-isolation hardening in Loop 10:
 
 - Confirmed PR #3 was green at remote head `d272576`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed; review decision remained `REVIEW_REQUIRED`, and review threads were empty.
 - Added an anonymous publishable-key read isolation check to `npm run acceptance:supabase`. After the authenticated test user creates a lead, the script now verifies that a client without an authenticated user cannot read that live lead before proceeding to update/read/soft-delete checks.
@@ -117,6 +128,7 @@ Earlier Loop 10 context already in PR #3:
 Main files changed this turn:
 
 - `scripts/supabase-live-acceptance.mjs`
+- `.env.example`
 - `docs/testing.md`
 - `tests/unit/package-scripts.test.ts`
 - `AI_HANDOFF.md`
@@ -141,10 +153,10 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `80de4bb`.
+- Local code quality is green after `e08669b`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `d272576` is green for CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`; the `80de4bb` anonymous-isolation hardening commit and this handoff still need to be pushed and re-checked.
+- PR #3 remote head `6170da8` is green for CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`; the `e08669b` optional cross-organization hardening commit and this handoff still need to be pushed and re-checked.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -162,7 +174,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `d272576` before the anonymous-isolation acceptance commit; re-check after pushing this handoff commit.
+- Review status: Passed on PR #3 at remote head `6170da8` before the optional cross-organization acceptance commit; re-check after pushing this handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -190,6 +202,9 @@ npm.cmd run acceptance:supabase
 # This proves the live acceptance check still does not silently pass without a real non-production Supabase target.
 # The handled failure printed no stack trace.
 
+$env:ACCEPTANCE_SUPABASE_URL='http://localhost:54321'; $env:ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY='dummy'; $env:ACCEPTANCE_TEST_EMAIL='primary@example.test'; $env:ACCEPTANCE_TEST_PASSWORD='password'; $env:ACCEPTANCE_OTHER_TEST_EMAIL='other@example.test'; npm.cmd run acceptance:supabase
+# Failed as expected before network access because only one optional cross-organization test-user variable was set.
+
 npm.cmd run test -- --run tests/unit/package-scripts.test.ts
 # Passed. 1 file / 3 tests.
 
@@ -210,7 +225,7 @@ npm.cmd run quality
 # build: passed (Next.js 16.2.10 production build)
 
 gh pr checks 3 --repo kotakase2022-jpg/crm
-# Passed at remote head d272576 before the anonymous-isolation acceptance commit:
+# Passed at remote head 6170da8 before the optional cross-organization acceptance commit:
 # CodeRabbit pass
 # Vercel pass
 # Vercel Preview Comments pass
@@ -281,14 +296,15 @@ gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,merge
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -6`.
-2. Confirm `80de4bb` and this handoff commit are pushed to PR #3.
+2. Confirm `e08669b` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate` rerun is green after `80de4bb` and this handoff commit.
+4. Confirm the latest `quality-gate` rerun is green after `e08669b` and this handoff commit.
 5. Confirm CodeRabbit OSS has no Critical/High findings on the latest PR head.
 6. Review the new `npm run acceptance:supabase` script for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
 7. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
-8. If live acceptance passes, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
-9. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
+8. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
+9. If live acceptance passes, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
+10. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
 
 ## 11. Suggested Review Scope for Claude Code
 
@@ -300,6 +316,7 @@ Please review:
 - Does the script avoid service-role credentials, production defaults, and mock/demo fallback?
 - Is the remote-target confirmation strong enough to prevent accidental production Supabase writes?
 - Does the anonymous publishable-key read check fail the acceptance command if unauthenticated clients can read the created lead?
+- If optional second-user variables are provided, does the authenticated cross-organization check fail when the second user is in the same organization or can read the created lead?
 - Does the script's create/read/update/soft-delete lead flow prove the remaining authenticated RLS persistence gap well enough when run against staging/local Supabase?
 - Does the login auth feedback E2E now target the application-visible alert/status without weakening the accessibility assertion?
 - Does `saveLeadImportSetting()` correctly reject missing/deleted/out-of-organization updates in both demo and Supabase modes?
@@ -315,6 +332,8 @@ Please review:
 - The latest change adds a dedicated live non-production Supabase acceptance command. It is intentionally outside `npm run quality` because CI and normal local gates must not write to external databases.
 - Running `npm.cmd run acceptance:supabase` with real acceptance credentials writes and then soft-deletes one lead in the target Supabase project. Use only local/staging projects with disposable test data.
 - The latest acceptance hardening checks anonymous read isolation before updating and soft-deleting the created lead, so a permissive public lead read policy should fail the command.
+- The optional second-user acceptance path calls `ensure_user_profile` for the second disposable user and may create/bootstrap that user's test organization in the target non-production Supabase project.
+- If `ACCEPTANCE_OTHER_TEST_EMAIL` belongs to the same organization as `ACCEPTANCE_TEST_EMAIL`, the command fails because it cannot prove cross-organization isolation.
 - The cleanup hardening is best effort; if Supabase rejects cleanup after a mid-run failure, the script prints a cleanup warning and still fails the acceptance command.
 - Remote Supabase targets require the exact `ACCEPTANCE_NON_PRODUCTION_CONFIRMATION=I_CONFIRM_THIS_IS_NOT_PRODUCTION` guard.
 - The current shell cannot complete live acceptance because no acceptance env vars are present and local Supabase CLI execution is blocked by Windows Application Control policy.
