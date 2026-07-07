@@ -910,6 +910,73 @@ test("ticket related task creation keeps the support context through save", asyn
   await strict.expectClean();
 });
 
+test("support ticket lifecycle keeps status updates searchable from the queue", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Ticket Lifecycle Company ${unique}`;
+  const ticketTitle = `E2E Ticket Lifecycle ${unique}`;
+  const description = `Lifecycle support memo ${unique}`;
+  const openedAt = "2026-07-05T09:15";
+  const resolvedAt = "2026-07-05T12:30";
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(companyId).toBeTruthy();
+
+  await page.goto(`/tickets/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="title"]').fill(ticketTitle);
+  await page.locator('textarea[name="description"]').fill(description);
+  await page.locator('select[name="priority"]').selectOption({ index: 4 });
+  const priorityLabel = (await page.locator('select[name="priority"] option:checked').textContent())?.trim() ?? "";
+  expect(priorityLabel).toBeTruthy();
+  await page.locator('select[name="type"]').selectOption({ index: 1 });
+  await page.locator('select[name="status"]').selectOption({ index: 1 });
+  const initialStatusLabel = (await page.locator('select[name="status"] option:checked').textContent())?.trim() ?? "";
+  expect(initialStatusLabel).toBeTruthy();
+  await page.locator('input[name="opened_at"]').fill(openedAt);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\?toast=created$/);
+  const ticketPath = new URL(page.url()).pathname;
+  await expect(page.locator("body")).toContainText(ticketTitle);
+  await expect(page.locator("body")).toContainText(description);
+  await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText(priorityLabel);
+  await expect(page.locator("body")).toContainText(initialStatusLabel);
+
+  await page.locator('main a[href$="/edit"]').first().click();
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\/edit$/);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('textarea[name="description"]')).toHaveValue(description);
+  await page.locator('select[name="status"]').selectOption({ index: 4 });
+  const resolvedStatusLabel = (await page.locator('select[name="status"] option:checked').textContent())?.trim() ?? "";
+  expect(resolvedStatusLabel).toBeTruthy();
+  await page.locator('input[name="last_response_at"]').fill(resolvedAt);
+  await page.locator('input[name="resolved_at"]').fill(resolvedAt);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\?toast=updated$/);
+  await expect(page.locator("body")).toContainText(ticketTitle);
+  await expect(page.locator("body")).toContainText(resolvedStatusLabel);
+
+  await page.goto(`/tickets?q=${encodeURIComponent(ticketTitle)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(ticketTitle);
+  await expect(page.locator("tbody")).toContainText(companyName);
+  await expect(page.locator("tbody")).toContainText(priorityLabel);
+  await expect(page.locator("tbody")).toContainText(resolvedStatusLabel);
+  await page.locator(`tbody a[href="${ticketPath}"]`).first().click();
+
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(ticketPath)}$`));
+  await expect(page.locator("body")).toContainText(ticketTitle);
+  await expect(page.locator("body")).toContainText(resolvedStatusLabel);
+  await strict.expectClean();
+});
+
 test("task detail shows activity context from its linked company", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const subject = `E2E Task Context Activity ${Date.now()}`;
