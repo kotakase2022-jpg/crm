@@ -13,17 +13,17 @@
 
 今回の目的：
 
-既存CRMの「不具合ゼロ」と「日常業務で手放せない体験価値」に向けた自律改善を継続する。今回は会社詳細などから開いた関連一覧や「今日のタスク」ビューで検索・ソートを使ったあと、「条件クリア」で親会社スコープや業務ビューまで失わないようにする。CodeRabbit OSSを標準レビュー、Cursor Bugbotを任意/予備として扱う運用は維持する。
+既存CRMの「不具合ゼロ」と「日常業務で手放せない体験価値」に向けた自律改善を継続する。今回は会社詳細などから開いた関連タスク一覧で「今日のタスク」「期限切れ」「全件」を切り替えたときに、親会社スコープを失わないようにする。CodeRabbit OSSを標準レビュー、Cursor Bugbotを任意/予備として扱う運用は維持する。
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/ai-handoff-loop`
-- Latest code commit: `4602543` (`Preserve workflow context when clearing filters`)
-- Latest handoff commit before this update: `f786a99` (`Record malformed relation filter handoff`)
-- Previous Loop 9 code commits: `25c3272` (`Ignore malformed relation list filters`), `4e3dcef` (`Document proxy matcher and stabilize font abort checks`), `68a816f` (`Cover related deal stage drilldown in E2E`), `0fa785e` (`Preserve relation filters in stage board links`), `35afc68` (`Order Supabase paged reads deterministically`), `fb67b67` (`Avoid reflecting middleware headers on auth redirects`), `c9006ab` (`Localize dashboard alert severity labels`)
-- Last known good local commit: `4602543` (`npm.cmd run quality` passed locally)
+- Latest code commit: `845bc2d` (`Preserve task view context links`)
+- Latest handoff commit before this update: `253e96e` (`Record filter clear context handoff`)
+- Previous Loop 9 code commits: `4602543` (`Preserve workflow context when clearing filters`), `25c3272` (`Ignore malformed relation list filters`), `4e3dcef` (`Document proxy matcher and stabilize font abort checks`), `68a816f` (`Cover related deal stage drilldown in E2E`), `0fa785e` (`Preserve relation filters in stage board links`), `35afc68` (`Order Supabase paged reads deterministically`), `fb67b67` (`Avoid reflecting middleware headers on auth redirects`), `c9006ab` (`Localize dashboard alert severity labels`)
+- Last known good local commit: `845bc2d` (`npm.cmd run quality` passed locally)
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
-- CodeRabbit OSS review status: **pass** after the workflow-context clear push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state for `4602543`.
+- CodeRabbit OSS review status: **pass** after the task quick-link context push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state for `845bc2d`.
 - Review threads: **all resolved** after GitHub GraphQL check on 2026-07-07 (JST).
 
 ## 3. What Was Done
@@ -33,11 +33,13 @@
 - 必須ファイル（`AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, `docs/testing.md`, `docs/ai-review.md`）を確認。
 - PR #2の最新チェックがgreenで、review threadsが全件resolvedであることを確認。
 - `EntityFilterBar` の `Link` を触るため、Next.js bundled docs（`node_modules/next/dist/docs/01-app/03-api-reference/02-components/link.md`）を確認。
-- 会社詳細から開いた関連一覧で検索したあと「条件クリア」を押すと、会社スコープまで落として全担当者一覧へ戻る余地を特定。
-- `src/lib/crm/search.ts` に `listClearHref()` を追加し、検索語・通常フィルタ・ソートだけをクリアしつつ、`view` と `relation_field` / `relation_id` を保持するようにした。
+- 会社詳細から開いた関連一覧で検索したあと「条件クリア」を押すと、会社スコープまで落として全担当者一覧へ戻る余地を前回修正済み。
+- `src/lib/crm/search.ts` に `listClearHref()` を追加済み。検索語・通常フィルタ・ソートだけをクリアしつつ、`view` と `relation_field` / `relation_id` を保持するようにした。
 - `EntityFilterBar` では `view` と正規relation scopeだけでは「条件クリア」を表示せず、追加の検索/フィルタ/ソートがある場合のみ表示するようにした。
-- ユニットテストで、今日のタスクviewと会社関連一覧scopeを保持した条件クリアURLを固定。
-- E2Eで、会社詳細から担当者の関連一覧へ入り、検索後に「条件クリア」しても会社scopeが残り、9件の関連担当者一覧へ戻ることを確認。
+- 今回、タスク関連一覧のクイックリンクが `/tasks?view=today` などの固定URLで親会社スコープを失う余地を特定。
+- `src/lib/crm/search.ts` に `listViewHref()` を追加し、タスクの「今日のタスク」「期限切れ」「全件」リンクで検索語と正規relation scopeを保持するようにした。
+- ユニットテストで、タスククイックビューURLが検索語と会社関連一覧scopeを保持し、「全件」ではviewだけ外すことを固定。
+- E2Eで、会社に紐づくタスク2件（今日/未来）から関連タスク一覧を開き、「今日のタスク」で会社scopeを保持して1件に絞り、「全件」で会社scopeのまま2件へ戻ることを確認。
 - `npm.cmd run quality` とPR #2 checksを実行し、すべてgreen。
 
 ## 4. Files Changed
@@ -54,12 +56,12 @@
 
 現在の状態：
 
-- ローカルでは `npm.cmd run quality` が green（`4602543` 時点）。
+- ローカルでは `npm.cmd run quality` が green（`845bc2d` 時点）。
 - remote PR #2でも CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` が green。
 - GitHub review threadsは全件resolved。
-- 今回のコード差分は「条件クリア」で業務コンテキスト（今日view / 関連一覧scope）を保持する改善と、その回帰テストに限定。
+- 今回のコード差分はタスクのクイックビューリンクで検索語と親会社スコープを保持する改善と、その回帰テストに限定。
 - 機能・画面遷移・不具合ゼロ評価: 99 / 100。主要ローカルE2EとPR checksはgreenだが、ライブSupabase/Vercel認証環境での人間操作確認とPR人間レビューが残るため満点扱いしない。
-- CRM体験価値評価: 99 / 100。関連一覧や今日のタスクで検索条件だけを外せるようになり、業務文脈を失う迷いが減った。実運用受け入れ確認が未完了のため満点扱いしない。
+- CRM体験価値評価: 99 / 100。関連一覧で検索条件やタスクviewを切り替えても親顧客の業務文脈を失わなくなった。実運用受け入れ確認が未完了のため満点扱いしない。
 
 ## 6. Known Issues
 
@@ -79,8 +81,9 @@ CodeRabbit OSSの指摘と対応状況：
 - Review threads: **all resolved** via GitHub GraphQL after verifying current code and PR checks.
 - Critical findings: なし。
 - Resolved findings this pass:
-  - 「条件クリア」で関連一覧scopeや今日viewを失う余地を修正し、unit/E2Eで固定。
+  - タスクの「今日のタスク」「期限切れ」「全件」リンクで関連一覧scopeを失う余地を修正し、unit/E2Eで固定。
 - Already satisfied / historical:
+  - 「条件クリア」で関連一覧scopeや今日viewを失う余地は `4602543` で修正し、unit/E2Eで固定済み。
   - 未知の `relation_field` が一覧を誤って空にする余地は `25c3272` で修正し、unit/E2Eで固定済み。
   - GitHub上で未解決表示だった古いBugbot/Codex/CodeRabbit threads 7件は `e3dafd1` 時点で全てresolve済み。
   - `src/proxy.ts` matcher重複threadは `4e3dcef` でNext.js docs根拠によりliteral維持を明示し、同期はunit testで担保。
@@ -101,7 +104,7 @@ Cursor Bugbotの任意確認：
 - Status: Not run this pass
 - Findings: 新規実行なし。過去Bugbot thread 3件は現行コードで修正済みと確認済みで、GitHub上でもresolve済み。
 - Actions taken: 追加Bugbot実行なし。
-- Reason: CodeRabbit/PR checksと機械的quality gateを優先。今回の差分は一覧URL生成と回帰テストのみで、高リスク領域（認証/RLS/本番DB/決済/削除処理）を変更していないためBugbot再実行は不要と判断。
+- Reason: CodeRabbit/PR checksと機械的quality gateを優先。今回の差分はタスク一覧URL生成と回帰テストのみで、高リスク領域（認証/RLS/本番DB/決済/削除処理）を変更していないためBugbot再実行は不要と判断。
 
 ## 9. Verification Results
 
@@ -115,28 +118,31 @@ gh api graphql ... reviewThreads
 # Passed before implementation. 16 threads / 0 unresolved.
 
 npm.cmd run test -- --run tests/unit/search.test.ts
-# Passed. 1 file / 21 tests.
+# Passed. 1 file / 22 tests.
 
-npm.cmd run test:e2e -- -g "related sections with hidden rows"
-# Failed once after implementation because the test read page.url() before client-side Link navigation settled.
-# Fixed the test to wait with expect(page).toHaveURL(...), then reran successfully.
+npm.cmd run test:e2e -- -g "task quick links preserve"
+# Failed once after implementation because the test waited on a URL regex that also matched the previous `view=today` URL.
+# Fixed the test to wait for the exact relation-only URL after clicking "全件", then reran successfully.
 # Passed. 1 Chromium test.
 
 npm.cmd run quality
 # Passed.
 # typecheck: passed
 # lint: passed
-# test: passed (28 files / 165 tests)
-# coverage: passed (statements 93.23%, branches 86.48%, functions 99.07%, lines 95.59%)
-# test:e2e: passed (41 Playwright Chromium tests)
+# test: passed (28 files / 166 tests)
+# coverage: passed (statements 93.3%, branches 86.31%, functions 99.08%, lines 95.64%)
+# test:e2e: passed (42 Playwright Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
+
+git commit -m "Preserve task view context links"
+# Passed. Created `845bc2d`.
 
 git push origin codex/ai-handoff-loop
 # Passed. Pre-push checks also passed: test:guard, lint, typecheck, unit tests.
 
 gh pr checks 2 --watch --interval 10 --repo kotakase2022-jpg/crm
-# Passed after the workflow-context clear push.
-# CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass (3m31s).
+# Passed after the task quick-link context push.
+# CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass (3m30s).
 
 gh pr view 2 --json reviewDecision,statusCheckRollup --repo kotakase2022-jpg/crm
 # reviewDecision: REVIEW_REQUIRED
@@ -144,6 +150,9 @@ gh pr view 2 --json reviewDecision,statusCheckRollup --repo kotakase2022-jpg/crm
 
 gh api graphql ... reviewThreads
 # Passed after implementation. 16 threads / 0 unresolved.
+
+git status --short --branch
+# Clean and synced with origin/codex/ai-handoff-loop before editing this handoff file.
 ```
 
 ## 10. Next Recommended Action
@@ -153,8 +162,8 @@ gh api graphql ... reviewThreads
 1. `git status` と `git log --oneline -6` で、最新remote stateを確認する。
 2. `gh pr checks 2 --repo kotakase2022-jpg/crm` で CodeRabbit / Vercel / `quality-gate` がgreenのままか確認する。
 3. GraphQL上のreview threadsが全件resolvedのままか確認する。
-4. `src/lib/crm/search.ts` の `listClearHref()` が、検索/通常フィルタ/ソートだけを落として `view` とrelation scopeを保持する設計で問題ないかレビューする。
-5. `src/components/crm/entity-table.tsx` の「条件クリア」表示条件が、view/relation scopeのみのときに余計なno-opリンクを出さないことをレビューする。
+4. `src/lib/crm/search.ts` の `listViewHref()` が、タスククイックビューで検索語とrelation scopeを保持しつつ、「全件」ではviewだけ外す設計で問題ないかレビューする。
+5. `src/components/crm/entity-table.tsx` のタスククイックリンクが、通常の `/tasks` 一覧と関連タスク一覧の両方で自然に動くかレビューする。
 6. PR #2の人間レビューが整い、CodeRabbit / quality-gate / Vercelがgreenならマージ判断へ進める。
 
 ## 11. Suggested Review Scope for Claude Code
@@ -162,6 +171,9 @@ gh api graphql ... reviewThreads
 Claude Codeに重点レビューしてほしい範囲：
 
 - PR #2のreview threadsが全件resolvedになった状態で、人間レビューに進んで問題ないか。
+- `src/components/crm/entity-table.tsx` の「今日のタスク」「期限切れ」「全件」リンクが、関連一覧の親会社scopeを壊していないか。
+- `src/lib/crm/search.ts` の `listViewHref()` と既存 `listClearHref()` / `listSortHref()` の役割分担が分かりやすいか。
+- `tests/e2e/crm-flows.spec.ts` の関連タスク一覧quick viewシナリオが、実務上の復帰導線として十分か。
 - `src/components/crm/entity-table.tsx` の「条件クリア」が、関連一覧や今日のタスクの業務文脈を残しつつ、通常のリード検索クリア挙動を壊していないか。
 - `src/lib/crm/search.ts` の `listClearHref()` と既存 `listSortHref()` の役割分担が分かりやすいか。
 - `tests/e2e/crm-flows.spec.ts` の関連一覧検索→条件クリアシナリオが、実務上の復帰導線として十分か。
@@ -197,8 +209,9 @@ Claude Codeに重点レビューしてほしい範囲：
 Claude Codeへの補足：
 
 - CodeRabbit OSSが標準レビュー。Cursor Bugbotはコスト対策のため今回は未実行。
-- 今回は「条件クリア」で業務コンテキストを保持する改善と回帰テスト追加に絞った。
-- `npm.cmd run quality` は `4602543` のコード差分込みでgreen。
+- 今回はタスククイックビューリンクで業務コンテキストを保持する改善と回帰テスト追加に絞った。
+- 前回の「条件クリア」で業務コンテキストを保持する改善もPR #2内でgreen。
+- `npm.cmd run quality` は `845bc2d` のコード差分込みでgreen。
 - PR #2 checksもgreen。
 - GitHub review threadsは全件resolved済み。
 - PowerShellでは `npm.cmd` / `npx.cmd` が安定。パスに括弧や角括弧があるNext.js App Routerファイルは `Get-Content -LiteralPath` を使うこと。
