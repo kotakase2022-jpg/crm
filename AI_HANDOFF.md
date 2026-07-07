@@ -14,59 +14,56 @@
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn strengthened Playwright E2E coverage for the lead-conversion relationship workflow after confirming PR #3 was green at the previous remote head.
+- This turn strengthened Playwright E2E coverage for the support ticket -> related task workflow, so CS users can create next-action tasks without losing the ticket, company, or contact context.
 
 Current score:
 
 - Function/screen-transition defect-free score: 99 / 100
 - Daily CRM experience value score: 99 / 100
 
-Not yet 100 because a safe non-production Supabase authenticated live CRUD acceptance pass is still missing, and PR #3 still needs human/Claude review before merge.
+Not yet 100 because a safe non-production Supabase authenticated live CRUD/RLS acceptance pass is still missing, and PR #3 still needs human/Claude review before merge.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `de07db3` (`Verify converted lead relationships`)
+- Latest code commit: `0ca2984` (`Verify ticket task support context`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `de07db3`
+- Last known good local commit: `0ca2984`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
-- PR #2: merged by the user before this handoff.
-- CodeRabbit OSS review status: green on PR #3 at remote head `41b2199` before the converted-lead-relationships E2E commit; re-check after pushing this handoff.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `41b2199`; local `npm.cmd run quality` passes after `de07db3`.
-- Vercel preview: green on PR #3 at remote head `41b2199`; re-check after pushing this handoff.
+- PR #2: merged by the user before this loop continuation.
+- CodeRabbit OSS review status: green on PR #3 at remote head `7423b86` before the ticket-task E2E commit; re-check after pushing this handoff.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `7423b86`; local `npm.cmd run quality` passes after `0ca2984`.
+- Vercel preview: green on PR #3 at remote head `7423b86`; re-check after pushing this handoff.
 
 ## 3. What Was Done
 
 Completed this turn:
 
-- Confirmed PR #3 latest remote head `41b2199` was green before the new test-only change: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
+- Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, and `docs/testing.md`.
+- Confirmed PR #2 is already merged (`42d0b81`) and PR #3 is the active improvement PR.
+- Confirmed PR #3 latest remote head `7423b86` was green before the new test-only change: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
 - Confirmed PR #3 remains open, non-draft, mergeable, and blocked only by `REVIEW_REQUIRED`.
-- Strengthened the lead conversion E2E so it now verifies the converted deal has concrete links to the created company, contact, and original lead.
-- Verified the created company detail page links back to the converted deal, and the created contact detail page links back to the company.
-- Re-ran the focused lead-conversion E2E, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
-
-Previous Loop 10 context:
-
-- Confirmed PR #3 latest remote head `c2c09f7` was green before the new test-only change: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
-- Confirmed PR #3 remains open, non-draft, mergeable, and blocked only by `REVIEW_REQUIRED`.
-- Strengthened `tests/e2e/crm-flows.spec.ts` so the dashboard operational decision-signal test now:
-  - validates the risky-company dashboard link is a concrete company detail path;
-  - clicks the risky-company link;
-  - verifies the company detail page loads;
-  - verifies a related task creation link exists for that company;
-  - clicks through to `/tasks/new?company_id=...`;
-  - verifies the company select is prefilled with the risky company.
-- Ran focused E2E, whitespace diff check, full local quality gate, and the fail-closed missing-env Supabase acceptance path.
-- Watched PR #3 checks after pushing `0fd5904`; CodeRabbit and Vercel passed, but GitHub Actions `quality-gate` failed in E2E.
-- Downloaded the failing Playwright artifact and confirmed the failed screenshot rendered a 404 on edit pages.
-- Identified the root cause as demo-mode records being stored in a module-local store that can diverge across route bundles in CI/Next dev. The failing tests had created or selected records visible to list/detail routes, then edit routes could not read them.
-- Changed `src/lib/crm/demo-data.ts` so the demo store is process-shared through `globalThis.__crmDemoStore`, preserving demo records across route bundles.
-- Added unit coverage that asserts the demo store is shared through `globalThis` for route-bundle consistency.
-- Re-ran the CI-failing focused E2E group and the full local quality gate successfully after the demo-store fix.
+- Added Playwright E2E coverage proving the support ticket related-task workflow:
+  - creates a company;
+  - creates a contact with that company prefilled;
+  - creates a ticket with both company and contact prefilled;
+  - opens the ticket detail related-task create action;
+  - verifies `/tasks/new` receives `support_ticket_id`, `company_id`, and `contact_id`;
+  - verifies the task form has those three selects prefilled;
+  - saves the task;
+  - verifies task detail links back to the ticket, company, and contact;
+  - verifies the ticket detail related task table links back to the created task.
+- Fixed an initial test timing issue by waiting for the Next.js client navigation URL before reading `page.url()`.
+- Re-ran the focused ticket-task E2E, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
 
 Important earlier PR #3 context:
 
+- Strengthened lead conversion E2E so the converted deal has concrete links to the created company, contact, and original lead.
+- Verified the created company detail page links back to the converted deal, and the created contact detail page links back to the company.
+- Strengthened the dashboard risky-company E2E so CS users can click a risk signal, reach company detail, and start a prefilled related task.
+- Fixed demo-mode route-bundle consistency by storing the CRM demo data store on `globalThis.__crmDemoStore`.
+- Added unit coverage that asserts the demo store is shared through `globalThis`.
 - Added `npm run acceptance:supabase`, an explicit non-production Supabase live acceptance harness for authenticated profile bootstrap, lead create/read/update/soft-delete, anonymous isolation, optional cross-organization isolation, service-role-key rejection, cleanup safety, and inserted/read-back value assertions.
 - Hardened lead import setting/status update persistence so zero-row Supabase updates fail visibly instead of returning success.
 - Improved spreadsheet import result toasts.
@@ -94,17 +91,19 @@ Important earlier PR #3 files:
 - `src/app/login/page.tsx`
 - `src/lib/crm/data.ts`
 - `src/lib/crm/persistence.ts`
+- `src/lib/crm/demo-data.ts`
 - `tests/unit/lead-imports.test.ts`
 - `tests/unit/actions.test.ts`
 - `tests/unit/data-supabase.test.ts`
 - `tests/unit/persistence.test.ts`
+- `tests/unit/demo-data.test.ts`
 
 ## 5. Current Status
 
-- Local code quality is green after `de07db3`.
+- Local code quality is green after `0ca2984`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `41b2199` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green before `de07db3`; push the converted-lead E2E commit and this handoff, then re-check.
+- PR #3 remote head `7423b86` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green before `0ca2984`; push the ticket-task E2E commit and this handoff, then re-check.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -112,8 +111,7 @@ Important earlier PR #3 files:
 ## 6. Known Issues
 
 - No current Critical/High code issue is known after the latest local quality gate.
-- Previous PR #3 CI run `28896219071` failed in E2E at remote head `0fd5904`; this was addressed by `dbe2133`, and PR #3 was later green at `41b2199`.
-- Live authenticated Supabase/Vercel CRUD acceptance is still incomplete because this shell does not have safe non-production Supabase runtime/test credentials. `npm.cmd run acceptance:supabase` exists and fails loudly until those credentials are supplied.
+- Live authenticated Supabase/Vercel CRUD/RLS acceptance is still incomplete because this shell does not have safe non-production Supabase runtime/test credentials. `npm.cmd run acceptance:supabase` exists and fails loudly until those credentials are supplied.
 - Local Supabase startup is not currently available because the installed Supabase CLI binary is blocked by Windows Application Control policy, even though Docker is installed.
 - PR #3 still needs human/Claude review because GitHub reports `REVIEW_REQUIRED`.
 - `codex/persistent-quality-gate-ops` still exists as an older stale branch. Do not delete it without explicit human confirmation.
@@ -123,12 +121,12 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `41b2199` before the converted-lead-relationships E2E commit; re-check after pushing this handoff commit.
+- Review status: Passed on PR #3 at remote head `7423b86` before the ticket-task E2E commit; re-check after pushing this handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
 - False positives / not applicable: none.
-- Review threads: 0 at the previous checked PR head; re-check after push if needed.
+- Review threads: no known unresolved threads at the previous checked PR head; re-check after push if needed.
 
 ## 8. Optional Bugbot Findings
 
@@ -144,19 +142,32 @@ Cursor Bugbot optional backup:
 Current turn commands:
 
 ```bash
+gh pr view 2 --repo kotakase2022-jpg/crm --json state,mergedAt,mergeCommit,url,title
+# Passed.
+# PR #2 state MERGED, mergedAt 2026-07-07T13:55:59Z, merge commit 42d0b810a3357369021f9a4dc1b2aa8d6735d4f2.
+
 gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
 # Passed before new commits.
-# PR #3 open, non-draft, mergeable, reviewDecision REVIEW_REQUIRED, remote head 41b2199.
-# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at 41b2199.
+# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head 7423b86.
+# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at 7423b86.
 
-npm.cmd run test:e2e -- -g "lead creation persists to the detail page and converts into a deal"
-# Passed. 1 Chromium test.
+gh pr checks 3 --repo kotakase2022-jpg/crm
+# Passed before new commits.
+# CodeRabbit: pass
+# Vercel: pass
+# Vercel Preview Comments: pass
+# typecheck-lint-test-e2e-build: pass
+
+npm.cmd run test:e2e -- -g "ticket related task creation keeps the support context through save"
+# First run failed because the test read page.url() immediately after clicking a Next.js Link.
+# The page had already rendered the task form, so the test was corrected to wait with toHaveURL().
+# Re-run passed. 1 Chromium test.
 
 git diff --check
 # Passed.
 
 npm.cmd run quality
-# Passed after de07db3.
+# Passed after 0ca2984.
 # typecheck: passed
 # lint: passed
 # test: passed (28 files / 181 tests)
@@ -165,7 +176,7 @@ npm.cmd run quality
 #   branches 86.54%
 #   functions 99.54%
 #   lines 95.94%
-# test:e2e: passed (44 Chromium tests)
+# test:e2e: passed (45 Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
 
 npm.cmd run acceptance:supabase
@@ -177,84 +188,36 @@ npm.cmd run acceptance:supabase
 Previous Loop 10 verification retained for context:
 
 ```bash
-gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,statusCheckRollup,headRefOid
-# Passed before new commits.
-# PR #3 open, non-draft, mergeable, reviewDecision REVIEW_REQUIRED, remote head c2c09f7.
-# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at c2c09f7.
-
-npm.cmd run test:e2e -- -g "dashboards, reports, and settings expose operational decision signals"
-# Passed. 1 Chromium test.
-
-git diff --check
-# Passed.
+npm.cmd run test:e2e -- -g "lead creation persists to the detail page and converts into a deal"
+# Passed. 1 Chromium test after lead conversion relationship assertions.
 
 npm.cmd run quality
-# Passed.
-# typecheck: passed
-# lint: passed
-# test: passed (28 files / 180 tests)
-# coverage: passed
-#   statements 93.69%
-#   branches 86.54%
-#   functions 99.54%
-#   lines 95.94%
-# test:e2e: passed (44 Chromium tests)
-# build: passed (Next.js 16.2.10 production build)
-
-npm.cmd run acceptance:supabase
-# Failed as expected with missing dedicated ACCEPTANCE_* variables:
-# ACCEPTANCE_SUPABASE_URL, ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, ACCEPTANCE_TEST_EMAIL, ACCEPTANCE_TEST_PASSWORD.
-# No stack trace or secret value was printed.
-
-gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10
-# Failed at remote head 0fd5904.
-# CodeRabbit: passed.
-# Vercel: passed.
-# Vercel Preview Comments: passed.
-# quality-gate / typecheck-lint-test-e2e-build: failed.
-
-gh run view 28896219071 --repo kotakase2022-jpg/crm --log-failed
-# Passed for log retrieval.
-# Failure was in E2E. Screenshots showed edit pages rendering 404.
-# Failed tests included record editing, datetime-local edit fields, deal stage editing, and trial usage metrics.
-
-gh run download 28896219071 --repo kotakase2022-jpg/crm --name playwright-test-results --dir .tmp-gh-artifacts
-# Passed. Artifact was inspected and then removed.
-
-npm.cmd run test -- --run tests/unit/demo-data.test.ts
-# Passed. 1 file / 4 tests.
-
-npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local edit fields|deal stage editing persists|trial usage metrics"
-# Passed. 4 Chromium tests.
-
-git diff --check
-# Passed.
-
-npm.cmd run quality
-# Passed after dbe2133.
+# Passed after de07db3.
 # typecheck: passed
 # lint: passed
 # test: passed (28 files / 181 tests)
 # coverage: passed
-#   statements 93.69%
-#   branches 86.54%
-#   functions 99.54%
-#   lines 95.94%
 # test:e2e: passed (44 Chromium tests)
-# build: passed (Next.js 16.2.10 production build)
+# build: passed.
+
+npm.cmd run test:e2e -- -g "dashboards, reports, and settings expose operational decision signals"
+# Passed. 1 Chromium test after dashboard risky-company task prefill assertions.
+
+npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local edit fields|deal stage editing persists|trial usage metrics"
+# Passed. 4 Chromium tests after demo-store global fix.
 ```
 
 ## 10. Next Recommended Action
 
 Claude Code should start here:
 
-1. Run `git status --short --branch` and `git log --oneline -6`.
-2. Confirm `de07db3` and this handoff commit are pushed to PR #3.
+1. Run `git status --short --branch` and `git log --oneline -8`.
+2. Confirm `0ca2984` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after the converted-lead E2E and handoff commits.
-5. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
-6. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
-7. Review the `globalThis.__crmDemoStore` demo-mode fix and decide whether any additional cross-route demo persistence test is needed.
+4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after the ticket-task E2E and handoff commits.
+5. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
+6. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
+7. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
 8. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
 9. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
 10. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
@@ -265,12 +228,12 @@ Claude Code should start here:
 
 Please review:
 
-- Does the dashboard risky-company E2E now prove a real user path from CS risk signal to company detail to related task creation?
-- Does the lead conversion E2E now prove a real user path from converted deal to created company, created contact, and original lead, plus company/contact back-links?
-- Is the new selector `main a[href="/tasks/new?company_id=..."]` stable enough for this CRM's generated related-create action?
-- Does the test remain narrow and avoid asserting incidental Japanese copy?
+- Does the new ticket-task E2E prove a real CS path from support ticket detail to a next-action task while preserving ticket, company, and contact context?
+- Are the href/select assertions stable enough for this CRM's generated related-create action?
+- Does the dashboard risky-company E2E prove a real user path from CS risk signal to company detail to related task creation?
+- Does the lead conversion E2E prove a real user path from converted deal to created company, created contact, and original lead, plus company/contact back-links?
 - Does `globalThis.__crmDemoStore` correctly solve demo-mode route-bundle consistency without affecting production Supabase mode?
-- Is the new demo-data unit test enough to prevent accidental regression to module-local demo storage?
+- Is the demo-data unit test enough to prevent accidental regression to module-local demo storage?
 - Does `scripts/supabase-live-acceptance.mjs` require dedicated `ACCEPTANCE_*` variables and fail closed when they are missing?
 - Does the acceptance script avoid service-role credentials, production defaults, and mock/demo fallback?
 - Does the script's create/read/update/soft-delete lead flow prove the remaining authenticated RLS persistence gap well enough when run against staging/local Supabase?
@@ -278,9 +241,8 @@ Please review:
 
 ## 12. Risk Notes
 
-- The latest runtime change affects demo mode only: the in-memory CRM demo store is now process-shared through `globalThis`.
-- The E2E now clicks through from dashboard risk signal to company detail and task create form, and from converted lead to the created company/contact/deal relationship graph, but it still runs in demo mode; live Supabase acceptance remains the main unverified external persistence/RLS evidence gap.
-- PR #3 had a real CI failure at `0fd5904`; `dbe2133` fixes the identified cause locally, but GitHub Actions must pass after the fix is pushed.
+- The latest change is test-only and does not alter runtime behavior.
+- The new E2E runs in demo mode; live Supabase acceptance remains the main unverified external persistence/RLS evidence gap.
 - Running `npm.cmd run acceptance:supabase` with real acceptance credentials writes and then soft-deletes one lead in the target Supabase project. Use only local/staging projects with disposable test data.
 - Remote Supabase targets require the exact `ACCEPTANCE_NON_PRODUCTION_CONFIRMATION=I_CONFIRM_THIS_IS_NOT_PRODUCTION` guard.
 - The current shell cannot complete live acceptance because no acceptance env vars are present and local Supabase CLI execution is blocked by Windows Application Control policy.
