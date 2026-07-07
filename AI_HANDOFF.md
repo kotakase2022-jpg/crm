@@ -7,7 +7,7 @@
 - Loop: 10
 - Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`; Loop 10 is the current Codex improvement branch from `origin/main`.
 - Phase: Handoff
-- Last updated: 2026-07-08 07:57:11 +09:00
+- Last updated: 2026-07-08 08:02:50 +09:00
 
 ## 1. Current Goal
 
@@ -32,9 +32,9 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD/RLS a
 - Last known good local commit: `c44f2b4`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this loop continuation.
-- CodeRabbit OSS review status: green on PR #3 at remote head `552c17b`; re-check after pushing `c44f2b4` and this handoff.
-- GitHub Actions `quality-gate`: failed on PR #3 at remote head `552c17b` in E2E edit-route 404s; local `npm.cmd run quality` passes after `c44f2b4`; re-check after pushing this fix and handoff.
-- Vercel preview: green on PR #3 at remote head `552c17b`; re-check after pushing this handoff.
+- CodeRabbit OSS review status: green on PR #3 at remote head `d597c31`; re-check after pushing this final handoff update.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `d597c31` after `c44f2b4`; local `npm.cmd run quality` also passes after `c44f2b4`.
+- Vercel preview: green on PR #3 at remote head `d597c31`; re-check after pushing this final handoff update.
 
 ## 3. What Was Done
 
@@ -153,7 +153,7 @@ Important earlier PR #3 files:
 - Local code quality is green after `c44f2b4`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `552c17b` has CodeRabbit, Vercel, and Vercel Preview Comments green, but GitHub Actions `quality-gate` failed in E2E before `c44f2b4`. Push `c44f2b4` and this handoff, then re-check.
+- PR #3 remote head `d597c31` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green. This final handoff update will trigger another re-check after push.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -176,7 +176,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `552c17b`; re-check after pushing `c44f2b4` and this handoff commit.
+- Review status: Passed on PR #3 at remote head `d597c31`; re-check after pushing this final handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -268,6 +268,22 @@ npm.cmd run acceptance:supabase
 # Failed as expected with missing dedicated ACCEPTANCE_* variables:
 # ACCEPTANCE_SUPABASE_URL, ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, ACCEPTANCE_TEST_EMAIL, ACCEPTANCE_TEST_PASSWORD.
 # No stack trace or secret value was printed.
+
+git push origin codex/loop10-crm-ux-hardening
+# Passed for c44f2b4 and handoff d597c31.
+# pre-push test:guard, lint, typecheck, and unit test all passed.
+
+gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10
+# Passed at remote head d597c31.
+# CodeRabbit: pass
+# Vercel: pass
+# Vercel Preview Comments: pass
+# typecheck-lint-test-e2e-build: pass
+
+gh pr view 3 --repo kotakase2022-jpg/crm --json number,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefOid,statusCheckRollup,url
+# Passed.
+# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head d597c31.
+# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at d597c31.
 ```
 
 Previous turn commands:
