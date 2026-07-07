@@ -845,6 +845,71 @@ test("deal related task creation keeps the deal relationship through save", asyn
   await strict.expectClean();
 });
 
+test("ticket related task creation keeps the support context through save", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Ticket Company ${unique}`;
+  const contactName = `E2E Ticket Contact ${unique}`;
+  const ticketTitle = `E2E Support Ticket ${unique}`;
+  const taskTitle = `E2E Ticket Task ${unique}`;
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(companyId).toBeTruthy();
+
+  await page.goto(`/contacts/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="name"]').fill(contactName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/contacts\/[^/]+\?toast=created$/);
+  const contactId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(contactId).toBeTruthy();
+
+  await page.goto(`/tickets/new?company_id=${companyId}&contact_id=${contactId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('select[name="contact_id"]')).toHaveValue(contactId);
+  await page.locator('input[name="title"]').fill(ticketTitle);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\?toast=created$/);
+
+  const ticketUrl = new URL(page.url());
+  const ticketPath = ticketUrl.pathname;
+  const ticketId = ticketPath.split("/").at(-1) ?? "";
+  expect(ticketId).toBeTruthy();
+
+  const taskCreateLink = page.locator(`main a[href^="/tasks/new?support_ticket_id=${ticketId}"]`).first();
+  await expect(taskCreateLink).toBeVisible();
+  await taskCreateLink.click();
+
+  await expect(page).toHaveURL(new RegExp(`/tasks/new\\?.*support_ticket_id=${escapeRegExp(ticketId)}`));
+  const taskNewUrl = new URL(page.url());
+  expect(taskNewUrl.pathname).toBe("/tasks/new");
+  expect(taskNewUrl.searchParams.get("support_ticket_id")).toBe(ticketId);
+  expect(taskNewUrl.searchParams.get("company_id")).toBe(companyId);
+  expect(taskNewUrl.searchParams.get("contact_id")).toBe(contactId);
+  await expect(page.locator('select[name="support_ticket_id"]')).toHaveValue(ticketId);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('select[name="contact_id"]')).toHaveValue(contactId);
+
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  const taskPath = new URL(page.url()).pathname;
+  await expect(page.locator("body")).toContainText(taskTitle);
+  await expect(page.locator(`main a[href="${ticketPath}"]`).first()).toBeVisible();
+  await expect(page.locator(`main a[href="/companies/${companyId}"]`).first()).toBeVisible();
+  await expect(page.locator(`main a[href="/contacts/${contactId}"]`).first()).toBeVisible();
+
+  await page.goto(ticketPath);
+  await expect(page.locator("body")).toContainText(ticketTitle);
+  await expect(page.locator(`main a[href="${taskPath}"]`).first()).toBeVisible();
+  await strict.expectClean();
+});
+
 test("task detail shows activity context from its linked company", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const subject = `E2E Task Context Activity ${Date.now()}`;
