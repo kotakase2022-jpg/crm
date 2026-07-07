@@ -19,9 +19,9 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` at merge commit `42d0b81` (`Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `8a53391` (`Expose login auth feedback accessibly`)
+- Latest code commit: `620d5f2` (`Normalize auth failure feedback`)
 - Latest branch commit: current branch head after this handoff update (see `git log --oneline -1` for exact hash)
-- Previous green branch commit: `7e52755` with PR #3 CodeRabbit / Vercel / GitHub Actions quality-gate passing before the latest login feedback code change
+- Previous green branch commit: `dccbacf` with PR #3 CodeRabbit / Vercel / GitHub Actions quality-gate passing before the latest auth feedback normalization code change
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - CodeRabbit OSS review status: pass; no actionable comments
 - GitHub Actions `quality-gate`: pass on PR #3 (`typecheck-lint-test-e2e-build`)
@@ -44,6 +44,8 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 - Followed up on the live preview login smoke finding by making login auth error and notice messages accessible via `role="alert"` / `role="status"` without changing the visible UI or auth flow.
 - Added unit coverage for sign-in failure redirects preserving a safe `next` path.
 - Added E2E coverage proving login error/notice feedback is visible to accessible queries and remains free of console/page errors.
+- Normalized Supabase sign-in/sign-up failures to a safe Japanese generic message so upstream English/internal auth errors are not reflected directly in the URL or UI.
+- Added unit coverage for sign-up failure redirects using the same safe generic auth message.
 - Ran focused tests, then the full local quality gate.
 
 ## 4. Files Changed
@@ -60,9 +62,9 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 
 現在の状態:
 
-- Branch contains code commits `d285923` and `8a53391`, plus handoff/status commits.
-- Local full gate is green after `8a53391`.
-- PR #3 CodeRabbit, Vercel, and GitHub Actions checks were green at `7e52755`; they must be re-checked after pushing this handoff update.
+- Branch contains code commits `d285923`, `8a53391`, and `620d5f2`, plus handoff/status commits.
+- Local full gate is green after `620d5f2`.
+- PR #3 CodeRabbit, Vercel, and GitHub Actions checks were green at `dccbacf`; they must be re-checked after pushing this handoff update.
 - Working tree should be clean after this final handoff update is committed.
 - No production DB writes, production API writes, migrations, RLS changes, or Vercel setting changes were made.
 - Functional score: 99 / 100. Major local and CI evidence is green, and Chrome reached the live preview app shell, but live authenticated Supabase create/edit acceptance testing is still not complete.
@@ -76,7 +78,7 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 - Live Supabase/Vercel authenticated manual verification remains incomplete.
 - Headless Vercel Preview smoke was blocked by Vercel login/SSO protection, but a Chrome session with existing browser state reached the actual CRM login page successfully.
 - Chrome live-preview smoke confirmed `/dashboard` redirects to `/login?next=%2Fdashboard` for unauthenticated access with no console errors. Real test-account login and authenticated CRUD were not verified.
-- Login auth feedback is now accessible/testable, but real Supabase invalid-login and valid-login behavior still needs a non-production test account for live preview acceptance.
+- Login auth feedback is now accessible/testable and uses a safe generic Japanese failure message, but real Supabase invalid-login and valid-login behavior still needs a non-production test account for live preview acceptance.
 - `codex/persistent-quality-gate-ops` still exists locally and remotely as a stale branch from older work. Do not delete it without explicit human confirmation.
 - PowerShell may render Japanese text as mojibake in some outputs; this appears to be terminal encoding, not source corruption.
 
@@ -174,6 +176,24 @@ npm.cmd run quality
 # coverage: passed (statements 93.35%, branches 86.41%, functions 99.08%, lines 95.67%)
 # test:e2e: passed (43 Playwright Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
+
+gh api graphql ... reviewThreads
+# Passed after latest PR #3 checks. PR #3 reviewThreads list is empty (0 unresolved).
+
+npm.cmd run test -- --run tests/unit/actions.test.ts
+# Passed after auth failure normalization. 1 file / 17 tests.
+
+npm.cmd run test:e2e -- -g "login page"
+# Passed after auth failure normalization. 2 Chromium tests.
+
+npm.cmd run quality
+# Passed after auth failure normalization.
+# typecheck: passed
+# lint: passed
+# test: passed (28 files / 170 tests)
+# coverage: passed (statements 93.35%, branches 86.41%, functions 99.08%, lines 95.67%)
+# test:e2e: passed (43 Playwright Chromium tests)
+# build: passed (Next.js 16.2.10 production build)
 ```
 
 ## 10. Next Recommended Action
@@ -198,7 +218,7 @@ Claude Codeに重点レビューしてほしい範囲:
 - Does the E2E reflect a realistic server-side validation failure without weakening browser or strict page checks?
 - Does this behavior improve related-list CRM workflows without altering persistence, RLS, Supabase schema, or unrelated navigation?
 - Are there similar update/edit validation failure paths that should be addressed in a later loop?
-- Does the login feedback role change improve accessibility/error detection without changing visible UI, auth, or redirect behavior?
+- Does the login feedback role and generic auth failure message improve accessibility/error handling without changing successful auth, demo fallback, or safe `next` redirect behavior?
 
 ## 12. Risk Notes
 
