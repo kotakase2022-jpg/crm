@@ -32,9 +32,9 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD accep
 - Last known good local commit: `bcf209b`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this handoff.
-- CodeRabbit OSS review status: green on PR #3 at remote head `ec685c6` before the Supabase acceptance script commit; re-check after pushing this handoff.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `ec685c6`; local `npm.cmd run quality` passes after `bcf209b`.
-- Vercel preview: green on PR #3 at remote head `ec685c6` before the Supabase acceptance script commit; re-check after pushing this handoff.
+- CodeRabbit OSS review status: green on PR #3 at remote head `fa07246` before this final handoff refresh.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `fa07246`; local `npm.cmd run quality` passes after `bcf209b`.
+- Vercel preview: green on PR #3 at remote head `fa07246` before this final handoff refresh.
 
 ## 3. What Was Done
 
@@ -55,6 +55,8 @@ Completed this turn:
 - Added a package-script unit assertion so the acceptance command remains explicit and outside the default `quality` gate.
 - Ran `npm.cmd run acceptance:supabase` in the current environment and confirmed it fails with missing dedicated `ACCEPTANCE_*` variables. This is expected and proves the script does not fake success without a real non-production target.
 - Ran focused unit coverage for the package script and the full local `npm.cmd run quality` gate successfully after the new acceptance harness.
+- Pushed the acceptance-script and handoff commits to PR #3 and confirmed CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` are green at `fa07246`.
+- Confirmed PR #3 review threads list is empty; GitHub still reports `REVIEW_REQUIRED`.
 
 Earlier Loop 10 completed work:
 
@@ -119,7 +121,7 @@ Important earlier PR #3 files:
 - Local code quality is green after `bcf209b`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `ec685c6` is green, but the `bcf209b` acceptance-script commit and this handoff still need to be pushed and re-checked.
+- PR #3 remote head `fa07246` is green for CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`; this final handoff refresh still needs to be pushed and re-checked.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -137,7 +139,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `ec685c6` before the Supabase acceptance script commit; re-check after pushing this handoff commit.
+- Review status: Passed on PR #3 at remote head `fa07246` before this final handoff refresh.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
