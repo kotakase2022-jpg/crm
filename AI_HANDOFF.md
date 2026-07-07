@@ -5,342 +5,196 @@
 - Current owner: Codex
 - Next owner: Claude Code
 - Loop: 10
-- Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`. This is the next fresh Codex development branch from `origin/main`, so it starts Loop 10.
-- Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 (JST)
+- Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`; Loop 10 is the current Codex improvement branch from `origin/main`.
+- Phase: Handoff
+- Last updated: 2026-07-08 JST
 
 ## 1. Current Goal
 
-今回の目的:
+Current goal:
 
-CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験価値」を100/100へ近づける。Loop 10では、関連一覧や詳細画面から新規作成フォームへ進んだあと、サーバー側バリデーションエラーで親会社・商談などの業務文脈が失われるUX欠陥を修正する。
+- Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
+- This turn focused on a data-integrity and UX defect in spreadsheet lead import settings: updates for missing/deleted/out-of-organization settings could appear successful instead of surfacing an error.
+
+Current score:
+
+- Function/screen-transition defect-free score: 99 / 100
+- Daily CRM experience value score: 99 / 100
+
+Not yet 100 because a safe non-production Supabase authenticated live CRUD acceptance pass is still missing, and PR #3 still needs human/Claude review before merge.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop10-crm-ux-hardening`
-- Base: `main` at merge commit `42d0b81` (`Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `8fd356d` (`Scope cron import status updates by organization`)
-- Latest branch commit: current branch head after this handoff update (see `git log --oneline -1` for exact hash)
-- Previous remote green branch commit: `fad91ad` with PR #3 CodeRabbit / Vercel / GitHub Actions quality-gate passing before the local cron import status-scope fix
+- Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
+- Latest code commit: `0da6661` (`Detect missing import setting updates`)
+- Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
+- Last known good local commit: `0da6661`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
-- CodeRabbit OSS review status: pass on `fad91ad`; re-check after pushing the `8fd356d` fix and this handoff update
-- GitHub Actions `quality-gate`: pass on `fad91ad`; local `npm.cmd run quality` passes after `8fd356d`
-- Vercel preview: pass on `fad91ad`; re-check after pushing the `8fd356d` fix and this handoff update
+- PR #2: merged by the user before this handoff.
+- CodeRabbit OSS review status: previously green on PR #3 at remote head `8aa64d6`; re-check after pushing `0da6661` and this handoff commit.
+- GitHub Actions `quality-gate`: previously green on PR #3 at remote head `8aa64d6`; local `npm.cmd run quality` passed after `0da6661`.
+- Vercel preview: previously green on PR #3 at remote head `8aa64d6`; re-check after the final push.
 
 ## 3. What Was Done
 
-今回完了したこと:
+Completed this turn:
 
-- Required workflow files were reviewed: `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, `docs/testing.md`, `docs/ai-review.md`.
-- Confirmed PR #2 was merged to `main` and main-side quality gate completed successfully.
-- Confirmed Vercel deployment status for merge commit `42d0b81` was `success`.
-- Started Loop 10 from a fresh branch: `codex/loop10-crm-ux-hardening`.
-- Audited create/edit/list/detail flows, with focus on relation context, validation failure, save redirects, and related-list navigation.
-- Found a practical CRM UX defect: when a user opened a related create form such as `/contacts/new?company_id=...`, then hit a server-side validation error, the redirect returned to `/contacts/new?toast=validation-error` and dropped `company_id`.
-- Fixed create validation failure redirects so relation fields present in the submitted form are safely preserved as query params.
-- Kept the redirect narrow: only configured relation fields are preserved, not free-text user inputs or notes.
-- Added unit coverage for preserving relation context on create validation failure.
-- Extended E2E coverage so a related contact create form keeps `company_id` after a validation error and still cancels back to the parent company.
-- Followed up on the live preview login smoke finding by making login auth error and notice messages accessible via `role="alert"` / `role="status"` without changing the visible UI or auth flow.
-- Added unit coverage for sign-in failure redirects preserving a safe `next` path.
-- Added E2E coverage proving login error/notice feedback is visible to accessible queries and remains free of console/page errors.
-- Normalized Supabase sign-in/sign-up failures to a safe Japanese generic message so upstream English/internal auth errors are not reflected directly in the URL or UI.
-- Added unit coverage for sign-up failure redirects using the same safe generic auth message.
-- Audited the Supabase persistence path after confirming local Supabase/Vercel test credentials are not present in this shell.
-- Found and fixed a High-severity Supabase-only defect: `softDeleteRecord()` passed `deleted_at`, but the shared create-persistence payload shaping stripped managed fields before Supabase updates, so real Supabase soft deletes could update only `updated_by` and leave records visible.
-- Added a dedicated update-payload shaper that still strips client-controlled managed fields but preserves an explicit `deleted_at` for soft-delete updates.
-- Added Supabase data-access unit coverage proving trusted `organization_id` / `userId` are used for inserts and that soft deletes set `deleted_at` while staying scoped to the current organization and non-deleted row.
-- Audited spreadsheet lead-import cron persistence because Vercel Cron uses a Supabase service-role client that bypasses RLS.
-- Hardened cron import run/settings status updates so service-role updates are scoped by `organization_id`, record `id`, and `deleted_at IS NULL`, not by `id` alone.
-- Added a cron import unit test that mocks only a non-production Supabase client and fixture CSV response, then verifies status updates stay scoped to the setting organization.
-- Ran focused tests, then the full local quality gate.
+- Confirmed PR #2 is already merged and had green checks.
+- Resumed the active Loop 10 PR #3 branch with one uncommitted code change in `src/lib/crm/lead-imports.ts`.
+- Audited `saveLeadImportSetting()` update behavior.
+- Fixed demo-mode setting updates so a missing setting ID no longer returns success; it now throws `取込設定が見つかりません。`.
+- Fixed Supabase setting updates so they call `.select("id").single()` after the scoped update. This makes missing/deleted/out-of-organization rows surface as an error instead of silently returning success.
+- Added unit coverage for:
+  - Supabase setting updates staying scoped to the current `organization_id`, setting `id`, and `deleted_at IS NULL`.
+  - missing Supabase setting updates rejecting instead of returning success.
+  - missing demo setting updates rejecting instead of returning success.
+- Ran focused tests and the full mechanical quality gate.
+
+Earlier Loop 10 context already in PR #3:
+
+- Related-create validation redirects preserve configured relation fields.
+- Login/auth feedback is accessible and normalized.
+- Supabase soft-delete persistence preserves explicit `deleted_at` during update payload shaping.
+- Service-role cron import status updates are scoped by organization, id, and non-deleted rows.
 
 ## 4. Files Changed
 
-主な変更ファイル:
+Main files changed this turn:
+
+- `src/lib/crm/lead-imports.ts`
+- `tests/unit/lead-imports.test.ts`
+- `AI_HANDOFF.md`
+
+Important earlier PR #3 files:
 
 - `src/lib/crm/actions.ts`
 - `src/app/login/page.tsx`
-- `tests/unit/actions.test.ts`
 - `src/lib/crm/data.ts`
 - `src/lib/crm/persistence.ts`
+- `tests/unit/actions.test.ts`
 - `tests/unit/data-supabase.test.ts`
 - `tests/unit/persistence.test.ts`
-- `src/lib/crm/lead-imports.ts`
-- `tests/unit/lead-imports.test.ts`
 - `tests/e2e/crm-flows.spec.ts`
-- `AI_HANDOFF.md`
 
 ## 5. Current Status
 
-現在の状態:
-
-- Branch contains code commits `d285923`, `8a53391`, `620d5f2`, `5cf6dae`, and `8fd356d`, plus handoff/status commits.
-- Local full gate is green after `8fd356d`.
-- PR #3 CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` are green at `fad91ad`; after pushing `8fd356d` and this handoff update, re-check the latest remote PR head.
-- Working tree should be clean after this final handoff update is committed.
-- No production DB writes, production API writes, migrations, RLS changes, or Vercel setting changes were made.
-- Functional score: 99 / 100. Major local and CI evidence is green, and Chrome reached the live preview app shell, but live authenticated Supabase create/edit acceptance testing is still not complete.
-- CRM experience score: 99 / 100. This loop improves a real daily workflow failure, but authenticated user acceptance is still needed before claiming 100.
+- Local code quality is green after `0da6661`.
+- Working tree should be clean after this handoff update is committed.
+- PR #3 is open and mergeable, but review is still required.
+- No production DB, production API, migration, RLS, or Vercel setting changes were made.
+- No secrets were read or printed.
+- Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
 
 ## 6. Known Issues
 
-既知の問題:
-
-- No critical/high code issue is currently known.
-- Live Supabase/Vercel authenticated manual verification remains incomplete.
-- Local shell environment has no Supabase runtime/test credentials set (`NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, and `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` are unset), so live authenticated Supabase CRUD was not attempted.
-- Headless Vercel Preview smoke was blocked by Vercel login/SSO protection, but a Chrome session with existing browser state reached the actual CRM login page successfully.
-- Chrome live-preview smoke confirmed `/dashboard` redirects to `/login?next=%2Fdashboard` for unauthenticated access with no console errors. Real test-account login and authenticated CRUD were not verified.
-- Latest Chrome live-preview smoke confirmed the normalized Japanese auth error and notice render as `role="alert"` / `role="status"`, preserve `next=/deals?stage=demo`, and produce no console errors. Real Supabase invalid-login and valid-login behavior still needs a non-production test account for live preview acceptance.
-- `codex/persistent-quality-gate-ops` still exists locally and remotely as a stale branch from older work. Do not delete it without explicit human confirmation.
-- PowerShell may render Japanese text as mojibake in some outputs; this appears to be terminal encoding, not source corruption.
+- No current Critical/High code issue is known after the latest local quality gate.
+- Live authenticated Supabase/Vercel CRUD acceptance is still incomplete because this shell does not have safe non-production Supabase runtime/test credentials.
+- PR #3 still needs final CodeRabbit/CI re-check after the latest push and then human/Claude review.
+- `codex/persistent-quality-gate-ops` still exists as an older stale branch. Do not delete it without explicit human confirmation.
+- Some Japanese text may look garbled in PowerShell output because of terminal encoding; inspect files in a UTF-8-aware editor if needed.
 
 ## 7. CodeRabbit Review
 
-CodeRabbit OSSの指摘と対応状況:
+CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3.
-- Critical findings: none.
-- Resolved findings: none; CodeRabbit generated no actionable comments.
+- Review status: Previously passed on PR #3 at remote head `8aa64d6`.
+- Critical findings: none known.
+- Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
 - False positives / not applicable: none.
-- Note: CodeRabbit's generated review metadata displayed `Plan: Pro Plus`. The repository workflow still treats CodeRabbit OSS as the standard review path, but the account/plan should be checked by the owner if cost controls are a concern.
+- Required next step: after pushing the latest commits, confirm CodeRabbit status and any review comments on PR #3.
 
 ## 8. Optional Bugbot Findings
 
-Cursor Bugbotの任意確認:
+Cursor Bugbot optional backup:
 
-- Status: Not run manually. A separate `chatgpt-codex-connector` PR comment reported Codex review usage limits, but no Cursor Bugbot finding was used for this loop.
+- Status: Not run.
 - Findings: none.
-- Actions taken: none
-- Reason: This is a small, localized server-action redirect and regression-test change. CodeRabbit OSS plus mechanical quality gate remains the standard path.
+- Actions taken: none.
+- Reason: The current change is narrow, covered by unit tests and full quality gate, and CodeRabbit OSS is the standard review path for this public repository.
 
 ## 9. Verification Results
 
-実行した確認コマンドと結果:
+Commands run this turn:
 
 ```bash
-gh run list --repo kotakase2022-jpg/crm --branch main --limit 3 --json databaseId,workflowName,status,conclusion,headSha,createdAt,updatedAt,url
-# Passed/confirmed. Latest main quality-gate for 42d0b81 completed with conclusion=success.
+npm.cmd run test -- --run tests/unit/lead-imports.test.ts
+# Passed. 1 file / 14 tests.
 
-gh api repos/kotakase2022-jpg/crm/commits/42d0b810a3357369021f9a4dc1b2aa8d6735d4f2/status
-# Passed/confirmed. Vercel status state=success, description="Deployment has completed".
+npm.cmd run typecheck
+# Passed.
 
-gh run view 28871772807 --repo kotakase2022-jpg/crm --json status,conclusion,url,jobs
-# Passed/confirmed. quality-gate completed successfully.
-
-npm.cmd run test -- --run tests/unit/actions.test.ts
-# Passed. 1 file / 15 tests.
-
-npm.cmd run test:e2e -- -g "company related create action"
-# Failed once because the E2E used locator("form"), which also matched the logout form.
-# Fixed the test selector to target the ancestor form of select[name="company_id"].
-
-npm.cmd run test:e2e -- -g "company related create action"
-# Passed. 1 Chromium test.
+npm.cmd run lint
+# Passed.
 
 npm.cmd run quality
 # Passed.
-# Earlier Loop 10 run:
 # typecheck: passed
 # lint: passed
-# test: passed (28 files / 168 tests)
-# coverage: passed (statements 93.35%, branches 86.41%, functions 99.08%, lines 95.67%)
-# test:e2e: passed (42 Playwright Chromium tests)
+# test: passed (28 files / 177 tests)
+# coverage: passed
+#   statements 93.69%
+#   branches 86.54%
+#   functions 99.54%
+#   lines 95.94%
+# test:e2e: passed (43 Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
 
-git push -u origin codex/loop10-crm-ux-hardening
-# Passed. Pre-push ran test:guard, lint, typecheck, and unit tests successfully.
+git diff --check
+# Passed.
+```
 
-gh pr create --repo kotakase2022-jpg/crm --base main --head codex/loop10-crm-ux-hardening
-# Passed. Created PR #3: https://github.com/kotakase2022-jpg/crm/pull/3
+PR state checked before the latest local commit:
 
-gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10
-# Passed. CodeRabbit / Vercel / Vercel Preview Comments / quality-gate all green.
-
-gh api graphql ... reviewThreads
-# Passed. PR #3 reviewThreads list is empty (0 unresolved).
-
-node Playwright preview smoke against:
-https://crm-git-codex-loop10-crm-ux-h-a78895-kotakase2022-jpgs-projects.vercel.app
-# Blocked by Vercel login/SSO protection before reaching the app.
-# /login and /dashboard returned HTTP 200 for Vercel login pages, not CRM pages.
-# Console errors came from Vercel/identity-provider resources (403/429/GSI), not from the CRM runtime.
-
-Chrome session preview smoke against:
-https://crm-git-codex-loop10-crm-ux-h-a78895-kotakase2022-jpgs-projects.vercel.app
-# Passed for live preview app-shell reachability.
-# `/login` showed the actual CRM login page: title "建設帳票CRM", heading "建設帳票CRM", email/password inputs, login and signup buttons.
-# `/dashboard` redirected to `/login?next=%2Fdashboard` while unauthenticated.
-# Console errors: 0 for `/login`, `/dashboard` redirect, empty login submit, and dummy invalid-login submit checks.
-# Authenticated Supabase CRUD was not verified because no safe test account credentials were available in this session.
-
-npm.cmd run test -- --run tests/unit/actions.test.ts
-# Passed after login auth feedback follow-up. 1 file / 16 tests.
-
-npm.cmd run test:e2e -- -g "login page"
-# Passed after login auth feedback follow-up. 2 Chromium tests.
-
-npm.cmd run quality
-# Passed after login auth feedback follow-up.
-# typecheck: passed
-# lint: passed
-# test: passed (28 files / 169 tests)
-# coverage: passed (statements 93.35%, branches 86.41%, functions 99.08%, lines 95.67%)
-# test:e2e: passed (43 Playwright Chromium tests)
-# build: passed (Next.js 16.2.10 production build)
-
-gh api graphql ... reviewThreads
-# Passed after latest PR #3 checks. PR #3 reviewThreads list is empty (0 unresolved).
-
-npm.cmd run test -- --run tests/unit/actions.test.ts
-# Passed after auth failure normalization. 1 file / 17 tests.
-
-npm.cmd run test:e2e -- -g "login page"
-# Passed after auth failure normalization. 2 Chromium tests.
-
-npm.cmd run quality
-# Passed after auth failure normalization.
-# typecheck: passed
-# lint: passed
-# test: passed (28 files / 170 tests)
-# coverage: passed (statements 93.35%, branches 86.41%, functions 99.08%, lines 95.67%)
-# test:e2e: passed (43 Playwright Chromium tests)
-# build: passed (Next.js 16.2.10 production build)
-
-git push
-# Passed after auth failure normalization. Pre-push ran test:guard, lint, typecheck, and unit tests successfully.
-
-gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10
-# Passed at head `b18e04d`.
-# CodeRabbit: pass
-# Vercel: pass
-# Vercel Preview Comments: pass
-# quality-gate / typecheck-lint-test-e2e-build: pass
-
-gh api graphql ... reviewThreads
-# Passed at head `b18e04d`. PR #3 reviewThreads list is empty (0 unresolved).
-
-Chrome session preview smoke against:
-https://crm-git-codex-loop10-crm-ux-h-a78895-kotakase2022-jpgs-projects.vercel.app/login?error=...&notice=...&next=%2Fdeals%3Fstage%3Ddemo
-# Passed at Vercel deployment `5KHAT2tVY4Bg79bAyu8jcRsChP2U`.
-# Login page showed title/heading "建設帳票CRM", email/password inputs, normalized Japanese auth error in `role="alert"`, notice in `role="status"`, and hidden next value `/deals?stage=demo`.
-# Console errors: 0.
-
-Chrome session preview smoke against:
-https://crm-git-codex-loop10-crm-ux-h-a78895-kotakase2022-jpgs-projects.vercel.app/dashboard
-# Passed at Vercel deployment `5KHAT2tVY4Bg79bAyu8jcRsChP2U`.
-# Unauthenticated request redirected to `/login?next=%2Fdashboard`, rendered the CRM login page, and preserved hidden next value `/dashboard`.
-# Console errors: 0.
-
-env presence check for Supabase/Vercel test credentials
-# Confirmed only presence/absence, without printing values.
-# NEXT_PUBLIC_SUPABASE_URL=<unset>
-# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<unset>
-# NEXT_PUBLIC_SUPABASE_ANON_KEY=<unset>
-# SUPABASE_SERVICE_ROLE_KEY=<unset>
-# CRON_SECRET=<unset>
-# NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=<unset>
-
-npm.cmd run test -- --run tests/unit/persistence.test.ts tests/unit/data-supabase.test.ts
-# Passed after Supabase soft-delete persistence fix. 2 files / 10 tests.
-
-npm.cmd run typecheck
-# Passed after Supabase soft-delete persistence fix.
-
-npm.cmd run lint
-# Passed after Supabase soft-delete persistence fix.
-
-npm.cmd run quality
-# Passed after Supabase soft-delete persistence fix.
-# typecheck: passed
-# lint: passed
-# test: passed (28 files / 173 tests)
-# coverage: passed (statements 93.38%, branches 86.33%, functions 99.09%, lines 95.70%)
-# test:e2e: passed (43 Playwright Chromium tests)
-# build: passed (Next.js 16.2.10 production build)
-
-npm.cmd run test -- --run tests/unit/lead-imports.test.ts
-# Passed after cron import status-scope fix. 1 file / 11 tests.
-
-npm.cmd run typecheck
-# Passed after cron import status-scope fix.
-
-npm.cmd run lint
-# Passed after cron import status-scope fix.
-
-npm.cmd run quality
-# Passed after cron import status-scope fix.
-# typecheck: passed
-# lint: passed
-# test: passed (28 files / 174 tests)
-# coverage: passed (statements 93.69%, branches 86.54%, functions 99.54%, lines 95.94%)
-# test:e2e: passed (43 Playwright Chromium tests)
-# build: passed (Next.js 16.2.10 production build)
+```bash
+gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,statusCheckRollup
+# PR #3 open, non-draft, mergeable, review required.
+# Previous remote head checks were green: CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate.
 ```
 
 ## 10. Next Recommended Action
 
-次にClaude Codeが最初にやるべきこと:
+Claude Code should start here:
 
-1. Confirm the branch state and latest commits with `git status --short --branch` and `git log --oneline -5`.
-2. Review `src/lib/crm/actions.ts` to ensure only relation fields are preserved on create validation failure.
-3. Review `src/app/login/page.tsx` to confirm auth feedback roles are presentational/accessibility-only and do not change auth behavior.
-4. Review `tests/unit/actions.test.ts` and `tests/e2e/crm-flows.spec.ts` for sufficient regression coverage.
-5. Confirm PR #3 still has CodeRabbit / Vercel / `quality-gate` green after this handoff-only preview-smoke update is pushed.
-6. Review the CodeRabbit walkthrough and comments. It previously reported no actionable comments.
-7. If live authenticated acceptance must be verified, use a non-production Supabase test account and confirm login plus one safe create/edit/read flow on preview.
-8. Re-run `npm.cmd run quality` if any code changes are made.
-9. Review the Supabase soft-delete fix in `src/lib/crm/persistence.ts` and `src/lib/crm/data.ts`, plus its regression tests in `tests/unit/data-supabase.test.ts` and `tests/unit/persistence.test.ts`.
-10. If safe non-production Supabase credentials/test account are available, verify login plus create/edit/delete/read on the Vercel preview or a non-production environment before claiming 100/100.
-11. Review the cron import status-scope hardening in `src/lib/crm/lead-imports.ts` and `tests/unit/lead-imports.test.ts`.
+1. Run `git status --short --branch` and `git log --oneline -6`.
+2. Confirm the latest commits are pushed to PR #3.
+3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10`.
+4. Confirm CodeRabbit OSS has no Critical/High findings on the latest PR head.
+5. Review the latest change in `saveLeadImportSetting()` and `tests/unit/lead-imports.test.ts`.
+6. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
+7. If a safe non-production Supabase test account/credentials are available, perform live authenticated preview acceptance for login plus one safe create/edit/read/delete or soft-delete flow.
 
 ## 11. Suggested Review Scope for Claude Code
 
-Claude Codeに重点レビューしてほしい範囲:
+Please review:
 
-- Does `createValidationErrorHref()` preserve only safe relation IDs and avoid leaking free-text form inputs into the URL?
-- Does the redirect behavior still match the old URL exactly when no relation fields are submitted?
-- Does the E2E reflect a realistic server-side validation failure without weakening browser or strict page checks?
-- Does this behavior improve related-list CRM workflows without altering persistence, RLS, Supabase schema, or unrelated navigation?
-- Are there similar update/edit validation failure paths that should be addressed in a later loop?
-- Does the login feedback role and generic auth failure message improve accessibility/error handling without changing successful auth, demo fallback, or safe `next` redirect behavior?
-- Does `prepareRecordForUpdate()` preserve only intentionally supplied `deleted_at` while continuing to strip client-controlled managed fields for create payloads?
-- Does `softDeleteRecord()` now correctly set `deleted_at` in Supabase mode while remaining scoped by `organization_id`, `id`, and `deleted_at IS NULL`?
-- Do service-role spreadsheet import status updates remain scoped to the setting organization and non-deleted records even though RLS is bypassed?
+- Does `saveLeadImportSetting()` correctly reject missing/deleted/out-of-organization updates in both demo and Supabase modes?
+- Is `.select("id").single()` the right Supabase pattern here to detect zero-row updates without broadening data exposure?
+- Do the new unit tests prove organization scoping and missing-row rejection without mocking a failed feature as success?
+- Are error messages appropriate for user-facing CRM settings workflows?
+- Does the patch avoid changing CSV parsing, import scheduling, lead creation, duplicate detection, or cron behavior?
 
 ## 12. Risk Notes
 
-リスク・人間確認が必要な事項:
-
-- No secrets were read or printed.
-- No production DB, production API, RLS, migration, or Vercel project setting was changed.
-- The Supabase soft-delete fix changes update-payload shaping only; create payloads still strip `deleted_at` and other managed fields.
-- The cron import hardening changes only status update filters for `lead_import_runs` and `lead_import_settings`; CSV parsing, duplicate detection, lead creation, task creation, and scheduling behavior are unchanged.
-- The URL may include relation IDs after validation failure, which was already the design for related create links. Free-text fields are intentionally not preserved.
-- Live Supabase/Vercel authenticated acceptance testing is still the main remaining evidence gap for a 100/100 claim.
-- Chrome preview smoke proves live app-shell reachability, but not authenticated CRM data workflows.
-- CodeRabbit review metadata reported `Plan: Pro Plus`; owner should verify this matches the intended OSS/cost-control setup.
+- This change is intentionally limited to settings update confirmation behavior.
+- Supabase service-role cron status update hardening remains in PR #3 from the previous commit; this turn did not change cron run logic.
+- A real Supabase update returning zero rows depends on PostgREST `.single()` returning an error. The unit test models that expected behavior.
+- Live authenticated acceptance is still the main evidence gap before claiming 100/100.
+- CodeRabbit account/plan metadata should be monitored by the repository owner because cost control is important for this project.
 
 ## 13. Do Not Touch
 
-触らない方がよい領域:
-
-- `.env.local`, Vercel secrets, Supabase service role keys, production data.
-- `supabase/migrations/`, RLS policies, cron authentication, and Vercel project settings unless explicitly required.
-- Existing quality gates, coverage thresholds, test guard, or Husky hooks.
-- Stale branches such as `codex/persistent-quality-gate-ops` without human confirmation.
+- `.env.local`, Supabase service role keys, Vercel secrets, and production data.
 - `main` direct pushes.
+- Supabase migrations/RLS/Vercel project settings unless the user explicitly asks.
+- Quality gates, coverage thresholds, test guard, or Husky hooks unless the task is specifically about test infrastructure.
+- Stale local/remote branches unless the user explicitly authorizes cleanup.
 
 ## 14. Notes for Claude Code
 
-Claude Codeへの補足:
-
-- CodeRabbit OSS remains the standard reviewer. Cursor Bugbot was not used.
-- This loop intentionally stays small: one UX defect, one server-action helper, one unit regression, one E2E regression.
-- `npm.cmd` is more reliable than `npm` in this Windows PowerShell environment.
-- Paths containing parentheses or brackets should be read with `Get-Content -LiteralPath`.
-- Do not mark the persistent goal complete yet; both scores remain 99/100 until live authenticated Supabase/Vercel acceptance testing is done.
-- New local quality evidence after `5cf6dae`: focused `npm.cmd run test -- --run tests/unit/persistence.test.ts tests/unit/data-supabase.test.ts` passed; full `npm.cmd run quality` passed with 173 Vitest tests, 43 Playwright Chromium tests, coverage, and production build.
-- New local quality evidence after `8fd356d`: focused `npm.cmd run test -- --run tests/unit/lead-imports.test.ts` passed; full `npm.cmd run quality` passed with 174 Vitest tests, 43 Playwright Chromium tests, coverage, and production build.
+- Use `npm.cmd` / `npx.cmd` in Windows PowerShell.
+- CodeRabbit OSS is the standard review path; Cursor Bugbot is optional backup only.
+- Do not mark the persistent goal complete yet. The current evidence supports 99/100, not 100/100, because live authenticated non-production Supabase acceptance is missing.
+- Keep the next change small and PR-reviewable.
+- If PR checks lag after push, inspect the underlying GitHub Actions run with `gh run view <run-id> --json status,conclusion,createdAt,updatedAt,jobs`.
