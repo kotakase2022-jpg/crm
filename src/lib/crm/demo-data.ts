@@ -13,6 +13,8 @@ import {
   ticketStatuses,
   ticketTypes,
 } from "./options";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { offsetLocalDateString } from "./format";
 import type { CrmRecord, TableName } from "./types";
 
@@ -439,15 +441,50 @@ const globalDemoStore = globalThis as typeof globalThis & {
 
 export const demoStore = (globalDemoStore.__crmDemoStore ??= createStore());
 
+const rawPersistentDemoStoreFile = process.env.CRM_DEMO_STORE_FILE?.trim();
+const persistentDemoStoreFile = process.env.E2E_TEST_MODE === "demo" && rawPersistentDemoStoreFile ? rawPersistentDemoStoreFile : null;
+
+function replaceDemoStore(nextStore: DemoStore) {
+  for (const table of Object.keys(nextStore) as TableName[]) {
+    demoStore[table] = nextStore[table] ?? [];
+  }
+}
+
+function readPersistentDemoStore() {
+  if (!persistentDemoStoreFile || !existsSync(persistentDemoStoreFile)) return;
+  const content = readFileSync(persistentDemoStoreFile, "utf8");
+  if (!content.trim()) return;
+  replaceDemoStore(JSON.parse(content) as DemoStore);
+}
+
+function writePersistentDemoStore() {
+  if (!persistentDemoStoreFile) return;
+  mkdirSync(path.dirname(persistentDemoStoreFile), { recursive: true });
+  const tempFile = `${persistentDemoStoreFile}.${process.pid}.tmp`;
+  writeFileSync(tempFile, JSON.stringify(demoStore), "utf8");
+  renameSync(tempFile, persistentDemoStoreFile);
+}
+
+function syncDemoStore() {
+  readPersistentDemoStore();
+  if (persistentDemoStoreFile && !existsSync(persistentDemoStoreFile)) {
+    writePersistentDemoStore();
+  }
+}
+
 export function getDemoRows(table: TableName) {
+  syncDemoStore();
   return demoStore[table].filter((record) => !record.deleted_at);
 }
 
 export function addDemoRow(table: TableName, record: CrmRecord) {
+  syncDemoStore();
   demoStore[table].unshift(record);
+  writePersistentDemoStore();
 }
 
 export function updateDemoRow(table: TableName, idValue: string, values: Record<string, unknown>) {
+  syncDemoStore();
   const rows = demoStore[table];
   const index = rows.findIndex((row) => row.id === idValue);
   if (index === -1) return null;
@@ -458,6 +495,7 @@ export function updateDemoRow(table: TableName, idValue: string, values: Record<
     updated_at: new Date().toISOString(),
   };
 
+  writePersistentDemoStore();
   return rows[index];
 }
 

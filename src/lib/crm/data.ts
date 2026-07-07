@@ -745,5 +745,5 @@ export function getRecordTitleForEntity(record: CrmRecord) {
 }
 
 export function getDemoCounts() {
-  return Object.fromEntries(Object.entries(demoStore).map(([table, rows]) => [table, rows.length]));
+  return Object.fromEntries((Object.keys(demoStore) as TableName[]).map((table) => [table, getDemoRows(table).length]));
 }
