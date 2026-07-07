@@ -426,6 +426,50 @@ test("deal stage board follows search results and preserves query when drilling 
   await strict.expectClean();
 });
 
+test("deal stage board preserves the parent company scope when opened from related deals", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Stage Relation Company ${unique}`;
+  const hiddenDealName = `E2E Stage Relation Hidden Deal ${unique}-9`;
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyPath = new URL(page.url()).pathname;
+  const companyId = companyPath.split("/").at(-1) ?? "";
+
+  for (let index = 1; index <= 9; index += 1) {
+    await page.goto(`/deals/new?company_id=${companyId}`);
+    await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+    await page.locator('input[name="name"]').fill(index === 9 ? hiddenDealName : `E2E Stage Relation Deal ${unique}-${index}`);
+    await page.locator('input[name="expected_mrr"]').fill("18000");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+  }
+
+  await page.goto(companyPath);
+  await page.getByRole("link", { name: "さらに1件を一覧で確認" }).click();
+
+  await expect(page).toHaveURL(/\/deals\?relation_field=company_id&relation_id=/);
+  const relatedListUrl = new URL(page.url());
+  expect(relatedListUrl.searchParams.get("relation_field")).toBe("company_id");
+  expect(relatedListUrl.searchParams.get("relation_id")).toBe(companyId);
+  await expect(page.locator("tbody tr")).toHaveCount(9);
+
+  await page.getByRole("link", { name: /さらに5件/ }).click();
+
+  await expect(page).toHaveURL(/\/deals\?.*filter=/);
+  const stageListUrl = new URL(page.url());
+  expect(stageListUrl.searchParams.get("relation_field")).toBe("company_id");
+  expect(stageListUrl.searchParams.get("relation_id")).toBe(companyId);
+  expect(stageListUrl.searchParams.get("filter")).toBeTruthy();
+  await expect(page.locator("tbody tr")).toHaveCount(9);
+  await expect(page.locator("tbody")).toContainText(hiddenDealName);
+  await strict.expectClean();
+});
+
 test("activity history can be added from a company detail page", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const subject = `E2E activity ${Date.now()}`;
