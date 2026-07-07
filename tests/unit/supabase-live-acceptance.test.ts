@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -18,6 +19,7 @@ type AcceptanceModule = {
 
 const moduleUrl = pathToFileURL(path.join(process.cwd(), "scripts", "supabase-live-acceptance.mjs")).href;
 const acceptance = (await import(moduleUrl)) as AcceptanceModule;
+const scriptPath = path.join(process.cwd(), "scripts", "supabase-live-acceptance.mjs");
 const envKeys = [
   "ACCEPTANCE_NON_PRODUCTION_CONFIRMATION",
   "ACCEPTANCE_TEST_LOAD_EXISTING",
@@ -48,6 +50,30 @@ afterEach(() => {
 describe("Supabase live acceptance safety guards", () => {
   it("does not execute the live acceptance flow when imported by tests", () => {
     expect(process.exitCode).toBe(originalExitCode);
+  });
+
+  it("runs as a CLI and fails closed before network access when acceptance env is missing", () => {
+    const cleanEnv: NodeJS.ProcessEnv = { ...process.env };
+    for (const key of Object.keys(cleanEnv)) {
+      if (key.startsWith("ACCEPTANCE_")) delete cleanEnv[key];
+    }
+
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: cleanEnv,
+    });
+    const output = `${result.stdout}${result.stderr}`;
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(output).toContain("Missing non-production Supabase acceptance environment variables.");
+    expect(output).toContain("ACCEPTANCE_SUPABASE_URL");
+    expect(output).toContain("ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY");
+    expect(output).toContain("ACCEPTANCE_TEST_EMAIL");
+    expect(output).toContain("ACCEPTANCE_TEST_PASSWORD");
+    expect(output).not.toContain("Supabase acceptance passed");
+    expect(output).not.toContain("at run");
   });
 
   it("allows local Supabase targets without the remote confirmation flag", () => {
