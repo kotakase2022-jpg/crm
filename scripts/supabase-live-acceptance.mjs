@@ -224,6 +224,8 @@ async function run() {
   });
 
   const marker = `acceptance-${Date.now()}-${randomUUID()}`;
+  const leadName = `Acceptance Lead ${marker}`;
+  const companyName = `Acceptance Construction ${marker}`;
   const now = new Date().toISOString();
   let organizationId = "";
   let leadId = "";
@@ -253,8 +255,8 @@ async function run() {
       .from("leads")
       .insert({
         organization_id: organizationId,
-        name: `Acceptance Lead ${marker}`,
-        company_name: `Acceptance Construction ${marker}`,
+        name: leadName,
+        company_name: companyName,
         contact_name: "Acceptance Contact",
         email: "acceptance@example.test",
         source: "acceptance",
@@ -262,7 +264,7 @@ async function run() {
         created_by: userId,
         updated_by: userId,
       })
-      .select("id, organization_id, name, notes, deleted_at")
+      .select("id, organization_id, name, company_name, notes, deleted_at")
       .single();
     assertNoSupabaseError("Lead create", created);
 
@@ -273,6 +275,9 @@ async function run() {
     }
     if (created.data?.deleted_at) {
       fail("Lead create returned an already soft-deleted row.");
+    }
+    if (created.data?.name !== leadName || created.data?.company_name !== companyName || created.data?.notes !== marker) {
+      fail("Lead create returned unexpected field values.");
     }
 
     await assertAnonymousLeadIsHidden({
