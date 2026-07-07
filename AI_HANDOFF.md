@@ -20,10 +20,12 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` at merge commit `42d0b81` (`Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
 - Latest code commit: `d285923` (`Preserve create context after validation errors`)
-- Latest handoff commit before PR URL update: `47b02e4` (`Record loop 10 validation context handoff`)
+- Latest handoff commit before final review-status update: `060f0fb` (`Record loop 10 PR status`)
 - Last known good commit: `d285923` with `npm.cmd run quality` passing
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
-- CodeRabbit OSS review status: pending at first check after PR creation
+- CodeRabbit OSS review status: pass; no actionable comments
+- GitHub Actions `quality-gate`: pass on PR #3 (`typecheck-lint-test-e2e-build`)
+- Vercel preview: pass
 
 ## 3. What Was Done
 
@@ -56,7 +58,8 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 
 - Branch contains one code commit: `d285923`.
 - Local full gate is green.
-- Working tree should only contain this handoff update until it is committed.
+- PR #3 CodeRabbit, Vercel, and GitHub Actions checks are green.
+- Working tree should only contain this final handoff update until it is committed.
 - No production DB writes, production API writes, migrations, RLS changes, or Vercel setting changes were made.
 - Functional score: 99 / 100. Major local and CI evidence is green, but live authenticated Supabase/Vercel acceptance testing is still not complete.
 - CRM experience score: 99 / 100. This loop improves a real daily workflow failure, but live user acceptance is still needed before claiming 100.
@@ -74,18 +77,19 @@ CRM全体の「不具合ゼロ」と「日々の業務で手放せない体験�
 
 CodeRabbit OSSの指摘と対応状況:
 
-- Review status: Pending on PR #3 at first check after PR creation.
-- Critical findings: none known.
-- Resolved findings: none for Loop 10 yet.
+- Review status: Passed on PR #3.
+- Critical findings: none.
+- Resolved findings: none; CodeRabbit generated no actionable comments.
 - Deferred findings: none.
 - False positives / not applicable: none.
+- Note: CodeRabbit's generated review metadata displayed `Plan: Pro Plus`. The repository workflow still treats CodeRabbit OSS as the standard review path, but the account/plan should be checked by the owner if cost controls are a concern.
 
 ## 8. Optional Bugbot Findings
 
 Cursor Bugbotの任意確認:
 
-- Status: Automatically started by GitHub integration on PR #3, but not manually requested or used as the standard review path.
-- Findings: none at first check; still pending when this handoff was updated.
+- Status: Not run manually. A separate `chatgpt-codex-connector` PR comment reported Codex review usage limits, but no Cursor Bugbot finding was used for this loop.
+- Findings: none.
 - Actions taken: none
 - Reason: This is a small, localized server-action redirect and regression-test change. CodeRabbit OSS plus mechanical quality gate remains the standard path.
 
@@ -121,6 +125,18 @@ npm.cmd run quality
 # coverage: passed (statements 93.35%, branches 86.41%, functions 99.08%, lines 95.67%)
 # test:e2e: passed (42 Playwright Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
+
+git push -u origin codex/loop10-crm-ux-hardening
+# Passed. Pre-push ran test:guard, lint, typecheck, and unit tests successfully.
+
+gh pr create --repo kotakase2022-jpg/crm --base main --head codex/loop10-crm-ux-hardening
+# Passed. Created PR #3: https://github.com/kotakase2022-jpg/crm/pull/3
+
+gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10
+# Passed. CodeRabbit / Vercel / Vercel Preview Comments / quality-gate all green.
+
+gh api graphql ... reviewThreads
+# Passed. PR #3 reviewThreads list is empty (0 unresolved).
 ```
 
 ## 10. Next Recommended Action
@@ -130,8 +146,8 @@ npm.cmd run quality
 1. Confirm the branch state and latest commits with `git status --short --branch` and `git log --oneline -5`.
 2. Review `src/lib/crm/actions.ts` to ensure only relation fields are preserved on create validation failure.
 3. Review `tests/unit/actions.test.ts` and `tests/e2e/crm-flows.spec.ts` for sufficient regression coverage.
-4. Check PR #3 CodeRabbit OSS comments and GitHub Actions. At the first check, Vercel was green, CodeRabbit was pending, Cursor Bugbot was auto-pending, and `quality-gate` had not appeared yet.
-5. If `quality-gate` still does not appear after the latest push, inspect workflow triggering or push another no-code handoff update only if needed.
+4. Confirm PR #3 still has CodeRabbit / Vercel / `quality-gate` green.
+5. Review the CodeRabbit walkthrough. It reported no actionable comments.
 6. Re-run `npm.cmd run quality` if any code changes are made.
 
 ## 11. Suggested Review Scope for Claude Code
@@ -152,6 +168,7 @@ Claude Codeに重点レビューしてほしい範囲:
 - No production DB, production API, RLS, migration, or Vercel project setting was changed.
 - The URL may include relation IDs after validation failure, which was already the design for related create links. Free-text fields are intentionally not preserved.
 - Live Supabase/Vercel authenticated acceptance testing is still the main remaining evidence gap for a 100/100 claim.
+- CodeRabbit review metadata reported `Plan: Pro Plus`; owner should verify this matches the intended OSS/cost-control setup.
 
 ## 13. Do Not Touch
 
