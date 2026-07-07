@@ -7,14 +7,14 @@
 - Loop: 10
 - Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`; Loop 10 is the current Codex improvement branch from `origin/main`.
 - Phase: Handoff
-- Last updated: 2026-07-08 08:41:16 +09:00
+- Last updated: 2026-07-08 08:53:22 +09:00
 
 ## 1. Current Goal
 
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn added Playwright coverage for the support ticket lifecycle: create a ticket from a company, update its support status and timestamps, verify the updated detail view, search the ticket queue, and navigate back to the detail page without browser/runtime errors.
+- This turn stabilized the support ticket lifecycle Playwright coverage so priority, type, and status are selected by the app's CRM option labels instead of fragile select indexes.
 
 Current score:
 
@@ -27,18 +27,28 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD/RLS a
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `1791c9e` (`Cover support ticket lifecycle search flow`)
+- Latest code commit: `a6b53ef` (`Stabilize ticket lifecycle E2E selections`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `1791c9e`
+- Last known good local commit: `a6b53ef`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this loop continuation.
-- CodeRabbit OSS review status: green on PR #3 at remote head `59dd3d2` before `1791c9e`; re-check after pushing `1791c9e` and this final handoff update.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `59dd3d2` before `1791c9e`; local `npm.cmd run quality` passes after `1791c9e`.
-- Vercel preview: green on PR #3 at remote head `59dd3d2` before `1791c9e`; re-check after pushing `1791c9e` and this final handoff update.
+- CodeRabbit OSS review status: green on PR #3 at remote head `284641b` before `a6b53ef`; re-check after pushing `a6b53ef` and this final handoff update.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `284641b` before `a6b53ef`; local `npm.cmd run quality` passes after `a6b53ef`.
+- Vercel preview: green on PR #3 at remote head `284641b` before `a6b53ef`; re-check after pushing `a6b53ef` and this final handoff update.
 
 ## 3. What Was Done
 
 Completed this turn:
+
+- Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, `docs/testing.md`, and `docs/ai-review.md`.
+- Re-checked PR #3 latest remote head `284641b`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
+- Confirmed PR #3 remains open, non-draft, mergeable, and blocked only by `REVIEW_REQUIRED`.
+- Stabilized the support ticket lifecycle E2E in `tests/e2e/crm-flows.spec.ts` so it imports `priorities`, `ticketTypes`, and `ticketStatuses` from the CRM option source and selects labels explicitly instead of relying on option indexes.
+- Re-ran the focused ticket lifecycle E2E, `npm.cmd run typecheck`, `npm.cmd run lint`, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
+- Confirmed `npm.cmd run quality` still passes with 46 Chromium E2E tests after the selector-stability change.
+- Confirmed `npm.cmd run acceptance:supabase` still fails loudly without dedicated `ACCEPTANCE_*` variables and does not fall back to mock/demo success.
+
+Previous Loop 10 continuation:
 
 - Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, `docs/testing.md`, and `docs/ai-review.md`.
 - Re-checked PR #3 latest remote head `59dd3d2`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
@@ -197,10 +207,10 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `1791c9e`.
+- Local code quality is green after `a6b53ef`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `59dd3d2` had CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green before the new `1791c9e` support-ticket lifecycle E2E commit. This final handoff update will trigger another re-check after push.
+- PR #3 remote head `284641b` had CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green before the new `a6b53ef` selector-stability commit. This final handoff update will trigger another re-check after push.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -208,6 +218,7 @@ Important earlier PR #3 files:
 ## 6. Known Issues
 
 - No current Critical/High code issue is known after the latest local quality gate.
+- `a6b53ef` makes the support ticket lifecycle E2E select business labels from the canonical CRM option arrays instead of fragile select indexes.
 - `1791c9e` adds Playwright coverage for support ticket status update/search/detail navigation in demo mode. It does not remove the need to run live acceptance with safe non-production credentials.
 - `f2f7bf0` adds direct child-process coverage for the `scripts/supabase-live-acceptance.mjs` CLI entrypoint's missing-env fail-closed path. It does not remove the need to run live acceptance with safe non-production credentials.
 - `d45de2b` makes `scripts/supabase-live-acceptance.mjs` importable for direct guard tests. CLI behavior is now directly covered by `f2f7bf0`.
@@ -226,7 +237,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `59dd3d2`; re-check after pushing `1791c9e` and this final handoff commit.
+- Review status: Passed on PR #3 at remote head `284641b`; re-check after pushing `a6b53ef` and this final handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -247,6 +258,53 @@ Cursor Bugbot optional backup:
 Current turn commands:
 
 ```bash
+gh pr view 3 --repo kotakase2022-jpg/crm --json number,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
+# Passed.
+# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head 284641b.
+# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at 284641b before a6b53ef.
+
+gh pr checks 3 --repo kotakase2022-jpg/crm
+# Passed at remote head 284641b before a6b53ef.
+# CodeRabbit: pass
+# Vercel: pass
+# Vercel Preview Comments: pass
+# typecheck-lint-test-e2e-build: pass
+
+npm.cmd run test:e2e -- -g "support ticket lifecycle keeps status updates searchable from the queue"
+# Passed after a6b53ef. 1 Chromium test.
+
+npm.cmd run typecheck
+# Passed after a6b53ef.
+
+npm.cmd run lint
+# Passed after a6b53ef.
+
+git diff --check
+# Passed after a6b53ef.
+
+npm.cmd run quality
+# Passed after a6b53ef.
+# typecheck: passed
+# lint: passed
+# test: passed (31 files / 207 tests)
+# coverage: passed
+#   statements 93.69%
+#   branches 86.54%
+#   functions 99.54%
+#   lines 95.94%
+# test:e2e: passed (46 Chromium tests)
+# build: passed (Next.js 16.2.10 production build)
+
+npm.cmd run acceptance:supabase
+# Failed as expected with missing dedicated ACCEPTANCE_* variables:
+# ACCEPTANCE_SUPABASE_URL, ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, ACCEPTANCE_TEST_EMAIL, ACCEPTANCE_TEST_PASSWORD.
+# No stack trace or secret value was printed, and no mock/demo fallback was used.
+
+git commit -m "Stabilize ticket lifecycle E2E selections"
+# Passed. Created a6b53ef.
+
+# Previous current-turn commands from the prior continuation:
+
 gh pr view 3 --repo kotakase2022-jpg/crm --json number,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
 # Passed.
 # PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head 59dd3d2.
@@ -671,10 +729,10 @@ npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -8`.
-2. Confirm `1791c9e` and this handoff commit are pushed to PR #3.
+2. Confirm `a6b53ef` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `1791c9e` and this handoff commit. The previous remote head `59dd3d2` was green before the new support-ticket lifecycle E2E commit.
-5. Review the new support ticket lifecycle E2E in `tests/e2e/crm-flows.spec.ts`; it should prove create -> detail -> edit status/timestamps -> ticket queue search -> detail navigation without console/page errors.
+4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `a6b53ef` and this handoff commit. The previous remote head `284641b` was green before the selector-stability commit.
+5. Review the stabilized support ticket lifecycle E2E in `tests/e2e/crm-flows.spec.ts`; it should select canonical CRM option labels instead of fragile indexes while still proving create -> detail -> edit status/timestamps -> ticket queue search -> detail navigation without console/page errors.
 6. Review `tests/unit/supabase-live-acceptance.test.ts`; it should prove the acceptance script is import-safe for tests, runs through the CLI, fails closed before network access when `ACCEPTANCE_*` variables are absent, and enforces remote target / service-role key / env-file guards before live network access.
 7. Review `src/lib/crm/demo-data.ts` and `tests/unit/demo-data.test.ts`; they should prove the E2E persistent demo store cannot lose rows from newer route workers when a stale worker writes later.
 8. Review `src/lib/supabase/admin.ts` and `tests/unit/supabase-admin.test.ts`; they should prove blank admin config and accidentally supplied publishable/anon keys fail closed while valid server-only settings are trimmed and passed to `createClient()`.
@@ -695,8 +753,8 @@ Claude Code should start here:
 
 Please review:
 
-- Does the new support ticket lifecycle E2E prove a real CS path from ticket creation to status resolution, queue searchability, and return-to-detail navigation with the updated status still visible?
-- Are the support-ticket select index assertions stable enough for the current generated form options, or should they be converted to explicit labels if the option order changes?
+- Does the stabilized support ticket lifecycle E2E prove a real CS path from ticket creation to status resolution, queue searchability, and return-to-detail navigation with the updated status still visible?
+- Does importing `priorities`, `ticketTypes`, and `ticketStatuses` from `src/lib/crm/options.ts` make the support-ticket selections clearer and less brittle than the previous select-index approach?
 - Does the new child-process test actually exercise `node scripts/supabase-live-acceptance.mjs` as a CLI and prove the missing-env path exits with status `1`, reports all required variables, avoids a false success message, and does not print a stack trace?
 - Does `scripts/supabase-live-acceptance.mjs` still execute the full live acceptance flow when invoked through `npm.cmd run acceptance:supabase`, while staying side-effect-free when imported by unit tests?
 - Do `tests/unit/supabase-live-acceptance.test.ts` adequately prove remote Supabase targets require explicit non-production confirmation, service-role style keys are rejected before network access, legacy JWT role decoding works, and `.env.acceptance.local` values cannot override existing shell variables?
