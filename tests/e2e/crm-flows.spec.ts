@@ -45,11 +45,13 @@ test("login page sanitizes external next redirects", async ({ page }) => {
 test("login page exposes auth feedback accessibly", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
 
-  await page.goto("/login?error=Invalid%20login%20credentials&notice=Check%20your%20email&next=%2Fdeals%3Fstage%3Ddemo");
+  const authError = "メールアドレスまたはパスワードを確認してください。";
+  const notice = "確認メールを送信しました。";
+  await page.goto(`/login?error=${encodeURIComponent(authError)}&notice=${encodeURIComponent(notice)}&next=%2Fdeals%3Fstage%3Ddemo`);
 
   await expect(page.locator('input[name="next"]')).toHaveValue("/deals?stage=demo");
-  await expect(page.getByRole("alert")).toContainText("Invalid login credentials");
-  await expect(page.getByRole("status")).toContainText("Check your email");
+  await expect(page.getByRole("alert")).toContainText(authError);
+  await expect(page.getByRole("status")).toContainText(notice);
   await strict.expectClean();
 });
 

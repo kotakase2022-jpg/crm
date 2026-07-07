@@ -426,7 +426,7 @@ describe("CRM server actions", () => {
       password: "wrong-password",
     });
     expect(mocks.redirect).toHaveBeenCalledWith(
-      `/login?error=${encodeURIComponent("Invalid login credentials")}&next=${encodeURIComponent("/deals?stage=demo")}`,
+      `/login?error=${encodeURIComponent("メールアドレスまたはパスワードを確認してください。")}&next=${encodeURIComponent("/deals?stage=demo")}`,
     );
   });
 
@@ -449,6 +449,28 @@ describe("CRM server actions", () => {
     });
     expect(mocks.redirect).toHaveBeenCalledWith(
       `/login?notice=${encodeURIComponent("アカウントを作成しました。確認が必要な場合はメールを確認してください。")}&next=${encodeURIComponent("/dashboard")}`,
+    );
+  });
+
+  it("redirects sign-up failures back to login with a safe generic error", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signUp = vi.fn().mockResolvedValue({ error: new Error("User already registered") });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signUp } } as never);
+    const formData = new FormData();
+    formData.set("email", "cs@example.test");
+    formData.set("password", "secret");
+    formData.set("next", "/reports");
+
+    const { signUpAction } = await import("@/lib/crm/actions");
+
+    await signUpAction(formData);
+
+    expect(signUp).toHaveBeenCalledWith({
+      email: "cs@example.test",
+      password: "secret",
+    });
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      `/login?error=${encodeURIComponent("メールアドレスまたはパスワードを確認してください。")}&next=${encodeURIComponent("/reports")}`,
     );
   });
 });

@@ -61,6 +61,10 @@ function createValidationErrorHref(config: ReturnType<typeof mustGetConfig>, for
   return `/${config.slug}/new?${params.toString()}`;
 }
 
+function authFailureMessage() {
+  return "メールアドレスまたはパスワードを確認してください。";
+}
+
 export async function createEntityAction(entity: EntitySlug, formData: FormData) {
   const config = mustGetConfig(entity);
   let record: Awaited<ReturnType<typeof createRecord>> | null = null;
@@ -236,7 +240,7 @@ export async function signInAction(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+    redirect(`/login?error=${encodeURIComponent(authFailureMessage())}&next=${encodeURIComponent(next)}`);
   }
 
   redirect(next);
@@ -260,7 +264,7 @@ export async function signUpAction(formData: FormData) {
   const { error } = await supabase.auth.signUp({ email, password });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+    redirect(`/login?error=${encodeURIComponent(authFailureMessage())}&next=${encodeURIComponent(next)}`);
   }
 
   redirect(`/login?notice=${encodeURIComponent("アカウントを作成しました。確認が必要な場合はメールを確認してください。")}&next=${encodeURIComponent(next)}`);
