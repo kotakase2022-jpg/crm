@@ -62,6 +62,7 @@ npm run test:guard
 npm run test
 npm run test:coverage
 npm run test:e2e
+npm run acceptance:supabase
 ```
 
 ## Test Guard Rules
@@ -161,6 +162,26 @@ Optional test variables:
 - `E2E_TEST_MODE=demo`
 - `PLAYWRIGHT_PORT=3025`
 - `PLAYWRIGHT_BASE_URL`
+
+## Live Non-Production Supabase Acceptance
+
+`npm run quality` intentionally runs in demo mode so CI never writes to production databases or external APIs. Before claiming a release-quality 100/100 CRM score, run the live acceptance check against a safe local or staging Supabase project:
+
+```bash
+npm run acceptance:supabase
+```
+
+The command signs in with Supabase Auth, bootstraps the profile/organization through `ensure_user_profile`, creates a lead, reads it back, updates it, soft-deletes it, and confirms the soft-deleted lead is hidden from active lead queries. It uses the publishable key and the authenticated user's RLS context, not the service role key.
+
+Set these variables in `.env.acceptance.local` or in the shell. `.env.acceptance.local` is ignored by git.
+
+- `ACCEPTANCE_SUPABASE_URL`
+- `ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY`
+- `ACCEPTANCE_TEST_EMAIL`
+- `ACCEPTANCE_TEST_PASSWORD`
+- `ACCEPTANCE_NON_PRODUCTION_CONFIRMATION=I_CONFIRM_THIS_IS_NOT_PRODUCTION` for any remote/staging Supabase URL
+
+Only use a local or staging Supabase target with disposable test users and data. Do not run this command against production Supabase projects, production APIs, or real customer data. If the environment variables are missing, the command fails rather than silently passing or falling back to mock data.
 
 ## CI
 
