@@ -149,11 +149,12 @@ test("lead creation persists to the detail page and converts into a deal", async
   const unique = Date.now();
   const leadName = `E2E Lead ${unique}`;
   const companyName = `E2E Construction ${unique}`;
+  const contactName = `E2E Contact ${unique}`;
 
   await page.goto("/leads/new");
   await page.locator('input[name="name"]').fill(leadName);
   await page.locator('input[name="company_name"]').fill(companyName);
-  await page.locator('input[name="contact_name"]').fill(`E2E Contact ${unique}`);
+  await page.locator('input[name="contact_name"]').fill(contactName);
   await page.locator('input[name="email"]').fill(`lead-${unique}@example.test`);
   await page.locator('input[name="phone"]').fill("050-1234-5678");
   await page.locator('input[name="monthly_projects"]').fill("8");
@@ -172,6 +173,23 @@ test("lead creation persists to the detail page and converts into a deal", async
   await expect(page.locator("body")).toContainText(companyName);
   await expect(page.locator("body")).toContainText("デモ日程確認");
   await expect(page.locator("body")).toContainText("ID:");
+  const convertedDealPath = new URL(page.url()).pathname;
+  const convertedCompanyHref = await page.locator('dl a[href^="/companies/"]').first().getAttribute("href");
+  const convertedContactHref = await page.locator('dl a[href^="/contacts/"]').first().getAttribute("href");
+  expect(convertedCompanyHref).toMatch(/^\/companies\/[^/\s]+$/);
+  expect(convertedContactHref).toMatch(/^\/contacts\/[^/\s]+$/);
+  await expect(page.locator(`dl a[href="${leadPath}"]`)).toBeVisible();
+
+  await page.locator(`dl a[href="${convertedCompanyHref}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(convertedCompanyHref ?? "")}$`));
+  await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator(`tbody a[href="${convertedDealPath}"]`).first()).toBeVisible();
+
+  await page.goto(convertedDealPath);
+  await page.locator(`dl a[href="${convertedContactHref}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(convertedContactHref ?? "")}$`));
+  await expect(page.locator("body")).toContainText(contactName);
+  await expect(page.locator(`dl a[href="${convertedCompanyHref}"]`).first()).toBeVisible();
 
   await page.goto(leadPath);
   await expect(page.locator("body")).toContainText(leadName);
