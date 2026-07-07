@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { priorities, ticketStatuses, ticketTypes } from "../../src/lib/crm/options";
 import { attachStrictPageChecks } from "./strict-page";
 
 async function selectFirstRealOption(page: Page, name: string) {
@@ -918,6 +919,10 @@ test("support ticket lifecycle keeps status updates searchable from the queue", 
   const description = `Lifecycle support memo ${unique}`;
   const openedAt = "2026-07-05T09:15";
   const resolvedAt = "2026-07-05T12:30";
+  const priorityLabel = priorities[3];
+  const ticketTypeLabel = ticketTypes[0];
+  const initialStatusLabel = ticketStatuses[0];
+  const resolvedStatusLabel = ticketStatuses[3];
 
   await page.goto("/companies/new");
   await page.locator('input[name="name"]').fill(companyName);
@@ -930,13 +935,9 @@ test("support ticket lifecycle keeps status updates searchable from the queue", 
   await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
   await page.locator('input[name="title"]').fill(ticketTitle);
   await page.locator('textarea[name="description"]').fill(description);
-  await page.locator('select[name="priority"]').selectOption({ index: 4 });
-  const priorityLabel = (await page.locator('select[name="priority"] option:checked').textContent())?.trim() ?? "";
-  expect(priorityLabel).toBeTruthy();
-  await page.locator('select[name="type"]').selectOption({ index: 1 });
-  await page.locator('select[name="status"]').selectOption({ index: 1 });
-  const initialStatusLabel = (await page.locator('select[name="status"] option:checked').textContent())?.trim() ?? "";
-  expect(initialStatusLabel).toBeTruthy();
+  await page.locator('select[name="priority"]').selectOption({ label: priorityLabel });
+  await page.locator('select[name="type"]').selectOption({ label: ticketTypeLabel });
+  await page.locator('select[name="status"]').selectOption({ label: initialStatusLabel });
   await page.locator('input[name="opened_at"]').fill(openedAt);
   await page.locator("form button").last().click();
 
@@ -952,9 +953,7 @@ test("support ticket lifecycle keeps status updates searchable from the queue", 
   await expect(page).toHaveURL(/\/tickets\/[^/]+\/edit$/);
   await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
   await expect(page.locator('textarea[name="description"]')).toHaveValue(description);
-  await page.locator('select[name="status"]').selectOption({ index: 4 });
-  const resolvedStatusLabel = (await page.locator('select[name="status"] option:checked').textContent())?.trim() ?? "";
-  expect(resolvedStatusLabel).toBeTruthy();
+  await page.locator('select[name="status"]').selectOption({ label: resolvedStatusLabel });
   await page.locator('input[name="last_response_at"]').fill(resolvedAt);
   await page.locator('input[name="resolved_at"]').fill(resolvedAt);
   await page.locator("form button").last().click();
