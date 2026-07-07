@@ -22,7 +22,7 @@
 - Previous Loop 9 commits: `c9006ab` (`Localize dashboard alert severity labels`), `ca53f4e` (`Refresh handoff after alert label cleanup`), `7617b2c` (`Record Loop 9 PR check results`)
 - Last known good local commit: `fb67b67` (`npm.cmd run quality` passed locally)
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
-- CodeRabbit OSS review status: Before this new commit, PR #2 checks were green. After pushing this handoff, re-check CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` on the latest remote commit.
+- CodeRabbit OSS review status: **pass** after the proxy header hardening push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state.
 
 ## 3. What Was Done
 
@@ -72,7 +72,7 @@
 
 CodeRabbit OSSの指摘と対応状況：
 
-- Review status: 最新push前のPR #2 statusはpass。最新push後は `gh pr checks 2` で再確認すること。
+- Review status: **pass** after the proxy header hardening push (`gh pr checks 2 --watch --interval 10`).
 - Critical findings: なし。
 - Resolved findings this pass: 認証リダイレクトで `x-middleware-*` 内部ヘッダーを反射しないよう修正し、unit testで固定。
 - Already satisfied / historical: `tests/unit/data-conversion.test.ts` の relation error field検証は現行コードで満たされている。
@@ -99,6 +99,9 @@ Cursor Bugbotの任意確認：
 gh pr checks 2
 # Passed before this new commit. CodeRabbit / Vercel / Vercel Preview Comments / quality-gate all green.
 
+gh pr checks 2 --watch --interval 10
+# Passed after the proxy header hardening push. CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass (3m13s).
+
 gh api graphql ... reviewThreads
 # Passed. Unresolved threads reviewed. Header reflection thread selected as this pass's fix target.
 
@@ -122,8 +125,8 @@ npm.cmd run quality
 
 次にClaude Codeが最初にやるべきこと：
 
-1. `git status` と `git log --oneline -6` で、`fb67b67` と本handoff更新がremoteへ反映されているか確認する。
-2. `gh pr checks 2` で CodeRabbit / Vercel / `quality-gate` がgreenか確認する。
+1. `git status` と `git log --oneline -6` で、最新remote stateを確認する。
+2. `gh pr checks 2` で CodeRabbit / Vercel / `quality-gate` がgreenのままか確認する。
 3. 今回のproxy修正が、Supabase cookie/cache metadataは維持しつつ `x-middleware-*` だけ落としていることをレビューする。
 4. 未対応threadのうち、次に直すなら `src/lib/crm/data.ts` のdeterministic pagination orderingを優先検討する。
 5. `src/components/crm/stage-board.tsx` のrelation filter保持も次点で検討する。
