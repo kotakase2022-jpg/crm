@@ -14,7 +14,7 @@
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn improved spreadsheet lead import feedback so manual import result toasts show imported/skipped counts immediately.
+- This turn fixed the CI-only login auth feedback E2E locator failure by scoping the assertion to the application `main` landmark instead of Next.js' internal route announcer.
 
 Current score:
 
@@ -27,18 +27,29 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD accep
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `6bcbbe4` (`Show lead import result counts in toast`)
+- Latest code commit: `ff337e0` (`Scope login feedback e2e locators`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `6bcbbe4`
+- Last known good local commit: `ff337e0`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this handoff.
-- CodeRabbit OSS review status: green on PR #3 at remote head `6bcbbe4`.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `6bcbbe4`; local `npm.cmd run quality` passed after `6bcbbe4`.
-- Vercel preview: green on PR #3 at remote head `6bcbbe4`.
+- CodeRabbit OSS review status: green on PR #3 at remote head `1b22b7e` before the CI locator fix; re-check after pushing this handoff.
+- GitHub Actions `quality-gate`: failed on PR #3 at remote head `1b22b7e` because the login auth feedback E2E used `page.getByRole("alert")`, which also matched Next.js' internal `#__next-route-announcer__`; local `npm.cmd run quality` passes after `ff337e0`.
+- Vercel preview: green on PR #3 at remote head `1b22b7e` before the CI locator fix; re-check after pushing this handoff.
 
 ## 3. What Was Done
 
 Completed this turn:
+
+- Confirmed PR #2 was already merged by the user and did not attempt a duplicate merge.
+- Confirmed PR #3 remote head `1b22b7e` had a GitHub Actions `quality-gate` failure while CodeRabbit and Vercel were green.
+- Inspected the failed run (`28889039473`) and found the only failure was `tests/e2e/crm-flows.spec.ts:45`:
+  - The login auth feedback test asserted `page.getByRole("alert")`.
+  - In CI, Playwright strict mode also found Next.js' internal `<div id="__next-route-announcer__" role="alert">`.
+  - This made the test ambiguous even though the application error message was rendered correctly.
+- Scoped the login auth feedback assertions to `page.locator("main")` so the test continues proving visible app-level alert/status feedback without colliding with framework internals.
+- Ran the focused login auth feedback E2E test and the full local `npm.cmd run quality` gate successfully.
+
+Earlier Loop 10 completed work:
 
 - Confirmed PR #3 was still green at remote head `929a136` before this new change: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` passed.
 - Audited Cron lead-import status persistence after the previous `saveLeadImportSetting()` update hardening.
@@ -66,18 +77,18 @@ Earlier Loop 10 context already in PR #3:
 
 Main files changed this turn:
 
-- `src/components/crm/toast-notice.tsx`
 - `tests/e2e/crm-flows.spec.ts`
-- `src/lib/crm/lead-imports.ts`
-- `tests/unit/lead-imports.test.ts`
 - `AI_HANDOFF.md`
 
 Important earlier PR #3 files:
 
+- `src/components/crm/toast-notice.tsx`
+- `src/lib/crm/lead-imports.ts`
 - `src/lib/crm/actions.ts`
 - `src/app/login/page.tsx`
 - `src/lib/crm/data.ts`
 - `src/lib/crm/persistence.ts`
+- `tests/unit/lead-imports.test.ts`
 - `tests/unit/actions.test.ts`
 - `tests/unit/data-supabase.test.ts`
 - `tests/unit/persistence.test.ts`
@@ -85,10 +96,10 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `6bcbbe4`.
+- Local code quality is green after `ff337e0`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote checks are green at `6bcbbe4`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
+- PR #3 remote head `1b22b7e` had a CI-only E2E locator failure; this is fixed locally in `ff337e0` and should be re-checked after push.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -105,7 +116,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `6bcbbe4`.
+- Review status: Passed on PR #3 at remote head `1b22b7e` before the CI locator fix; re-check after pushing the handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -123,7 +134,30 @@ Cursor Bugbot optional backup:
 
 ## 9. Verification Results
 
-Commands run this turn:
+Current turn commands:
+
+```bash
+npm.cmd run test:e2e -- -g "login page exposes auth feedback accessibly"
+# Passed. 1 Chromium test.
+
+npm.cmd run quality
+# Passed.
+# typecheck: passed
+# lint: passed
+# test: passed (28 files / 178 tests)
+# coverage: passed
+#   statements 93.69%
+#   branches 86.54%
+#   functions 99.54%
+#   lines 95.94%
+# test:e2e: passed (44 Chromium tests)
+# build: passed (Next.js 16.2.10 production build)
+
+gh run view 28889039473 --repo kotakase2022-jpg/crm --log-failed
+# Confirmed the previous CI failure was a strict locator collision with Next.js' route announcer, not an app rendering failure.
+```
+
+Earlier Loop 10 verification retained for context:
 
 ```bash
 npm.cmd run test:e2e -- -g "lead spreadsheet import result toasts"
@@ -183,15 +217,17 @@ Claude Code should start here:
 1. Run `git status --short --branch` and `git log --oneline -6`.
 2. Confirm the latest commits are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm CodeRabbit OSS has no Critical/High findings on the latest PR head.
-5. Review the latest changes in import toast feedback, `saveLeadImportSetting()`, Cron status updates, and related tests.
-6. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
-7. If a safe non-production Supabase test account/credentials are available, perform live authenticated preview acceptance for login plus one safe create/edit/read/delete or soft-delete flow.
+4. Confirm the latest `quality-gate` rerun is green after the `ff337e0` login feedback locator fix.
+5. Confirm CodeRabbit OSS has no Critical/High findings on the latest PR head.
+6. Review the latest changes in login auth feedback E2E locators, import toast feedback, `saveLeadImportSetting()`, Cron status updates, and related tests.
+7. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
+8. If a safe non-production Supabase test account/credentials are available, perform live authenticated preview acceptance for login plus one safe create/edit/read/delete or soft-delete flow.
 
 ## 11. Suggested Review Scope for Claude Code
 
 Please review:
 
+- Does the login auth feedback E2E now target the application-visible alert/status without weakening the accessibility assertion?
 - Does `saveLeadImportSetting()` correctly reject missing/deleted/out-of-organization updates in both demo and Supabase modes?
 - Is `.select("id").single()` the right Supabase pattern here to detect zero-row updates without broadening data exposure?
 - Should the same zero-row detection on `lead_import_runs` / `lead_import_settings` status updates produce a failed import result, as currently implemented?
