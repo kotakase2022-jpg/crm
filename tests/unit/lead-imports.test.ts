@@ -195,9 +195,61 @@ describe("lead spreadsheet imports", () => {
     expect(runUpdate.eq).toHaveBeenCalledWith("organization_id", "org-1");
     expect(runUpdate.eq).toHaveBeenCalledWith("id", "run-1");
     expect(runUpdate.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(runUpdate.select).toHaveBeenCalledWith("id");
+    expect(runUpdate.single).toHaveBeenCalled();
     expect(settingUpdate.eq).toHaveBeenCalledWith("organization_id", "org-1");
     expect(settingUpdate.eq).toHaveBeenCalledWith("id", "setting-1");
     expect(settingUpdate.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(settingUpdate.select).toHaveBeenCalledWith("id");
+    expect(settingUpdate.single).toHaveBeenCalled();
+  });
+
+  it("does not report cron imports as successful when status persistence matches no row", async () => {
+    const settingsSelect = selectQuery([{ id: "setting-1", organization_id: "org-1", spreadsheet_url: "https://docs.google.com/spreadsheets/d/sheet-id/edit" }]);
+    const runInsert = insertReturning({ id: "run-1" });
+    const existingLeadsSelect = selectQuery([]);
+    const leadInsert = insertReturning({ id: "lead-1" });
+    const taskInsert = insertOnly();
+    const missingRunUpdate = updateReturning(null, { message: "No rows returned" });
+    const failedRunUpdate = updateReturning({ id: "run-1" });
+    const failedSettingUpdate = updateReturning({ id: "setting-1" });
+    const builders: Record<string, Array<Record<string, unknown>>> = {
+      lead_import_settings: [settingsSelect, failedSettingUpdate],
+      lead_import_runs: [runInsert, missingRunUpdate, failedRunUpdate],
+      leads: [existingLeadsSelect, leadInsert],
+      tasks: [taskInsert],
+    };
+    const supabase = {
+      from: vi.fn((table: string) => {
+        const builder = builders[table]?.shift();
+        if (!builder) throw new Error(`Unexpected table query: ${table}`);
+        return builder;
+      }),
+    };
+
+    mocks.createAdminClient.mockReturnValue(supabase);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("name,company_name,email\nImported Lead,Imported Company,imported@example.test\n", { status: 200 }),
+    );
+
+    const results = await runAllLeadImportsFromCron();
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ status: "failed", importedCount: 1, skippedCount: 0, message: "No rows returned" });
+    expect(missingRunUpdate.select).toHaveBeenCalledWith("id");
+    expect(missingRunUpdate.single).toHaveBeenCalled();
+    expect(failedRunUpdate.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        error_message: "No rows returned",
+      }),
+    );
+    expect(failedSettingUpdate.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        last_run_status: "failed",
+        last_run_message: "No rows returned",
+      }),
+    );
   });
 
   it("updates Supabase import settings only inside the current organization", async () => {
@@ -283,7 +335,9 @@ function updateQuery() {
   const builder = {
     update: vi.fn(() => builder),
     eq: vi.fn(() => builder),
-    is: vi.fn(() => Promise.resolve({ error: null })),
+    is: vi.fn(() => builder),
+    select: vi.fn(() => builder),
+    single: vi.fn(() => Promise.resolve({ data: { id: "updated-row" }, error: null })),
   };
   return builder;
 }

@@ -136,7 +136,9 @@ async function updateRunInSupabase(supabase: SupabaseClient, organizationId: unk
     .update(values)
     .eq("organization_id", organizationId)
     .eq("id", runId)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .select("id")
+    .single();
   if (error) throw new Error(error.message);
 }
 
@@ -146,7 +148,9 @@ async function updateSettingInSupabase(supabase: SupabaseClient, organizationId:
     .update(values)
     .eq("organization_id", organizationId)
     .eq("id", settingId)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .select("id")
+    .single();
   if (error) throw new Error(error.message);
 }
 
