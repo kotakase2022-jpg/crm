@@ -62,6 +62,37 @@ describe("Supabase CRM data access", () => {
     expect(range).toHaveBeenCalledWith(0, 999);
   });
 
+  it("continues paging Supabase list reads until the final short page", async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, index) => ({
+      id: `company-${String(index).padStart(4, "0")}`,
+      name: `Company ${index}`,
+      organization_id: "org-1",
+    }));
+    const secondPage = [{ id: "company-1000", name: "Company 1000", organization_id: "org-1" }];
+    const range = vi.fn((from: number) =>
+      Promise.resolve({
+        data: from === 0 ? firstPage : secondPage,
+        error: null,
+      }),
+    );
+    const query = {
+      select: vi.fn(() => query),
+      eq: vi.fn(() => query),
+      is: vi.fn(() => query),
+      order: vi.fn(() => query),
+      range,
+    };
+    mockAuthenticatedSupabase(query);
+
+    const rows = await listRecords(entityConfigs.companies);
+
+    expect(rows).toHaveLength(1001);
+    expect(rows.at(-1)).toMatchObject({ id: "company-1000" });
+    expect(range).toHaveBeenCalledTimes(2);
+    expect(range).toHaveBeenNthCalledWith(1, 0, 999);
+    expect(range).toHaveBeenNthCalledWith(2, 1000, 1999);
+  });
+
   it("creates Supabase records with trusted organization and user fields", async () => {
     const query = {
       insert: vi.fn(() => query),
