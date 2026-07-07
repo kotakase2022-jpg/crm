@@ -7,14 +7,14 @@
 - Loop: 10
 - Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`; Loop 10 is the current Codex improvement branch from `origin/main`.
 - Phase: Handoff
-- Last updated: 2026-07-08 07:28:00 +09:00
+- Last updated: 2026-07-08 07:41:38 +09:00
 
 ## 1. Current Goal
 
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn added route-level regression coverage for the Vercel Cron lead-import API so missing/wrong `CRON_SECRET`, partial import failures, and thrown cron errors cannot be reported as successful.
+- This turn hardened the Supabase admin client configuration path so blank server settings and accidentally supplied publishable/anon keys fail closed instead of creating a pseudo-admin client.
 
 Current score:
 
@@ -27,18 +27,27 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD/RLS a
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `bfe96f5` (`Cover lead import cron route responses`)
+- Latest code commit: `2a73888` (`Harden Supabase admin client configuration`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `bfe96f5`
+- Last known good local commit: `2a73888`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this loop continuation.
-- CodeRabbit OSS review status: green on PR #3 at remote head `5981bc2`; re-check after pushing `bfe96f5` and this handoff.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `5981bc2`; local `npm.cmd run quality` passes after `bfe96f5`.
-- Vercel preview: green on PR #3 at remote head `5981bc2`; re-check after pushing this handoff.
+- CodeRabbit OSS review status: green on PR #3 at remote head `2fc066a`; re-check after pushing `2a73888` and this handoff.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `2fc066a`; local `npm.cmd run quality` passes after `2a73888`.
+- Vercel preview: green on PR #3 at remote head `2fc066a`; re-check after pushing this handoff.
 
 ## 3. What Was Done
 
 Completed this turn:
+
+- Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, and `docs/testing.md`.
+- Re-checked PR #3 latest remote head `2fc066a`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
+- Confirmed PR #3 remains open, non-draft, mergeable, and blocked only by `REVIEW_REQUIRED`.
+- Hardened `src/lib/supabase/admin.ts` so `createAdminClient()` trims server-only settings and returns `null` when the Supabase URL is blank, `SUPABASE_SERVICE_ROLE_KEY` is blank, or the key is a known non-admin `sb_publishable_...` / `sb_anon_...` key.
+- Added `tests/unit/supabase-admin.test.ts` proving the admin client is not created for missing URL, blank service-role key, or accidentally supplied publishable/anon keys, and that successful creation uses trimmed values with non-persistent auth settings.
+- Re-ran focused Supabase admin coverage, `npm.cmd run typecheck`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
+
+Previous Loop 10 continuation:
 
 - Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, and `docs/testing.md`.
 - Re-checked PR #3 latest remote head `5981bc2`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
@@ -105,7 +114,8 @@ Important earlier PR #3 context:
 
 Main files changed this turn:
 
-- `tests/unit/lead-import-cron-route.test.ts`
+- `src/lib/supabase/admin.ts`
+- `tests/unit/supabase-admin.test.ts`
 - `AI_HANDOFF.md`
 
 Important earlier PR #3 files:
@@ -128,13 +138,14 @@ Important earlier PR #3 files:
 - `tests/unit/persistence.test.ts`
 - `tests/unit/demo-data.test.ts`
 - `tests/unit/lead-import-cron-route.test.ts`
+- `tests/unit/supabase-admin.test.ts`
 
 ## 5. Current Status
 
-- Local code quality is green after `bfe96f5`.
+- Local code quality is green after `2a73888`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `5981bc2` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green. Push `bfe96f5` and this handoff, then re-check.
+- PR #3 remote head `2fc066a` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green. Push `2a73888` and this handoff, then re-check.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -142,6 +153,7 @@ Important earlier PR #3 files:
 ## 6. Known Issues
 
 - No current Critical/High code issue is known after the latest local quality gate.
+- `2a73888` changes the Supabase admin-client configuration path to fail closed for blank settings or accidentally supplied publishable/anon keys, with direct unit coverage.
 - `bfe96f5` is test-only and covers the cron API route's auth and error response behavior; no runtime code changed.
 - The previous `npm.cmd run quality` attempt failed because Windows rejected an E2E persistent demo store `renameSync()` with `EPERM`; this was fixed by `aa9e7c6`, and `a0b0676` now adds unit coverage for both retry-success and persistent-failure paths.
 - PR #3 run `28898352028` failed before `cb497a8`; the failure was an E2E demo-store sharing issue that rendered edit routes as 404 in CI. It was fixed by `cb497a8`, and PR #3 was green at `a14942f`.
@@ -155,7 +167,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `5981bc2`; re-check after pushing `bfe96f5` and this handoff commit.
+- Review status: Passed on PR #3 at remote head `2fc066a`; re-check after pushing `2a73888` and this handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -174,6 +186,41 @@ Cursor Bugbot optional backup:
 ## 9. Verification Results
 
 Current turn commands:
+
+```bash
+gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
+# Passed.
+# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head 2fc066a.
+# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at 2fc066a.
+
+npm.cmd run test -- --run tests/unit/supabase-admin.test.ts
+# First run failed because the test imported `src/lib/supabase/admin.ts`, which has a `server-only` side-effect import.
+# The test was corrected to mock `server-only`, matching existing server-side unit tests.
+# Re-run passed. 1 file / 4 tests.
+
+npm.cmd run typecheck
+# Passed after 2a73888.
+
+npm.cmd run quality
+# Passed after 2a73888.
+# typecheck: passed
+# lint: passed
+# test: passed (30 files / 198 tests)
+# coverage: passed
+#   statements 93.69%
+#   branches 86.54%
+#   functions 99.54%
+#   lines 95.94%
+# test:e2e: passed (45 Chromium tests)
+# build: passed (Next.js 16.2.10 production build)
+
+npm.cmd run acceptance:supabase
+# Failed as expected with missing dedicated ACCEPTANCE_* variables:
+# ACCEPTANCE_SUPABASE_URL, ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, ACCEPTANCE_TEST_EMAIL, ACCEPTANCE_TEST_PASSWORD.
+# No stack trace or secret value was printed.
+```
+
+Previous turn commands:
 
 ```bash
 gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
@@ -367,27 +414,30 @@ npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -8`.
-2. Confirm `bfe96f5` and this handoff commit are pushed to PR #3.
+2. Confirm `2a73888` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `bfe96f5` and this handoff commit.
-5. Review the new cron route response tests in `tests/unit/lead-import-cron-route.test.ts`; they should prove missing/wrong `CRON_SECRET`, partial import failures, and thrown cron errors are not reported as successful.
-6. Review the new retry-success and persistent-failure tests in `tests/unit/demo-data.test.ts`.
-7. Review the Windows `EPERM` demo-store retry in `src/lib/crm/demo-data.ts`; it should be limited to the E2E-only persistent demo store path and avoid affecting production Supabase mode.
-8. Review the auth redirect sanitization tests in `tests/unit/actions.test.ts`; they should prove direct malicious `next` posts cannot escape the app after sign-in/sign-up success or failure.
-9. Review the Supabase pagination regression test in `tests/unit/data-supabase.test.ts`; it should protect `readRows()` from silently dropping records after the first 1000 rows.
-10. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
-11. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
-12. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
-13. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
-14. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
-15. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
-16. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
-17. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
+4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `2a73888` and this handoff commit.
+5. Review `src/lib/supabase/admin.ts` and `tests/unit/supabase-admin.test.ts`; they should prove blank admin config and accidentally supplied publishable/anon keys fail closed while valid server-only settings are trimmed and passed to `createClient()`.
+6. Review the new cron route response tests in `tests/unit/lead-import-cron-route.test.ts`; they should prove missing/wrong `CRON_SECRET`, partial import failures, and thrown cron errors are not reported as successful.
+7. Review the new retry-success and persistent-failure tests in `tests/unit/demo-data.test.ts`.
+8. Review the Windows `EPERM` demo-store retry in `src/lib/crm/demo-data.ts`; it should be limited to the E2E-only persistent demo store path and avoid affecting production Supabase mode.
+9. Review the auth redirect sanitization tests in `tests/unit/actions.test.ts`; they should prove direct malicious `next` posts cannot escape the app after sign-in/sign-up success or failure.
+10. Review the Supabase pagination regression test in `tests/unit/data-supabase.test.ts`; it should protect `readRows()` from silently dropping records after the first 1000 rows.
+11. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
+12. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
+13. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
+14. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
+15. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
+16. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
+17. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
+18. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
 
 ## 11. Suggested Review Scope for Claude Code
 
 Please review:
 
+- Does `createAdminClient()` fail closed for blank settings and known non-admin Supabase keys without changing normal server-side service-role behavior?
+- Do `tests/unit/supabase-admin.test.ts` assertions adequately protect against accidentally configuring `SUPABASE_SERVICE_ROLE_KEY` with `sb_publishable_...` or `sb_anon_...` values?
 - Does the new ticket-task E2E prove a real CS path from support ticket detail to a next-action task while preserving ticket, company, and contact context?
 - Do the new cron route tests prove the Vercel Cron lead-import endpoint rejects unauthenticated calls and reports partial/total failures as errors?
 - Do the E2E-only demo store retry tests cover both transient Windows `EPERM` / `EACCES` recovery and persistent write failure cleanup?
@@ -408,6 +458,7 @@ Please review:
 ## 12. Risk Notes
 
 - The latest runtime change affects demo mode only when the E2E-specific `CRM_DEMO_STORE_FILE` env var is set. It is intended to stabilize CI route-worker sharing and should not affect Supabase mode.
+- `2a73888` changes only the Supabase admin-client setup boundary. It rejects known publishable/anon key prefixes, but it does not fully decode and validate every possible legacy JWT role. Live/staging acceptance plus secret review remains important before production use.
 - `bfe96f5` is test-only; it did not change cron route runtime behavior.
 - The `aa9e7c6` retry uses `Atomics.wait` only in server-side Node code under the E2E persistent demo store path.
 - The new E2E runs in demo mode; live Supabase acceptance remains the main unverified external persistence/RLS evidence gap.
