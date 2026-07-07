@@ -8,7 +8,7 @@ import { StageBoard } from "@/components/crm/stage-board";
 import { canWriteTable } from "@/lib/crm/access";
 import { getCrmContext, getRelationOptions, listRecords } from "@/lib/crm/data";
 import { getEntityConfig } from "@/lib/crm/entities";
-import { normalizeRelationQuery } from "@/lib/crm/search";
+import { listCreateHref, normalizeRelationQuery } from "@/lib/crm/search";
 import type { QueryState } from "@/lib/crm/types";
 
 function first(value: string | string[] | undefined) {
@@ -44,13 +44,14 @@ export default async function EntityListPage({
   });
   const [context, rows, allRows, relations] = await Promise.all([getCrmContext(), listRecords(config, query), listRecords(config), getRelationOptions()]);
   const canCreate = canWriteTable(context.role, config.table);
+  const createHref = canCreate ? listCreateHref(config, query) : undefined;
 
   return (
     <>
       <PageHeader
         title={`${config.plural}一覧`}
         description={config.description}
-        actionHref={canCreate ? `/${config.slug}/new` : undefined}
+        actionHref={createHref}
         actionLabel={canCreate ? `${config.singular}作成` : undefined}
       >
         {config.slug === "leads" && canCreate ? (

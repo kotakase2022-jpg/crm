@@ -662,6 +662,12 @@ test("related sections with hidden rows link to a filtered full list", async ({ 
   expect(clearedUrl.searchParams.has("q")).toBe(false);
   await expect(page.locator("tbody tr")).toHaveCount(9);
   await expect(page.locator("tbody")).toContainText(lastContactName);
+
+  await page.getByRole("link", { name: "担当者作成" }).click();
+  await expect(page).toHaveURL(new RegExp(`/contacts/new\\?company_id=${escapeRegExp(companyId)}$`));
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.getByRole("link", { name: "キャンセル" }).click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(companyPath)}$`));
   await strict.expectClean();
 });
 

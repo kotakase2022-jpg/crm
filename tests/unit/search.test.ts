@@ -6,6 +6,7 @@ import {
   defaultSortDirection,
   filterSortRows,
   listClearHref,
+  listCreateHref,
   listSortHref,
   listViewHref,
   matchesFilter,
@@ -380,6 +381,34 @@ describe("CRM list search", () => {
         view: "today",
       }),
     ).toBe(`/tasks?q=${encodeURIComponent("契約")}&relation_field=company_id&relation_id=company-1`);
+  });
+
+  it("builds related list create links with only the parent relation prefilled", () => {
+    expect(
+      listCreateHref(entityConfigs.contacts, {
+        q: "佐藤",
+        filter: "決裁者",
+        sort: "name",
+        direction: "asc",
+        relationField: " company_id ",
+        relationId: " company-1 ",
+      }),
+    ).toBe("/contacts/new?company_id=company-1");
+
+    expect(
+      listCreateHref(entityConfigs.tasks, {
+        view: "today",
+        relationField: "support_ticket_id",
+        relationId: "ticket-1",
+      }),
+    ).toBe("/tasks/new?support_ticket_id=ticket-1");
+
+    expect(
+      listCreateHref(entityConfigs.contacts, {
+        relationField: "made_up_id",
+        relationId: "company-1",
+      }),
+    ).toBe("/contacts/new");
   });
 
   it("filters related list drilldowns by exact relation ids instead of parent names", () => {

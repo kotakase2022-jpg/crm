@@ -147,6 +147,19 @@ export function listViewHref(config: EntityConfig, query: QueryState, view?: str
   return queryString ? `/${config.slug}?${queryString}` : `/${config.slug}`;
 }
 
+export function listCreateHref(config: EntityConfig, query: QueryState) {
+  const params = new URLSearchParams();
+  const field = query.relationField?.trim();
+  const id = relationIdValue(query.relationId);
+
+  if (field && id && isAllowedRelationFilterField(config, field)) {
+    params.set(field, id);
+  }
+
+  const queryString = params.toString();
+  return queryString ? `/${config.slug}/new?${queryString}` : `/${config.slug}/new`;
+}
+
 function isEmptySortValue(value: unknown) {
   return value === null || value === undefined || value === "" || (typeof value === "string" && value.trim() === "");
 }
