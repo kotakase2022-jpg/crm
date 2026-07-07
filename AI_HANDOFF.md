@@ -14,7 +14,7 @@
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn focused on a data-integrity and UX defect in spreadsheet lead import settings: updates for missing/deleted/out-of-organization settings could appear successful instead of surfacing an error.
+- This turn continued the spreadsheet lead import hardening work by making Cron status persistence fail visibly when the scoped update matches no row.
 
 Current score:
 
@@ -27,28 +27,29 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD accep
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `0da6661` (`Detect missing import setting updates`)
+- Latest code commit: `5b28f41` (`Detect missing cron import status updates`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `0da6661`
+- Last known good local commit: `5b28f41`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this handoff.
-- CodeRabbit OSS review status: previously green on PR #3 at remote head `8aa64d6`; re-check after pushing `0da6661` and this handoff commit.
-- GitHub Actions `quality-gate`: previously green on PR #3 at remote head `8aa64d6`; local `npm.cmd run quality` passed after `0da6661`.
-- Vercel preview: previously green on PR #3 at remote head `8aa64d6`; re-check after the final push.
+- CodeRabbit OSS review status: previously green on PR #3 at remote head `a924e60`; re-check after pushing `5b28f41` and this handoff commit.
+- GitHub Actions `quality-gate`: previously green on PR #3 at remote head `a924e60`; local `npm.cmd run quality` passed after `5b28f41`.
+- Vercel preview: previously green on PR #3 at remote head `a924e60`; re-check after the final push.
 
 ## 3. What Was Done
 
 Completed this turn:
 
-- Confirmed PR #2 is already merged and had green checks.
-- Resumed the active Loop 10 PR #3 branch with one uncommitted code change in `src/lib/crm/lead-imports.ts`.
-- Audited `saveLeadImportSetting()` update behavior.
+- Confirmed PR #3 was still green at remote head `a924e60` before this new change: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` passed.
+- Audited Cron lead-import status persistence after the previous `saveLeadImportSetting()` update hardening.
 - Fixed demo-mode setting updates so a missing setting ID no longer returns success; it now throws `取込設定が見つかりません。`.
 - Fixed Supabase setting updates so they call `.select("id").single()` after the scoped update. This makes missing/deleted/out-of-organization rows surface as an error instead of silently returning success.
+- Fixed Supabase Cron run/setting status updates so they also call `.select("id").single()` after the scoped update. This prevents a lead import from reporting success when the final `lead_import_runs` / `lead_import_settings` status row was not actually updated.
 - Added unit coverage for:
   - Supabase setting updates staying scoped to the current `organization_id`, setting `id`, and `deleted_at IS NULL`.
   - missing Supabase setting updates rejecting instead of returning success.
   - missing demo setting updates rejecting instead of returning success.
+  - Cron imports returning `failed` when status persistence matches no row, with failure status/message written through the fallback status path.
 - Ran focused tests and the full mechanical quality gate.
 
 Earlier Loop 10 context already in PR #3:
@@ -79,7 +80,7 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `0da6661`.
+- Local code quality is green after `5b28f41`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
@@ -98,7 +99,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Previously passed on PR #3 at remote head `8aa64d6`.
+- Review status: Previously passed on PR #3 at remote head `a924e60`.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -120,7 +121,7 @@ Commands run this turn:
 
 ```bash
 npm.cmd run test -- --run tests/unit/lead-imports.test.ts
-# Passed. 1 file / 14 tests.
+# Passed. 1 file / 15 tests.
 
 npm.cmd run typecheck
 # Passed.
@@ -132,7 +133,7 @@ npm.cmd run quality
 # Passed.
 # typecheck: passed
 # lint: passed
-# test: passed (28 files / 177 tests)
+# test: passed (28 files / 178 tests)
 # coverage: passed
 #   statements 93.69%
 #   branches 86.54%
@@ -161,7 +162,7 @@ Claude Code should start here:
 2. Confirm the latest commits are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10`.
 4. Confirm CodeRabbit OSS has no Critical/High findings on the latest PR head.
-5. Review the latest change in `saveLeadImportSetting()` and `tests/unit/lead-imports.test.ts`.
+5. Review the latest changes in `saveLeadImportSetting()`, Cron status updates, and `tests/unit/lead-imports.test.ts`.
 6. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
 7. If a safe non-production Supabase test account/credentials are available, perform live authenticated preview acceptance for login plus one safe create/edit/read/delete or soft-delete flow.
 
@@ -171,14 +172,15 @@ Please review:
 
 - Does `saveLeadImportSetting()` correctly reject missing/deleted/out-of-organization updates in both demo and Supabase modes?
 - Is `.select("id").single()` the right Supabase pattern here to detect zero-row updates without broadening data exposure?
+- Should the same zero-row detection on `lead_import_runs` / `lead_import_settings` status updates produce a failed import result, as currently implemented?
 - Do the new unit tests prove organization scoping and missing-row rejection without mocking a failed feature as success?
 - Are error messages appropriate for user-facing CRM settings workflows?
 - Does the patch avoid changing CSV parsing, import scheduling, lead creation, duplicate detection, or cron behavior?
 
 ## 12. Risk Notes
 
-- This change is intentionally limited to settings update confirmation behavior.
-- Supabase service-role cron status update hardening remains in PR #3 from the previous commit; this turn did not change cron run logic.
+- This change is intentionally limited to import settings/status update confirmation behavior.
+- Supabase service-role Cron status update hardening remains in PR #3 and now fails visibly on zero-row status updates.
 - A real Supabase update returning zero rows depends on PostgREST `.single()` returning an error. The unit test models that expected behavior.
 - Live authenticated acceptance is still the main evidence gap before claiming 100/100.
 - CodeRabbit account/plan metadata should be monitored by the repository owner because cost control is important for this project.
