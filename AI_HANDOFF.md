@@ -22,7 +22,7 @@
 - Previous Loop 9 code commits: `fb67b67` (`Avoid reflecting middleware headers on auth redirects`), `c9006ab` (`Localize dashboard alert severity labels`)
 - Last known good local commit: `35afc68` (`npm.cmd run quality` passed locally)
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
-- CodeRabbit OSS review status: PR #2 was green before this new handoff update. After pushing this handoff, re-check CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` on the latest remote commit.
+- CodeRabbit OSS review status: **pass** after the Supabase pagination ordering push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state.
 
 ## 3. What Was Done
 
@@ -69,7 +69,7 @@
 
 CodeRabbit OSSの指摘と対応状況：
 
-- Review status: 最新push前のPR #2 statusはpass。最新push後は `gh pr checks 2` で再確認すること。
+- Review status: **pass** after the Supabase pagination ordering push (`gh pr checks 2 --watch --interval 10`).
 - Critical findings: なし。
 - Resolved findings this pass: `src/lib/crm/data.ts` のSupabase range paginationに安定した `id` 昇順を追加し、unit testで固定。
 - Already satisfied / historical:
@@ -97,6 +97,9 @@ Cursor Bugbotの任意確認：
 gh pr checks 2
 # Passed before this new commit. CodeRabbit / Vercel / Vercel Preview Comments / quality-gate all green.
 
+gh pr checks 2 --watch --interval 10
+# Passed after the Supabase pagination ordering push. CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass (3m25s).
+
 npm.cmd run test -- --run tests/unit/data-supabase.test.ts
 # Expected failure before implementation: order("id", { ascending: true }) was not called.
 
@@ -117,8 +120,8 @@ npm.cmd run quality
 
 次にClaude Codeが最初にやるべきこと：
 
-1. `git status` と `git log --oneline -6` で、`35afc68` と本handoff更新がremoteへ反映されているか確認する。
-2. `gh pr checks 2` で CodeRabbit / Vercel / `quality-gate` がgreenか確認する。
+1. `git status` と `git log --oneline -6` で、最新remote stateを確認する。
+2. `gh pr checks 2` で CodeRabbit / Vercel / `quality-gate` がgreenのままか確認する。
 3. 今回の`readRows()`修正が、全Supabaseテーブルの共通paged readで安定順序を与え、organization/deleted filtersを維持していることをレビューする。
 4. 次に直すなら `src/components/crm/stage-board.tsx` のrelation filter保持threadを優先検討する。
 5. PR #2の人間レビューが整い、CodeRabbit / quality-gate / Vercelがgreenならマージ判断へ進める。
