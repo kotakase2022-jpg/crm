@@ -7,14 +7,14 @@
 - Loop: 10
 - Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`; Loop 10 is the current Codex improvement branch from `origin/main`.
 - Phase: Handoff
-- Last updated: 2026-07-08 07:16:31 +09:00
+- Last updated: 2026-07-08 07:28:00 +09:00
 
 ## 1. Current Goal
 
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn added regression coverage proving the E2E persistent demo store retries transient Windows rename locks but still fails loudly on persistent write failures.
+- This turn added route-level regression coverage for the Vercel Cron lead-import API so missing/wrong `CRON_SECRET`, partial import failures, and thrown cron errors cannot be reported as successful.
 
 Current score:
 
@@ -27,28 +27,30 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD/RLS a
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `a0b0676` (`Cover demo store rename retry behavior`)
+- Latest code commit: `bfe96f5` (`Cover lead import cron route responses`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `a0b0676`
+- Last known good local commit: `bfe96f5`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this loop continuation.
-- CodeRabbit OSS review status: green on PR #3 at remote head `d421962`; re-check after pushing `a0b0676` and this handoff.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `d421962`; local `npm.cmd run quality` passes after `a0b0676`.
-- Vercel preview: green on PR #3 at remote head `d421962`; re-check after pushing this handoff.
+- CodeRabbit OSS review status: green on PR #3 at remote head `5981bc2`; re-check after pushing `bfe96f5` and this handoff.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `5981bc2`; local `npm.cmd run quality` passes after `bfe96f5`.
+- Vercel preview: green on PR #3 at remote head `5981bc2`; re-check after pushing this handoff.
 
 ## 3. What Was Done
 
 Completed this turn:
 
 - Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, and `docs/testing.md`.
-- Re-checked PR #3 latest remote head `d421962`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
+- Re-checked PR #3 latest remote head `5981bc2`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
 - Confirmed PR #3 remains open, non-draft, mergeable, and blocked only by `REVIEW_REQUIRED`.
-- Added unit coverage proving the E2E persistent demo store retries a transient Windows `EPERM` rename failure and persists the intended row.
-- Added unit coverage proving persistent Windows `EPERM` rename failures are not hidden: the operation throws after 5 attempts and removes the temp file.
-- Re-ran focused demo-data coverage, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
+- Added `tests/unit/lead-import-cron-route.test.ts` with route-level coverage for unauthorized cron requests, wrong bearer tokens, successful aggregation, partial import failure status, and thrown import errors.
+- Re-ran focused cron route coverage, `npm.cmd run typecheck`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
 
 Earlier Loop 10 continuation also completed:
 
+- Added unit coverage proving the E2E persistent demo store retries a transient Windows `EPERM` rename failure and persists the intended row.
+- Added unit coverage proving persistent Windows `EPERM` rename failures are not hidden: the operation throws after 5 attempts and removes the temp file.
+- Re-ran focused demo-data coverage, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
 - Added unit coverage proving direct `signUpAction` auth failures also sanitize external `next` values before returning to `/login`.
 - Ran `npm.cmd run quality`; it failed in the automation-task E2E with an actual `EPERM` from `renameSync()` in the E2E-only persistent demo store writer.
 - Fixed `src/lib/crm/demo-data.ts` so persistent demo store writes use unique temp file names and retry transient Windows `EACCES` / `EPERM` rename races before failing.
@@ -103,7 +105,7 @@ Important earlier PR #3 context:
 
 Main files changed this turn:
 
-- `tests/unit/demo-data.test.ts`
+- `tests/unit/lead-import-cron-route.test.ts`
 - `AI_HANDOFF.md`
 
 Important earlier PR #3 files:
@@ -125,13 +127,14 @@ Important earlier PR #3 files:
 - `tests/unit/data-supabase.test.ts`
 - `tests/unit/persistence.test.ts`
 - `tests/unit/demo-data.test.ts`
+- `tests/unit/lead-import-cron-route.test.ts`
 
 ## 5. Current Status
 
-- Local code quality is green after `a0b0676`.
+- Local code quality is green after `bfe96f5`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `d421962` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green. Push `a0b0676` and this handoff, then re-check.
+- PR #3 remote head `5981bc2` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green. Push `bfe96f5` and this handoff, then re-check.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -139,6 +142,7 @@ Important earlier PR #3 files:
 ## 6. Known Issues
 
 - No current Critical/High code issue is known after the latest local quality gate.
+- `bfe96f5` is test-only and covers the cron API route's auth and error response behavior; no runtime code changed.
 - The previous `npm.cmd run quality` attempt failed because Windows rejected an E2E persistent demo store `renameSync()` with `EPERM`; this was fixed by `aa9e7c6`, and `a0b0676` now adds unit coverage for both retry-success and persistent-failure paths.
 - PR #3 run `28898352028` failed before `cb497a8`; the failure was an E2E demo-store sharing issue that rendered edit routes as 404 in CI. It was fixed by `cb497a8`, and PR #3 was green at `a14942f`.
 - Live authenticated Supabase/Vercel CRUD/RLS acceptance is still incomplete because this shell does not have safe non-production Supabase runtime/test credentials. `npm.cmd run acceptance:supabase` exists and fails loudly until those credentials are supplied.
@@ -151,7 +155,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `d421962`; re-check after pushing `a0b0676` and this handoff commit.
+- Review status: Passed on PR #3 at remote head `5981bc2`; re-check after pushing `bfe96f5` and this handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -165,7 +169,7 @@ Cursor Bugbot optional backup:
 - Status: Not run.
 - Findings: none.
 - Actions taken: none.
-- Reason: The current change is narrow, unit-test-only, covered by focused unit tests and the full quality gate, and CodeRabbit OSS is the standard review path for this public repository.
+- Reason: The current change is narrow, route-test-only, covered by focused unit tests and the full quality gate, and CodeRabbit OSS is the standard review path for this public repository.
 
 ## 9. Verification Results
 
@@ -174,39 +178,32 @@ Current turn commands:
 ```bash
 gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
 # Passed.
-# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head d421962.
-# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at d421962.
+# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head 5981bc2.
+# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at 5981bc2.
 
 gh pr checks 3 --repo kotakase2022-jpg/crm
-# Passed before a0b0676 and this handoff.
+# Passed before bfe96f5 and this handoff.
 # CodeRabbit: pass
 # Vercel: pass
 # Vercel Preview Comments: pass
 # typecheck-lint-test-e2e-build: pass
 
-npm.cmd run test -- --run tests/unit/demo-data.test.ts
-# First run after adding the persistent-failure test failed because the test expected import-time persistence.
-# The implementation writes during sync/read/write operations, so the test was corrected to assert on getDemoRows().
-# Re-run passed after a0b0676. 1 file / 7 tests.
+npm.cmd run test -- --run tests/unit/lead-import-cron-route.test.ts
+# First run passed. 1 file / 5 tests.
 
-git diff --check
-# Passed.
+npm.cmd run typecheck
+# First run failed because the cron route test fixtures used `id` instead of the actual ImportResult fields.
+# Test data was corrected to use settingId/status/importedCount/skippedCount/message.
+# Re-run passed.
 
-npm.cmd run quality
-# First run after a0b0676 failed in lint because the dynamic import variable was named `module`.
-# The variable was renamed to `demoDataModule`.
-
-npm.cmd run test -- --run tests/unit/demo-data.test.ts
-# Passed after lint fix. 1 file / 7 tests.
-
-git diff --check
-# Passed.
+npm.cmd run test -- --run tests/unit/lead-import-cron-route.test.ts
+# Passed after type fixture correction. 1 file / 5 tests.
 
 npm.cmd run quality
-# Passed after a0b0676.
+# Passed after bfe96f5.
 # typecheck: passed
 # lint: passed
-# test: passed (28 files / 189 tests)
+# test: passed (29 files / 194 tests)
 # coverage: passed
 #   statements 93.69%
 #   branches 86.54%
@@ -221,9 +218,23 @@ npm.cmd run acceptance:supabase
 # No stack trace or secret value was printed.
 ```
 
-Previous Loop 10 verification retained for context:
+Selected previous Loop 10 verification retained for context:
 
 ```bash
+npm.cmd run test -- --run tests/unit/demo-data.test.ts
+# First run after adding the persistent-failure test failed because the test expected import-time persistence.
+# The implementation writes during sync/read/write operations, so the test was corrected to assert on getDemoRows().
+# Re-run passed after a0b0676. 1 file / 7 tests.
+
+npm.cmd run quality
+# Passed after a0b0676.
+# typecheck: passed
+# lint: passed
+# test: passed (28 files / 189 tests)
+# coverage: passed
+# test:e2e: passed (45 Chromium tests)
+# build: passed.
+
 npm.cmd run test -- --run tests/unit/actions.test.ts
 # Passed after adding direct sign-up auth-failure next-target sanitization coverage.
 # 1 file / 21 tests.
@@ -259,7 +270,7 @@ npm.cmd run acceptance:supabase
 # Failed as expected with missing dedicated ACCEPTANCE_* variables:
 # ACCEPTANCE_SUPABASE_URL, ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, ACCEPTANCE_TEST_EMAIL, ACCEPTANCE_TEST_PASSWORD.
 # No stack trace or secret value was printed.
-```
+
 npm.cmd run test -- --run tests/unit/data-supabase.test.ts
 # Passed after 18e2139. 1 file / 4 tests.
 
@@ -356,27 +367,29 @@ npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -8`.
-2. Confirm `a0b0676` and this handoff commit are pushed to PR #3.
+2. Confirm `bfe96f5` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `a0b0676` and this handoff commit.
-5. Review the new retry-success and persistent-failure tests in `tests/unit/demo-data.test.ts`.
-6. Review the Windows `EPERM` demo-store retry in `src/lib/crm/demo-data.ts`; it should be limited to the E2E-only persistent demo store path and avoid affecting production Supabase mode.
-7. Review the auth redirect sanitization tests in `tests/unit/actions.test.ts`; they should prove direct malicious `next` posts cannot escape the app after sign-in/sign-up success or failure.
-8. Review the Supabase pagination regression test in `tests/unit/data-supabase.test.ts`; it should protect `readRows()` from silently dropping records after the first 1000 rows.
-9. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
-10. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
-11. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
-12. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
-13. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
-14. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
-15. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
-16. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
+4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `bfe96f5` and this handoff commit.
+5. Review the new cron route response tests in `tests/unit/lead-import-cron-route.test.ts`; they should prove missing/wrong `CRON_SECRET`, partial import failures, and thrown cron errors are not reported as successful.
+6. Review the new retry-success and persistent-failure tests in `tests/unit/demo-data.test.ts`.
+7. Review the Windows `EPERM` demo-store retry in `src/lib/crm/demo-data.ts`; it should be limited to the E2E-only persistent demo store path and avoid affecting production Supabase mode.
+8. Review the auth redirect sanitization tests in `tests/unit/actions.test.ts`; they should prove direct malicious `next` posts cannot escape the app after sign-in/sign-up success or failure.
+9. Review the Supabase pagination regression test in `tests/unit/data-supabase.test.ts`; it should protect `readRows()` from silently dropping records after the first 1000 rows.
+10. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
+11. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
+12. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
+13. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
+14. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
+15. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
+16. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
+17. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
 
 ## 11. Suggested Review Scope for Claude Code
 
 Please review:
 
 - Does the new ticket-task E2E prove a real CS path from support ticket detail to a next-action task while preserving ticket, company, and contact context?
+- Do the new cron route tests prove the Vercel Cron lead-import endpoint rejects unauthenticated calls and reports partial/total failures as errors?
 - Do the E2E-only demo store retry tests cover both transient Windows `EPERM` / `EACCES` recovery and persistent write failure cleanup?
 - Do the new auth redirect sanitization tests cover direct server-action posts, not only the login page's hidden `next` input?
 - Does the new Supabase pagination regression test prove that list/snapshot reads keep fetching after the first 1000 rows and preserve deterministic ordering before each page?
@@ -395,6 +408,7 @@ Please review:
 ## 12. Risk Notes
 
 - The latest runtime change affects demo mode only when the E2E-specific `CRM_DEMO_STORE_FILE` env var is set. It is intended to stabilize CI route-worker sharing and should not affect Supabase mode.
+- `bfe96f5` is test-only; it did not change cron route runtime behavior.
 - The `aa9e7c6` retry uses `Atomics.wait` only in server-side Node code under the E2E persistent demo store path.
 - The new E2E runs in demo mode; live Supabase acceptance remains the main unverified external persistence/RLS evidence gap.
 - Running `npm.cmd run acceptance:supabase` with real acceptance credentials writes and then soft-deletes one lead in the target Supabase project. Use only local/staging projects with disposable test data.
