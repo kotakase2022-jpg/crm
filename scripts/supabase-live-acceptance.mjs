@@ -226,6 +226,8 @@ async function run() {
   const marker = `acceptance-${Date.now()}-${randomUUID()}`;
   const leadName = `Acceptance Lead ${marker}`;
   const companyName = `Acceptance Construction ${marker}`;
+  const updatedPhone = "03-0000-0000";
+  const updatedNotes = `${marker} updated`;
   const now = new Date().toISOString();
   let organizationId = "";
   let leadId = "";
@@ -300,8 +302,8 @@ async function run() {
     const updated = await supabase
       .from("leads")
       .update({
-        phone: "03-0000-0000",
-        notes: `${marker} updated`,
+        phone: updatedPhone,
+        notes: updatedNotes,
         updated_by: userId,
       })
       .eq("organization_id", organizationId)
@@ -311,7 +313,7 @@ async function run() {
       .single();
     assertNoSupabaseError("Lead update", updated);
 
-    if (updated.data?.phone !== "03-0000-0000" || updated.data?.notes !== `${marker} updated`) {
+    if (updated.data?.phone !== updatedPhone || updated.data?.notes !== updatedNotes) {
       fail("Lead update returned unexpected data.");
     }
 
@@ -326,6 +328,9 @@ async function run() {
 
     if (readBack.data?.id !== leadId || readBack.data?.organization_id !== organizationId) {
       fail("Lead read-back returned data outside the expected organization scope.");
+    }
+    if (readBack.data?.phone !== updatedPhone || readBack.data?.notes !== updatedNotes || readBack.data?.deleted_at) {
+      fail("Lead read-back returned unexpected persisted values.");
     }
 
     const deleted = await supabase

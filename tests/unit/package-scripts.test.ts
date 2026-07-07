@@ -28,6 +28,7 @@ describe("package scripts", () => {
     expect(acceptanceScript).toContain("Lead create returned data outside the expected organization scope.");
     expect(acceptanceScript).toContain("Lead create returned an already soft-deleted row.");
     expect(acceptanceScript).toContain("Lead create returned unexpected field values.");
+    expect(acceptanceScript).toContain("Lead read-back returned unexpected persisted values.");
     expect(acceptanceScript).toContain("anonymous/optional cross-organization read isolation");
   });
 });
