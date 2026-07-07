@@ -13,17 +13,17 @@
 
 今回の目的：
 
-既存CRMの「不具合ゼロ」と「日常業務で手放せない体験価値」に向けた自律改善を継続する。今回は壊れたURLや外部リンクから `relation_field` に未知の値が入った場合でも、担当者・商談などの一覧が空表示に誤誘導されず、通常の検索/絞り込みへ自然に復帰できるようにする。CodeRabbit OSSを標準レビュー、Cursor Bugbotを任意/予備として扱う運用は維持する。
+既存CRMの「不具合ゼロ」と「日常業務で手放せない体験価値」に向けた自律改善を継続する。今回は会社詳細などから開いた関連一覧や「今日のタスク」ビューで検索・ソートを使ったあと、「条件クリア」で親会社スコープや業務ビューまで失わないようにする。CodeRabbit OSSを標準レビュー、Cursor Bugbotを任意/予備として扱う運用は維持する。
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/ai-handoff-loop`
-- Latest code commit: `25c3272` (`Ignore malformed relation list filters`)
-- Latest handoff commit before this update: `e3dafd1` (`Record PR review thread cleanup`)
-- Previous Loop 9 code commits: `4e3dcef` (`Document proxy matcher and stabilize font abort checks`), `68a816f` (`Cover related deal stage drilldown in E2E`), `0fa785e` (`Preserve relation filters in stage board links`), `35afc68` (`Order Supabase paged reads deterministically`), `fb67b67` (`Avoid reflecting middleware headers on auth redirects`), `c9006ab` (`Localize dashboard alert severity labels`)
-- Last known good local commit: `25c3272` (`npm.cmd run quality` passed locally)
+- Latest code commit: `4602543` (`Preserve workflow context when clearing filters`)
+- Latest handoff commit before this update: `f786a99` (`Record malformed relation filter handoff`)
+- Previous Loop 9 code commits: `25c3272` (`Ignore malformed relation list filters`), `4e3dcef` (`Document proxy matcher and stabilize font abort checks`), `68a816f` (`Cover related deal stage drilldown in E2E`), `0fa785e` (`Preserve relation filters in stage board links`), `35afc68` (`Order Supabase paged reads deterministically`), `fb67b67` (`Avoid reflecting middleware headers on auth redirects`), `c9006ab` (`Localize dashboard alert severity labels`)
+- Last known good local commit: `4602543` (`npm.cmd run quality` passed locally)
 - PR: https://github.com/kotakase2022-jpg/crm/pull/2
-- CodeRabbit OSS review status: **pass** after the malformed relation filter push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state for `25c3272`.
+- CodeRabbit OSS review status: **pass** after the workflow-context clear push. CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` all completed successfully on the latest checked remote state for `4602543`.
 - Review threads: **all resolved** after GitHub GraphQL check on 2026-07-07 (JST).
 
 ## 3. What Was Done
@@ -32,19 +32,19 @@
 
 - 必須ファイル（`AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, `docs/testing.md`, `docs/ai-review.md`）を確認。
 - PR #2の最新チェックがgreenで、review threadsが全件resolvedであることを確認。
-- 主要E2E/ユニットの棚卸しを行い、関連一覧・検索・ソート・関連作成・ステージボード・活動履歴・削除確認・レスポンシブ・エラー検知が広くカバーされていることを確認。
-- URL直打ちや壊れた外部リンクで `relation_field=made_up_id` のような未知の関係フィールドが入ると、一覧が空表示に誤誘導される余地を特定。
-- `src/lib/crm/search.ts` に `normalizeRelationQuery()` を追加し、EntityConfig上のrelation fieldだけを関連一覧フィルタとして許可するよう変更。
-- 一覧ページでクエリを正規化し、未知のrelation filterをフォーム・ステージボード・検索操作へ引き継がないよう修正。
-- ユニットテストで未知relation filterを無視し、正規のrelation filterはtrimして保持することを固定。
-- E2Eで `/contacts?relation_field=made_up_id&relation_id=not-real` からでもレコードが表示され、検索後URLから壊れたrelation paramsが落ちることを確認。
+- `EntityFilterBar` の `Link` を触るため、Next.js bundled docs（`node_modules/next/dist/docs/01-app/03-api-reference/02-components/link.md`）を確認。
+- 会社詳細から開いた関連一覧で検索したあと「条件クリア」を押すと、会社スコープまで落として全担当者一覧へ戻る余地を特定。
+- `src/lib/crm/search.ts` に `listClearHref()` を追加し、検索語・通常フィルタ・ソートだけをクリアしつつ、`view` と `relation_field` / `relation_id` を保持するようにした。
+- `EntityFilterBar` では `view` と正規relation scopeだけでは「条件クリア」を表示せず、追加の検索/フィルタ/ソートがある場合のみ表示するようにした。
+- ユニットテストで、今日のタスクviewと会社関連一覧scopeを保持した条件クリアURLを固定。
+- E2Eで、会社詳細から担当者の関連一覧へ入り、検索後に「条件クリア」しても会社scopeが残り、9件の関連担当者一覧へ戻ることを確認。
 - `npm.cmd run quality` とPR #2 checksを実行し、すべてgreen。
 
 ## 4. Files Changed
 
 主な変更ファイル：
 
-- `src/app/(crm)/[entity]/page.tsx`
+- `src/components/crm/entity-table.tsx`
 - `src/lib/crm/search.ts`
 - `tests/e2e/crm-flows.spec.ts`
 - `tests/unit/search.test.ts`
@@ -54,12 +54,12 @@
 
 現在の状態：
 
-- ローカルでは `npm.cmd run quality` が green（`25c3272` 時点）。
+- ローカルでは `npm.cmd run quality` が green（`4602543` 時点）。
 - remote PR #2でも CodeRabbit / Vercel / Vercel Preview Comments / `quality-gate` が green。
 - GitHub review threadsは全件resolved。
-- 今回のコード差分は malformed relation list filter の無害化と、その回帰テストに限定。
+- 今回のコード差分は「条件クリア」で業務コンテキスト（今日view / 関連一覧scope）を保持する改善と、その回帰テストに限定。
 - 機能・画面遷移・不具合ゼロ評価: 99 / 100。主要ローカルE2EとPR checksはgreenだが、ライブSupabase/Vercel認証環境での人間操作確認とPR人間レビューが残るため満点扱いしない。
-- CRM体験価値評価: 99 / 100。壊れた関連一覧URLでも通常一覧と検索へ復帰できるため、現場で「データが消えた」と誤認するリスクは減った。実運用受け入れ確認が未完了のため満点扱いしない。
+- CRM体験価値評価: 99 / 100。関連一覧や今日のタスクで検索条件だけを外せるようになり、業務文脈を失う迷いが減った。実運用受け入れ確認が未完了のため満点扱いしない。
 
 ## 6. Known Issues
 
@@ -79,8 +79,9 @@ CodeRabbit OSSの指摘と対応状況：
 - Review threads: **all resolved** via GitHub GraphQL after verifying current code and PR checks.
 - Critical findings: なし。
 - Resolved findings this pass:
-  - 未知の `relation_field` が一覧を誤って空にする余地を修正し、unit/E2Eで固定。
+  - 「条件クリア」で関連一覧scopeや今日viewを失う余地を修正し、unit/E2Eで固定。
 - Already satisfied / historical:
+  - 未知の `relation_field` が一覧を誤って空にする余地は `25c3272` で修正し、unit/E2Eで固定済み。
   - GitHub上で未解決表示だった古いBugbot/Codex/CodeRabbit threads 7件は `e3dafd1` 時点で全てresolve済み。
   - `src/proxy.ts` matcher重複threadは `4e3dcef` でNext.js docs根拠によりliteral維持を明示し、同期はunit testで担保。
   - E2E strict checkerのNext dev server内部フォントabortフレークは `4e3dcef` で限定的に安定化。
@@ -100,7 +101,7 @@ Cursor Bugbotの任意確認：
 - Status: Not run this pass
 - Findings: 新規実行なし。過去Bugbot thread 3件は現行コードで修正済みと確認済みで、GitHub上でもresolve済み。
 - Actions taken: 追加Bugbot実行なし。
-- Reason: CodeRabbit/PR checksと機械的quality gateを優先。今回の差分はURLクエリ正規化と回帰テストのみで、高リスク領域（認証/RLS/本番DB/決済/削除処理）を変更していないためBugbot再実行は不要と判断。
+- Reason: CodeRabbit/PR checksと機械的quality gateを優先。今回の差分は一覧URL生成と回帰テストのみで、高リスク領域（認証/RLS/本番DB/決済/削除処理）を変更していないためBugbot再実行は不要と判断。
 
 ## 9. Verification Results
 
@@ -114,17 +115,19 @@ gh api graphql ... reviewThreads
 # Passed before implementation. 16 threads / 0 unresolved.
 
 npm.cmd run test -- --run tests/unit/search.test.ts
-# Passed. 1 file / 20 tests.
+# Passed. 1 file / 21 tests.
 
-npm.cmd run test:e2e -- -g "malformed relation list URLs"
+npm.cmd run test:e2e -- -g "related sections with hidden rows"
+# Failed once after implementation because the test read page.url() before client-side Link navigation settled.
+# Fixed the test to wait with expect(page).toHaveURL(...), then reran successfully.
 # Passed. 1 Chromium test.
 
 npm.cmd run quality
 # Passed.
 # typecheck: passed
 # lint: passed
-# test: passed (28 files / 164 tests)
-# coverage: passed (statements 93.17%, branches 86.36%, functions 99.07%, lines 95.55%)
+# test: passed (28 files / 165 tests)
+# coverage: passed (statements 93.23%, branches 86.48%, functions 99.07%, lines 95.59%)
 # test:e2e: passed (41 Playwright Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
 
@@ -132,8 +135,8 @@ git push origin codex/ai-handoff-loop
 # Passed. Pre-push checks also passed: test:guard, lint, typecheck, unit tests.
 
 gh pr checks 2 --watch --interval 10 --repo kotakase2022-jpg/crm
-# Passed after the malformed relation filter push.
-# CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass (3m12s).
+# Passed after the workflow-context clear push.
+# CodeRabbit pass, Vercel pass, Vercel Preview Comments pass, typecheck-lint-test-e2e-build pass (3m31s).
 
 gh pr view 2 --json reviewDecision,statusCheckRollup --repo kotakase2022-jpg/crm
 # reviewDecision: REVIEW_REQUIRED
@@ -150,8 +153,8 @@ gh api graphql ... reviewThreads
 1. `git status` と `git log --oneline -6` で、最新remote stateを確認する。
 2. `gh pr checks 2 --repo kotakase2022-jpg/crm` で CodeRabbit / Vercel / `quality-gate` がgreenのままか確認する。
 3. GraphQL上のreview threadsが全件resolvedのままか確認する。
-4. `src/lib/crm/search.ts` の `normalizeRelationQuery()` が、正規の関連一覧スコープだけを保持し、未知relationを無害化していることをレビューする。
-5. `tests/e2e/crm-flows.spec.ts` の malformed relation URLシナリオが、実務上の検索復帰導線として十分か確認する。
+4. `src/lib/crm/search.ts` の `listClearHref()` が、検索/通常フィルタ/ソートだけを落として `view` とrelation scopeを保持する設計で問題ないかレビューする。
+5. `src/components/crm/entity-table.tsx` の「条件クリア」表示条件が、view/relation scopeのみのときに余計なno-opリンクを出さないことをレビューする。
 6. PR #2の人間レビューが整い、CodeRabbit / quality-gate / Vercelがgreenならマージ判断へ進める。
 
 ## 11. Suggested Review Scope for Claude Code
@@ -159,6 +162,9 @@ gh api graphql ... reviewThreads
 Claude Codeに重点レビューしてほしい範囲：
 
 - PR #2のreview threadsが全件resolvedになった状態で、人間レビューに進んで問題ないか。
+- `src/components/crm/entity-table.tsx` の「条件クリア」が、関連一覧や今日のタスクの業務文脈を残しつつ、通常のリード検索クリア挙動を壊していないか。
+- `src/lib/crm/search.ts` の `listClearHref()` と既存 `listSortHref()` の役割分担が分かりやすいか。
+- `tests/e2e/crm-flows.spec.ts` の関連一覧検索→条件クリアシナリオが、実務上の復帰導線として十分か。
 - `src/lib/crm/search.ts` のrelation query正規化が、contacts/deals/tasks/trials/contracts/tickets等の正規関連絞り込みを壊していないか。
 - `src/app/(crm)/[entity]/page.tsx` で正規化済みqueryを一覧・ステージボード・フィルタバーへ渡す設計が妥当か。
 - 追加E2Eが「壊れたURLでもレコードが見える」「検索後に壊れたrelation paramsを保持しない」を十分に固定しているか。
@@ -172,7 +178,7 @@ Claude Codeに重点レビューしてほしい範囲：
 
 - 高リスク操作（本番deploy / 本番DB接続 / migration適用 / `git push --force` / `git reset --hard` / 秘密情報出力）は実行していない。
 - 今回はSupabaseスキーマ、RLS、保存処理、Cron、Vercel設定には触れていない。
-- URLクエリ正規化は一覧表示側のみ。保存データや永続化形式は変更していない。
+- URL生成/クエリ正規化は一覧表示側のみ。保存データや永続化形式は変更していない。
 - ライブ環境の確認は未実施。ローカルdemo modeのE2Eとunit/build、PR checksで担保している。
 - PR #2は人間レビュー待ち。
 
@@ -191,8 +197,8 @@ Claude Codeに重点レビューしてほしい範囲：
 Claude Codeへの補足：
 
 - CodeRabbit OSSが標準レビュー。Cursor Bugbotはコスト対策のため今回は未実行。
-- 今回は malformed relation list filter の無害化と回帰テスト追加に絞った。
-- `npm.cmd run quality` は `25c3272` のコード差分込みでgreen。
+- 今回は「条件クリア」で業務コンテキストを保持する改善と回帰テスト追加に絞った。
+- `npm.cmd run quality` は `4602543` のコード差分込みでgreen。
 - PR #2 checksもgreen。
 - GitHub review threadsは全件resolved済み。
 - PowerShellでは `npm.cmd` / `npx.cmd` が安定。パスに括弧や角括弧があるNext.js App Routerファイルは `Get-Content -LiteralPath` を使うこと。
