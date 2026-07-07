@@ -19,6 +19,9 @@ describe("package scripts", () => {
     expect(acceptanceScript).toContain("ACCEPTANCE_NON_PRODUCTION_CONFIRMATION");
     expect(acceptanceScript).toContain("assertAnonymousLeadIsHidden");
     expect(acceptanceScript).toContain("Anonymous lead visibility check failed.");
-    expect(acceptanceScript).toContain("anonymous read isolation");
+    expect(acceptanceScript).toContain("ACCEPTANCE_OTHER_TEST_EMAIL");
+    expect(acceptanceScript).toContain("assertOtherOrganizationLeadIsHidden");
+    expect(acceptanceScript).toContain("Other organization lead visibility check failed.");
+    expect(acceptanceScript).toContain("anonymous/optional cross-organization read isolation");
   });
 });

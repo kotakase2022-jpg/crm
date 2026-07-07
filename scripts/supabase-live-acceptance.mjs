@@ -65,7 +65,7 @@ function assertNoSupabaseError(step, response) {
   }
 }
 
-function isExpectedAnonymousReadError(error) {
+function isExpectedHiddenReadError(error) {
   const message = error.message.toLowerCase();
   return ["permission", "row-level", "rls", "not allowed"].some((expected) => message.includes(expected));
 }
@@ -84,8 +84,48 @@ async function assertAnonymousLeadIsHidden({ supabaseUrl, publishableKey, leadId
     fail("Anonymous lead visibility check failed.", ["A publishable-key client without an authenticated user could read the created lead."]);
   }
 
-  if (anonymousRead.error && !isExpectedAnonymousReadError(anonymousRead.error)) {
+  if (anonymousRead.error && !isExpectedHiddenReadError(anonymousRead.error)) {
     fail("Anonymous lead visibility check failed unexpectedly.", [anonymousRead.error.message]);
+  }
+}
+
+async function assertOtherOrganizationLeadIsHidden({ supabaseUrl, publishableKey, email, password, sourceOrganizationId, leadId }) {
+  const otherSupabase = createClient(supabaseUrl, publishableKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  try {
+    const signIn = await otherSupabase.auth.signInWithPassword({ email, password });
+    assertNoSupabaseError("Other organization Supabase Auth sign-in", signIn);
+
+    const profile = await otherSupabase.rpc("ensure_user_profile", {
+      default_org_name: "CRM Acceptance Other Organization",
+    });
+    assertNoSupabaseError("Other organization profile bootstrap", profile);
+
+    const profileRow = Array.isArray(profile.data) ? profile.data[0] : profile.data;
+    const otherOrganizationId = profileRow?.organization_id ?? "";
+    if (!otherOrganizationId) fail("Other organization profile bootstrap did not return an organization id.");
+    if (otherOrganizationId === sourceOrganizationId) {
+      fail("Other organization isolation check is misconfigured.", [
+        "ACCEPTANCE_OTHER_TEST_EMAIL must belong to a different organization than ACCEPTANCE_TEST_EMAIL.",
+      ]);
+    }
+
+    const otherRead = await otherSupabase.from("leads").select("id, organization_id").eq("id", leadId).maybeSingle();
+
+    if (otherRead.data) {
+      fail("Other organization lead visibility check failed.", ["A different organization user could read the created lead."]);
+    }
+
+    if (otherRead.error && !isExpectedHiddenReadError(otherRead.error)) {
+      fail("Other organization lead visibility check failed unexpectedly.", [otherRead.error.message]);
+    }
+  } finally {
+    await otherSupabase.auth.signOut().catch(() => {});
   }
 }
 
@@ -125,6 +165,8 @@ async function run() {
     ACCEPTANCE_TEST_EMAIL: requiredEnv("ACCEPTANCE_TEST_EMAIL"),
     ACCEPTANCE_TEST_PASSWORD: requiredEnv("ACCEPTANCE_TEST_PASSWORD"),
   };
+  const otherTestEmail = requiredEnv("ACCEPTANCE_OTHER_TEST_EMAIL");
+  const otherTestPassword = requiredEnv("ACCEPTANCE_OTHER_TEST_PASSWORD");
 
   const missing = Object.entries(requiredVariables)
     .filter(([, value]) => !value)
@@ -134,6 +176,12 @@ async function run() {
     fail("Missing non-production Supabase acceptance environment variables.", [
       ...missing,
       "Create .env.acceptance.local or export the variables in your shell. This file is gitignored.",
+    ]);
+  }
+
+  if (Boolean(otherTestEmail) !== Boolean(otherTestPassword)) {
+    fail("Other organization Supabase acceptance requires both optional test-user variables.", [
+      "Set both ACCEPTANCE_OTHER_TEST_EMAIL and ACCEPTANCE_OTHER_TEST_PASSWORD, or leave both empty.",
     ]);
   }
 
@@ -198,6 +246,17 @@ async function run() {
       leadId,
     });
 
+    if (otherTestEmail && otherTestPassword) {
+      await assertOtherOrganizationLeadIsHidden({
+        supabaseUrl: requiredVariables.ACCEPTANCE_SUPABASE_URL,
+        publishableKey: requiredVariables.ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY,
+        email: otherTestEmail,
+        password: otherTestPassword,
+        sourceOrganizationId: organizationId,
+        leadId,
+      });
+    }
+
     const updated = await supabase
       .from("leads")
       .update({
@@ -258,7 +317,7 @@ async function run() {
       fail("Soft-deleted lead is still visible in active lead queries.");
     }
 
-    console.log("Supabase acceptance passed: auth, profile bootstrap, anonymous read isolation, lead create/read/update/soft-delete, and organization scoping.");
+    console.log("Supabase acceptance passed: auth, profile bootstrap, anonymous/optional cross-organization read isolation, lead create/read/update/soft-delete, and organization scoping.");
   } finally {
     await cleanupLead({ supabase, organizationId, leadId, userId, softDeleted });
     await supabase.auth.signOut().catch(() => {});

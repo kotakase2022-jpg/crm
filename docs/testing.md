@@ -171,7 +171,7 @@ Optional test variables:
 npm run acceptance:supabase
 ```
 
-The command signs in with Supabase Auth, bootstraps the profile/organization through `ensure_user_profile`, creates a lead, confirms an anonymous publishable-key client cannot read the live lead, reads it back, updates it, soft-deletes it, and confirms the soft-deleted lead is hidden from active lead queries. It uses the publishable key and the authenticated user's RLS context, not the service role key.
+The command signs in with Supabase Auth, bootstraps the profile/organization through `ensure_user_profile`, creates a lead, confirms an anonymous publishable-key client cannot read the live lead, reads it back, updates it, soft-deletes it, and confirms the soft-deleted lead is hidden from active lead queries. If a second disposable test user is configured, it also confirms an authenticated user in a different organization cannot read the created lead. It uses the publishable key and authenticated user RLS contexts, not the service role key.
 
 Set these variables in `.env.acceptance.local` or in the shell. `.env.acceptance.local` is ignored by git.
 
@@ -180,6 +180,13 @@ Set these variables in `.env.acceptance.local` or in the shell. `.env.acceptance
 - `ACCEPTANCE_TEST_EMAIL`
 - `ACCEPTANCE_TEST_PASSWORD`
 - `ACCEPTANCE_NON_PRODUCTION_CONFIRMATION=I_CONFIRM_THIS_IS_NOT_PRODUCTION` for any remote/staging Supabase URL
+
+Optional stronger RLS isolation variables:
+
+- `ACCEPTANCE_OTHER_TEST_EMAIL`
+- `ACCEPTANCE_OTHER_TEST_PASSWORD`
+
+Set both optional variables only when the second disposable user belongs to a different organization than `ACCEPTANCE_TEST_EMAIL`. If only one optional variable is set, or if both users resolve to the same organization, the command fails so the acceptance result cannot overstate tenant isolation coverage.
 
 Only use a local or staging Supabase target with disposable test users and data. Do not run this command against production Supabase projects, production APIs, or real customer data. If the environment variables are missing, the command fails rather than silently passing or falling back to mock data.
 
