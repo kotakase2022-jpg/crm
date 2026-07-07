@@ -130,13 +130,23 @@ async function createRunInSupabase(supabase: SupabaseClient, setting: CrmRecord,
   return String(data.id);
 }
 
-async function updateRunInSupabase(supabase: SupabaseClient, runId: string, values: Record<string, unknown>) {
-  const { error } = await supabase.from("lead_import_runs").update(values).eq("id", runId);
+async function updateRunInSupabase(supabase: SupabaseClient, organizationId: unknown, runId: string, values: Record<string, unknown>) {
+  const { error } = await supabase
+    .from("lead_import_runs")
+    .update(values)
+    .eq("organization_id", organizationId)
+    .eq("id", runId)
+    .is("deleted_at", null);
   if (error) throw new Error(error.message);
 }
 
-async function updateSettingInSupabase(supabase: SupabaseClient, settingId: string, values: Record<string, unknown>) {
-  const { error } = await supabase.from("lead_import_settings").update(values).eq("id", settingId);
+async function updateSettingInSupabase(supabase: SupabaseClient, organizationId: unknown, settingId: string, values: Record<string, unknown>) {
+  const { error } = await supabase
+    .from("lead_import_settings")
+    .update(values)
+    .eq("organization_id", organizationId)
+    .eq("id", settingId)
+    .is("deleted_at", null);
   if (error) throw new Error(error.message);
 }
 
@@ -336,8 +346,8 @@ async function importSupabaseSetting(supabase: SupabaseClient, setting: CrmRecor
   return importWithPersistence({
     setting,
     createRun: () => createRunInSupabase(supabase, setting, userId),
-    updateRun: (runId, values) => updateRunInSupabase(supabase, runId, values),
-    updateSetting: (settingId, values) => updateSettingInSupabase(supabase, settingId, values),
+    updateRun: (runId, values) => updateRunInSupabase(supabase, setting.organization_id, runId, values),
+    updateSetting: (settingId, values) => updateSettingInSupabase(supabase, setting.organization_id, settingId, values),
     existingSourceIds: () => existingSourceIdsInSupabase(supabase, setting),
     insertLead: (values, sourceId) => insertLeadInSupabase(supabase, setting, userId, values, sourceId),
   });

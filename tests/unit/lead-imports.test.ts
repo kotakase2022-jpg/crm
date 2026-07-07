@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseCsv } from "@/lib/crm/csv";
+import { runAllLeadImportsFromCron } from "@/lib/crm/lead-imports";
 import { leadStatuses } from "@/lib/crm/options";
 import {
   assertTrustedSpreadsheetCsvUrl,
@@ -13,11 +14,33 @@ import {
   spreadsheetUrlToCsvUrl,
 } from "@/lib/crm/lead-import-utils";
 
+const mocks = vi.hoisted(() => ({
+  createAdminClient: vi.fn(),
+}));
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((path: string) => {
+    throw new Error(`Unexpected redirect to ${path}`);
+  }),
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: mocks.createAdminClient,
+}));
+
 function fixture(name: string) {
   return readFileSync(path.join(process.cwd(), "tests/fixtures/csv", name), "utf8");
 }
 
 describe("lead spreadsheet imports", () => {
+  beforeEach(() => {
+    mocks.createAdminClient.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("converts a Google Sheets URL to a CSV export URL while preserving gid", () => {
     const csvUrl = spreadsheetUrlToCsvUrl("https://docs.google.com/spreadsheets/d/sheet-id-123/edit#gid=987");
 
@@ -122,4 +145,76 @@ describe("lead spreadsheet imports", () => {
     ]);
     expect(runs.map((run) => run.id).slice(0, 3)).toEqual(["run-1", "run-2", "run-3"]);
   });
+
+  it("scopes service-role cron status updates to the setting organization", async () => {
+    const settingsSelect = selectQuery([{ id: "setting-1", organization_id: "org-1", spreadsheet_url: "https://docs.google.com/spreadsheets/d/sheet-id/edit" }]);
+    const runInsert = insertReturning({ id: "run-1" });
+    const existingLeadsSelect = selectQuery([]);
+    const leadInsert = insertReturning({ id: "lead-1" });
+    const taskInsert = insertOnly();
+    const runUpdate = updateQuery();
+    const settingUpdate = updateQuery();
+    const builders: Record<string, Array<Record<string, unknown>>> = {
+      lead_import_settings: [settingsSelect, settingUpdate],
+      lead_import_runs: [runInsert, runUpdate],
+      leads: [existingLeadsSelect, leadInsert],
+      tasks: [taskInsert],
+    };
+    const supabase = {
+      from: vi.fn((table: string) => {
+        const builder = builders[table]?.shift();
+        if (!builder) throw new Error(`Unexpected table query: ${table}`);
+        return builder;
+      }),
+    };
+
+    mocks.createAdminClient.mockReturnValue(supabase);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("name,company_name,email\nImported Lead,Imported Company,imported@example.test\n", { status: 200 }),
+    );
+
+    const results = await runAllLeadImportsFromCron();
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ status: "success", importedCount: 1, skippedCount: 0 });
+    expect(runUpdate.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(runUpdate.eq).toHaveBeenCalledWith("id", "run-1");
+    expect(runUpdate.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(settingUpdate.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(settingUpdate.eq).toHaveBeenCalledWith("id", "setting-1");
+    expect(settingUpdate.is).toHaveBeenCalledWith("deleted_at", null);
+  });
 });
+
+function selectQuery(data: Array<Record<string, unknown>>) {
+  const builder = {
+    select: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    is: vi.fn(() => Promise.resolve({ data, error: null })),
+  };
+  return builder;
+}
+
+function insertReturning(data: Record<string, unknown>) {
+  const builder = {
+    insert: vi.fn(() => builder),
+    select: vi.fn(() => builder),
+    single: vi.fn(() => Promise.resolve({ data, error: null })),
+  };
+  return builder;
+}
+
+function insertOnly() {
+  return {
+    insert: vi.fn(() => Promise.resolve({ error: null })),
+  };
+}
+
+function updateQuery() {
+  const builder = {
+    update: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    is: vi.fn(() => Promise.resolve({ error: null })),
+  };
+  return builder;
+}
