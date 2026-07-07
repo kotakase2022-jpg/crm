@@ -154,6 +154,7 @@ async function readRows(ctx: CrmContext, table: TableName) {
       .select("*")
       .eq("organization_id", ctx.organizationId)
       .is("deleted_at", null)
+      .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
 
     if (error) {
