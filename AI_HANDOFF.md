@@ -14,7 +14,7 @@
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn strengthened Playwright E2E coverage for the CS-risk workflow: dashboard risky-company signal -> company detail -> related task creation form with the company prefilled.
+- This turn strengthened Playwright E2E coverage for the CS-risk workflow and fixed a CI-only demo-mode edit-page 404 by sharing the demo CRM store through `globalThis`.
 
 Current score:
 
@@ -27,14 +27,14 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD accep
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `9825722` (`Verify dashboard risky company navigation`)
+- Latest code commit: `dbe2133` (`Share demo store across route bundles`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `9825722`
+- Last known good local commit: `dbe2133`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this handoff.
-- CodeRabbit OSS review status: green on PR #3 at remote head `c2c09f7` before the dashboard-risky-company E2E commit; re-check after pushing this handoff.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `c2c09f7`; local `npm.cmd run quality` passes after `9825722`.
-- Vercel preview: green on PR #3 at remote head `c2c09f7` before the dashboard-risky-company E2E commit; re-check after pushing this handoff.
+- CodeRabbit OSS review status: green on PR #3 at remote head `0fd5904` after the dashboard-risky-company E2E and previous handoff commits; re-check after pushing this fix and handoff.
+- GitHub Actions `quality-gate`: failed on PR #3 at remote head `0fd5904` because several edit-page E2E tests hit 404 in CI; local `npm.cmd run quality` passes after `dbe2133`.
+- Vercel preview: green on PR #3 at remote head `0fd5904`; re-check after pushing this fix and handoff.
 
 ## 3. What Was Done
 
@@ -50,6 +50,12 @@ Completed this turn:
   - clicks through to `/tasks/new?company_id=...`;
   - verifies the company select is prefilled with the risky company.
 - Ran focused E2E, whitespace diff check, full local quality gate, and the fail-closed missing-env Supabase acceptance path.
+- Watched PR #3 checks after pushing `0fd5904`; CodeRabbit and Vercel passed, but GitHub Actions `quality-gate` failed in E2E.
+- Downloaded the failing Playwright artifact and confirmed the failed screenshot rendered a 404 on edit pages.
+- Identified the root cause as demo-mode records being stored in a module-local store that can diverge across route bundles in CI/Next dev. The failing tests had created or selected records visible to list/detail routes, then edit routes could not read them.
+- Changed `src/lib/crm/demo-data.ts` so the demo store is process-shared through `globalThis.__crmDemoStore`, preserving demo records across route bundles.
+- Added unit coverage that asserts the demo store is shared through `globalThis` for route-bundle consistency.
+- Re-ran the CI-failing focused E2E group and the full local quality gate successfully after the demo-store fix.
 
 Important earlier PR #3 context:
 
@@ -65,6 +71,8 @@ Important earlier PR #3 context:
 Main files changed this turn:
 
 - `tests/e2e/crm-flows.spec.ts`
+- `src/lib/crm/demo-data.ts`
+- `tests/unit/demo-data.test.ts`
 - `AI_HANDOFF.md`
 
 Important earlier PR #3 files:
@@ -87,10 +95,10 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `9825722`.
+- Local code quality is green after `dbe2133`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `c2c09f7` was green for CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` before `9825722`; the E2E commit and this handoff commit need to be pushed and re-checked.
+- PR #3 remote head `0fd5904` has CodeRabbit, Vercel, and Vercel Preview Comments green, but GitHub Actions `quality-gate` failed before the demo-store fix. Push `dbe2133` and this handoff, then re-check.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -98,6 +106,7 @@ Important earlier PR #3 files:
 ## 6. Known Issues
 
 - No current Critical/High code issue is known after the latest local quality gate.
+- Previous PR #3 CI run `28896219071` failed in E2E at remote head `0fd5904`; this was addressed by `dbe2133`, but CI must be re-run after push.
 - Live authenticated Supabase/Vercel CRUD acceptance is still incomplete because this shell does not have safe non-production Supabase runtime/test credentials. `npm.cmd run acceptance:supabase` exists and fails loudly until those credentials are supplied.
 - Local Supabase startup is not currently available because the installed Supabase CLI binary is blocked by Windows Application Control policy, even though Docker is installed.
 - PR #3 still needs human/Claude review because GitHub reports `REVIEW_REQUIRED`.
@@ -108,7 +117,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `c2c09f7` before the dashboard-risky-company E2E commit; re-check after pushing this handoff commit.
+- Review status: Passed on PR #3 at remote head `0fd5904` before the demo-store fix commit; re-check after pushing this handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -157,6 +166,43 @@ npm.cmd run acceptance:supabase
 # Failed as expected with missing dedicated ACCEPTANCE_* variables:
 # ACCEPTANCE_SUPABASE_URL, ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, ACCEPTANCE_TEST_EMAIL, ACCEPTANCE_TEST_PASSWORD.
 # No stack trace or secret value was printed.
+
+gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10
+# Failed at remote head 0fd5904.
+# CodeRabbit: passed.
+# Vercel: passed.
+# Vercel Preview Comments: passed.
+# quality-gate / typecheck-lint-test-e2e-build: failed.
+
+gh run view 28896219071 --repo kotakase2022-jpg/crm --log-failed
+# Passed for log retrieval.
+# Failure was in E2E. Screenshots showed edit pages rendering 404.
+# Failed tests included record editing, datetime-local edit fields, deal stage editing, and trial usage metrics.
+
+gh run download 28896219071 --repo kotakase2022-jpg/crm --name playwright-test-results --dir .tmp-gh-artifacts
+# Passed. Artifact was inspected and then removed.
+
+npm.cmd run test -- --run tests/unit/demo-data.test.ts
+# Passed. 1 file / 4 tests.
+
+npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local edit fields|deal stage editing persists|trial usage metrics"
+# Passed. 4 Chromium tests.
+
+git diff --check
+# Passed.
+
+npm.cmd run quality
+# Passed after dbe2133.
+# typecheck: passed
+# lint: passed
+# test: passed (28 files / 181 tests)
+# coverage: passed
+#   statements 93.69%
+#   branches 86.54%
+#   functions 99.54%
+#   lines 95.94%
+# test:e2e: passed (44 Chromium tests)
+# build: passed (Next.js 16.2.10 production build)
 ```
 
 ## 10. Next Recommended Action
@@ -164,15 +210,16 @@ npm.cmd run acceptance:supabase
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -6`.
-2. Confirm `9825722` and this handoff commit are pushed to PR #3.
+2. Confirm `dbe2133` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after the new E2E and handoff commits.
+4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after the demo-store fix and handoff commits.
 5. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
-6. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
-7. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
-8. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
-9. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
-10. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
+6. Review the `globalThis.__crmDemoStore` demo-mode fix and decide whether any additional cross-route demo persistence test is needed.
+7. Review `scripts/supabase-live-acceptance.mjs` for production-safety, RLS coverage, and no accidental fallback to demo/mock data.
+8. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
+9. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
+10. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
+11. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
 
 ## 11. Suggested Review Scope for Claude Code
 
@@ -181,6 +228,8 @@ Please review:
 - Does the dashboard risky-company E2E now prove a real user path from CS risk signal to company detail to related task creation?
 - Is the new selector `main a[href="/tasks/new?company_id=..."]` stable enough for this CRM's generated related-create action?
 - Does the test remain narrow and avoid asserting incidental Japanese copy?
+- Does `globalThis.__crmDemoStore` correctly solve demo-mode route-bundle consistency without affecting production Supabase mode?
+- Is the new demo-data unit test enough to prevent accidental regression to module-local demo storage?
 - Does `scripts/supabase-live-acceptance.mjs` require dedicated `ACCEPTANCE_*` variables and fail closed when they are missing?
 - Does the acceptance script avoid service-role credentials, production defaults, and mock/demo fallback?
 - Does the script's create/read/update/soft-delete lead flow prove the remaining authenticated RLS persistence gap well enough when run against staging/local Supabase?
@@ -188,8 +237,9 @@ Please review:
 
 ## 12. Risk Notes
 
-- The latest change is test-only and does not change runtime behavior.
+- The latest runtime change affects demo mode only: the in-memory CRM demo store is now process-shared through `globalThis`.
 - The E2E now clicks through from dashboard risk signal to company detail and task create form, but it still runs in demo mode; live Supabase acceptance remains the main unverified external persistence/RLS evidence gap.
+- PR #3 had a real CI failure at `0fd5904`; `dbe2133` fixes the identified cause locally, but GitHub Actions must pass after the fix is pushed.
 - Running `npm.cmd run acceptance:supabase` with real acceptance credentials writes and then soft-deletes one lead in the target Supabase project. Use only local/staging projects with disposable test data.
 - Remote Supabase targets require the exact `ACCEPTANCE_NON_PRODUCTION_CONFIRMATION=I_CONFIRM_THIS_IS_NOT_PRODUCTION` guard.
 - The current shell cannot complete live acceptance because no acceptance env vars are present and local Supabase CLI execution is blocked by Windows Application Control policy.
