@@ -268,6 +268,12 @@ async function run() {
 
     leadId = created.data?.id ?? "";
     if (!leadId) fail("Lead create did not return an id.");
+    if (created.data?.organization_id !== organizationId) {
+      fail("Lead create returned data outside the expected organization scope.");
+    }
+    if (created.data?.deleted_at) {
+      fail("Lead create returned an already soft-deleted row.");
+    }
 
     await assertAnonymousLeadIsHidden({
       supabaseUrl: requiredVariables.ACCEPTANCE_SUPABASE_URL,

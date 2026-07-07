@@ -25,6 +25,8 @@ describe("package scripts", () => {
     expect(acceptanceScript).toContain("ACCEPTANCE_OTHER_TEST_EMAIL");
     expect(acceptanceScript).toContain("assertOtherOrganizationLeadIsHidden");
     expect(acceptanceScript).toContain("Other organization lead visibility check failed.");
+    expect(acceptanceScript).toContain("Lead create returned data outside the expected organization scope.");
+    expect(acceptanceScript).toContain("Lead create returned an already soft-deleted row.");
     expect(acceptanceScript).toContain("anonymous/optional cross-organization read isolation");
   });
 });
