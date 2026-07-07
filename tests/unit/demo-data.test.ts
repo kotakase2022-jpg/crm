@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDemoRows } from "@/lib/crm/demo-data";
+import { demoStore, getDemoRows } from "@/lib/crm/demo-data";
 import { relationConsistencyErrors } from "@/lib/crm/related";
 import type { CrmRecord } from "@/lib/crm/types";
 
@@ -52,6 +52,13 @@ describe("demo CRM data", () => {
     ...billing.map((row) => ["billing_records", row] as const),
     ...stageHistory.map((row) => ["deal_stage_history", row] as const),
   ];
+
+  it("shares the demo store through globalThis for route-bundle consistency", () => {
+    const globalStore = (globalThis as typeof globalThis & { __crmDemoStore?: typeof demoStore }).__crmDemoStore;
+
+    expect(globalStore).toBe(demoStore);
+    expect(globalStore?.leads.length).toBeGreaterThan(0);
+  });
 
   it("keeps every demo relation id resolvable", () => {
     const failures = allRows.flatMap(([table, row]) =>

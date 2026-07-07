@@ -433,7 +433,11 @@ function createStore(): DemoStore {
   };
 }
 
-export const demoStore = createStore();
+const globalDemoStore = globalThis as typeof globalThis & {
+  __crmDemoStore?: DemoStore;
+};
+
+export const demoStore = (globalDemoStore.__crmDemoStore ??= createStore());
 
 export function getDemoRows(table: TableName) {
   return demoStore[table].filter((record) => !record.deleted_at);
