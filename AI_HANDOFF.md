@@ -14,7 +14,7 @@
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn continued the spreadsheet lead import hardening work by making Cron status persistence fail visibly when the scoped update matches no row.
+- This turn improved spreadsheet lead import feedback so manual import result toasts show imported/skipped counts immediately.
 
 Current score:
 
@@ -27,30 +27,33 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD accep
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `5b28f41` (`Detect missing cron import status updates`)
+- Latest code commit: `6bcbbe4` (`Show lead import result counts in toast`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `5b28f41`
+- Last known good local commit: `6bcbbe4`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this handoff.
-- CodeRabbit OSS review status: previously green on PR #3 at remote head `a924e60`; re-check after pushing `5b28f41` and this handoff commit.
-- GitHub Actions `quality-gate`: previously green on PR #3 at remote head `a924e60`; local `npm.cmd run quality` passed after `5b28f41`.
-- Vercel preview: previously green on PR #3 at remote head `a924e60`; re-check after the final push.
+- CodeRabbit OSS review status: green on PR #3 at remote head `6bcbbe4`.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `6bcbbe4`; local `npm.cmd run quality` passed after `6bcbbe4`.
+- Vercel preview: green on PR #3 at remote head `6bcbbe4`.
 
 ## 3. What Was Done
 
 Completed this turn:
 
-- Confirmed PR #3 was still green at remote head `a924e60` before this new change: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` passed.
+- Confirmed PR #3 was still green at remote head `929a136` before this new change: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` passed.
 - Audited Cron lead-import status persistence after the previous `saveLeadImportSetting()` update hardening.
 - Fixed demo-mode setting updates so a missing setting ID no longer returns success; it now throws `取込設定が見つかりません。`.
 - Fixed Supabase setting updates so they call `.select("id").single()` after the scoped update. This makes missing/deleted/out-of-organization rows surface as an error instead of silently returning success.
 - Fixed Supabase Cron run/setting status updates so they also call `.select("id").single()` after the scoped update. This prevents a lead import from reporting success when the final `lead_import_runs` / `lead_import_settings` status row was not actually updated.
+- Improved import result toasts so `import-success` / `import-failed` display imported and skipped counts from the existing URL params.
 - Added unit coverage for:
   - Supabase setting updates staying scoped to the current `organization_id`, setting `id`, and `deleted_at IS NULL`.
   - missing Supabase setting updates rejecting instead of returning success.
   - missing demo setting updates rejecting instead of returning success.
   - Cron imports returning `failed` when status persistence matches no row, with failure status/message written through the fallback status path.
+- Added E2E coverage for import result toasts showing imported/skipped counts on both success and failure URLs.
 - Ran focused tests and the full mechanical quality gate.
+- Pushed PR #3 and confirmed CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` are green at `6bcbbe4`.
 
 Earlier Loop 10 context already in PR #3:
 
@@ -63,6 +66,8 @@ Earlier Loop 10 context already in PR #3:
 
 Main files changed this turn:
 
+- `src/components/crm/toast-notice.tsx`
+- `tests/e2e/crm-flows.spec.ts`
 - `src/lib/crm/lead-imports.ts`
 - `tests/unit/lead-imports.test.ts`
 - `AI_HANDOFF.md`
@@ -80,9 +85,10 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `5b28f41`.
+- Local code quality is green after `6bcbbe4`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
+- PR #3 remote checks are green at `6bcbbe4`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -91,7 +97,7 @@ Important earlier PR #3 files:
 
 - No current Critical/High code issue is known after the latest local quality gate.
 - Live authenticated Supabase/Vercel CRUD acceptance is still incomplete because this shell does not have safe non-production Supabase runtime/test credentials.
-- PR #3 still needs final CodeRabbit/CI re-check after the latest push and then human/Claude review.
+- PR #3 still needs human/Claude review because GitHub reports `REVIEW_REQUIRED`.
 - `codex/persistent-quality-gate-ops` still exists as an older stale branch. Do not delete it without explicit human confirmation.
 - Some Japanese text may look garbled in PowerShell output because of terminal encoding; inspect files in a UTF-8-aware editor if needed.
 
@@ -99,12 +105,12 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Previously passed on PR #3 at remote head `a924e60`.
+- Review status: Passed on PR #3 at remote head `6bcbbe4`.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
 - False positives / not applicable: none.
-- Required next step: after pushing the latest commits, confirm CodeRabbit status and any review comments on PR #3.
+- Review threads: 0.
 
 ## 8. Optional Bugbot Findings
 
@@ -120,6 +126,9 @@ Cursor Bugbot optional backup:
 Commands run this turn:
 
 ```bash
+npm.cmd run test:e2e -- -g "lead spreadsheet import result toasts"
+# Passed. 1 Chromium test.
+
 npm.cmd run test -- --run tests/unit/lead-imports.test.ts
 # Passed. 1 file / 15 tests.
 
@@ -139,11 +148,24 @@ npm.cmd run quality
 #   branches 86.54%
 #   functions 99.54%
 #   lines 95.94%
-# test:e2e: passed (43 Chromium tests)
+# test:e2e: passed (44 Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
 
 git diff --check
 # Passed.
+
+git push
+# Passed. Pre-push ran test:guard, lint, typecheck, and unit tests successfully.
+
+gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10
+# Passed at remote head 6bcbbe4:
+# CodeRabbit pass
+# Vercel pass
+# Vercel Preview Comments pass
+# quality-gate / typecheck-lint-test-e2e-build pass
+
+gh api graphql ... reviewThreads
+# Passed. PR #3 reviewThreads list is empty (0 unresolved).
 ```
 
 PR state checked before the latest local commit:
@@ -160,9 +182,9 @@ Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -6`.
 2. Confirm the latest commits are pushed to PR #3.
-3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10`.
+3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
 4. Confirm CodeRabbit OSS has no Critical/High findings on the latest PR head.
-5. Review the latest changes in `saveLeadImportSetting()`, Cron status updates, and `tests/unit/lead-imports.test.ts`.
+5. Review the latest changes in import toast feedback, `saveLeadImportSetting()`, Cron status updates, and related tests.
 6. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
 7. If a safe non-production Supabase test account/credentials are available, perform live authenticated preview acceptance for login plus one safe create/edit/read/delete or soft-delete flow.
 
@@ -173,6 +195,7 @@ Please review:
 - Does `saveLeadImportSetting()` correctly reject missing/deleted/out-of-organization updates in both demo and Supabase modes?
 - Is `.select("id").single()` the right Supabase pattern here to detect zero-row updates without broadening data exposure?
 - Should the same zero-row detection on `lead_import_runs` / `lead_import_settings` status updates produce a failed import result, as currently implemented?
+- Do import result toasts show enough immediate context for sales/CS users after a manual spreadsheet import?
 - Do the new unit tests prove organization scoping and missing-row rejection without mocking a failed feature as success?
 - Are error messages appropriate for user-facing CRM settings workflows?
 - Does the patch avoid changing CSV parsing, import scheduling, lead creation, duplicate detection, or cron behavior?
@@ -180,6 +203,7 @@ Please review:
 ## 12. Risk Notes
 
 - This change is intentionally limited to import settings/status update confirmation behavior.
+- The latest UI change only formats existing `imported` / `skipped` query params already emitted by `runLeadImportSettingAction`.
 - Supabase service-role Cron status update hardening remains in PR #3 and now fails visibly on zero-row status updates.
 - A real Supabase update returning zero rows depends on PostgREST `.single()` returning an error. The unit test models that expected behavior.
 - Live authenticated acceptance is still the main evidence gap before claiming 100/100.
