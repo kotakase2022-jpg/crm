@@ -8,6 +8,7 @@ import { StageBoard } from "@/components/crm/stage-board";
 import { canWriteTable } from "@/lib/crm/access";
 import { getCrmContext, getRelationOptions, listRecords } from "@/lib/crm/data";
 import { getEntityConfig } from "@/lib/crm/entities";
+import { normalizeRelationQuery } from "@/lib/crm/search";
 import type { QueryState } from "@/lib/crm/types";
 
 function first(value: string | string[] | undefined) {
@@ -32,7 +33,7 @@ export default async function EntityListPage({
   if (!config) notFound();
 
   const rawQuery = await searchParams;
-  const query: QueryState = {
+  const query: QueryState = normalizeRelationQuery(config, {
     q: first(rawQuery.q),
     filter: first(rawQuery.filter),
     sort: first(rawQuery.sort),
@@ -40,7 +41,7 @@ export default async function EntityListPage({
     view: first(rawQuery.view),
     relationField: first(rawQuery.relation_field),
     relationId: first(rawQuery.relation_id),
-  };
+  });
   const [context, rows, allRows, relations] = await Promise.all([getCrmContext(), listRecords(config, query), listRecords(config), getRelationOptions()]);
   const canCreate = canWriteTable(context.role, config.table);
 

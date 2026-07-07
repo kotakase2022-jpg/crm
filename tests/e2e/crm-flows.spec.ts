@@ -592,6 +592,30 @@ test("related sections with hidden rows link to a filtered full list", async ({ 
   await strict.expectClean();
 });
 
+test("malformed relation list URLs still show records and recover on search", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/contacts?relation_field=made_up_id&relation_id=not-real");
+
+  const firstContactLink = page.locator('tbody a[href^="/contacts/"]').first();
+  await expect(firstContactLink).toBeVisible();
+  await expect(page.getByRole("link", { name: "条件クリア" })).toHaveCount(0);
+
+  const contactName = (await firstContactLink.textContent())?.trim() ?? "";
+  expect(contactName).toBeTruthy();
+
+  await page.locator('input[name="q"]').fill(contactName);
+  await page.locator('input[name="q"]').press("Enter");
+
+  const url = new URL(page.url());
+  expect(url.pathname).toBe("/contacts");
+  expect(url.searchParams.get("q")).toBe(contactName);
+  expect(url.searchParams.has("relation_field")).toBe(false);
+  expect(url.searchParams.has("relation_id")).toBe(false);
+  await expect(page.locator("tbody")).toContainText(contactName);
+  await strict.expectClean();
+});
+
 test("contact activity is visible from the parent company timeline", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();

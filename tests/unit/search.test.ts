@@ -10,6 +10,7 @@ import {
   matchesRelationFilter,
   matchesSearch,
   nextSortDirection,
+  normalizeRelationQuery,
   normalizedSort,
 } from "@/lib/crm/search";
 
@@ -345,6 +346,26 @@ describe("CRM list search", () => {
       "contact-3",
     ]);
     expect(matchesRelationFilter(rows[0], { relationField: "name", relationId: "佐藤" })).toBe(true);
+  });
+
+  it("ignores malformed relation filters so broken URLs do not hide real records", () => {
+    const rows = [
+      { id: "contact-1", name: "佐藤", company_id: "company-1" },
+      { id: "contact-2", name: "田中", company_id: "company-2" },
+    ];
+
+    expect(normalizeRelationQuery(entityConfigs.contacts, { relationField: "made_up_id", relationId: "company-1" })).toEqual({
+      relationField: undefined,
+      relationId: undefined,
+    });
+    expect(normalizeRelationQuery(entityConfigs.contacts, { relationField: " company_id ", relationId: " company-1 " })).toEqual({
+      relationField: "company_id",
+      relationId: "company-1",
+    });
+    expect(filterSortRows(rows, entityConfigs.contacts, { relationField: "made_up_id", relationId: "company-1" }).map((row) => row.id)).toEqual([
+      "contact-1",
+      "contact-2",
+    ]);
   });
 
   it("shares invalid sort normalization between list rendering and data ordering", () => {

@@ -44,11 +44,39 @@ export function matchesFilter(row: CrmRecord, config: EntityConfig, filter?: str
   return true;
 }
 
-export function matchesRelationFilter(row: CrmRecord, query: QueryState) {
+function relationFilterFields(config: EntityConfig) {
+  return new Set(config.fields.filter((field) => field.relation).map((field) => field.name));
+}
+
+function isAllowedRelationFilterField(config: EntityConfig, field: string) {
+  return relationFilterFields(config).has(field);
+}
+
+export function normalizeRelationQuery(config: EntityConfig, query: QueryState): QueryState {
+  const field = query.relationField?.trim();
+  const id = relationIdValue(query.relationId);
+
+  if (!field || !id || !isAllowedRelationFilterField(config, field)) {
+    return {
+      ...query,
+      relationField: undefined,
+      relationId: undefined,
+    };
+  }
+
+  return {
+    ...query,
+    relationField: field,
+    relationId: id,
+  };
+}
+
+export function matchesRelationFilter(row: CrmRecord, query: QueryState, config?: EntityConfig) {
   const field = query.relationField?.trim();
   const id = relationIdValue(query.relationId);
   if (!field || !id) return true;
-  if (!field.endsWith("_id")) return true;
+  if (config && !isAllowedRelationFilterField(config, field)) return true;
+  if (!config && !field.endsWith("_id")) return true;
   return relationIdMatches(row[field], id);
 }
 
@@ -162,6 +190,6 @@ export function filterSortRows(rows: CrmRecord[], config: EntityConfig, query: Q
   return rows
     .filter((row) => matchesSearch(row, config, query.q, relations))
     .filter((row) => matchesFilter(row, config, query.filter, query.view))
-    .filter((row) => matchesRelationFilter(row, query))
+    .filter((row) => matchesRelationFilter(row, query, config))
     .sort((a, b) => compareValues(sort, a[sort], b[sort], direction));
 }
