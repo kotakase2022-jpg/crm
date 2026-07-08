@@ -7,7 +7,7 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 15:12 JST
+- Last updated: 2026-07-08 15:20 JST
 
 ## 1. Current Goal
 
@@ -18,11 +18,11 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
 - Latest local code commit: `3778f6e` (`Cover relation validation recovery flow`)
-- Latest remote head checked before this local handoff update: `867164b` (`Record invalid form recovery handoff`)
+- Latest remote head checked before this local handoff update: `0dcb702` (`Record relation validation recovery handoff`)
 - Last known good commit: `3778f6e` after local focused E2E and full `npm.cmd run quality`; live non-production Supabase acceptance also passed earlier in Loop 11 after user approval
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `867164b`; re-check after pushing `3778f6e` plus this handoff update.
+- CodeRabbit OSS review status: passed on PR #4 remote head `0dcb702`; re-check after pushing this final handoff-only update.
 
 ## 3. What Was Done
 
@@ -75,6 +75,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
   - fixes the company relation and saves the task successfully.
 - Re-ran the focused relation-validation E2E and the full local quality gate again; it passed with 54 Chromium E2E tests.
 - Updated PR #4 body to include relation-validation recovery coverage.
+- Pushed through handoff commit `0dcb702` and confirmed PR #4 remote head `0dcb702` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
 
 ## 4. Files Changed
 
@@ -103,7 +104,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 - PR #4 is open and non-draft.
 - PR #4 still has GitHub `reviewDecision: REVIEW_REQUIRED`; human or Claude Code review is still needed before merge.
 - Supabase preview branch `acceptance-crm-20260708` still exists and may continue billing until deleted.
-- After pushing `3778f6e` and this handoff update, GitHub Actions and CodeRabbit should be rechecked on the new remote head.
+- PR #4 remote head `0dcb702` was mechanically green before this final handoff-only update; after pushing this handoff update, GitHub Actions and CodeRabbit should be rechecked on the new remote head.
 
 ## 6. Known Issues
 
@@ -114,7 +115,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `867164b`; re-check after pushing `3778f6e` and this handoff update.
+- Review status: Passed on PR #4 remote head `0dcb702`; re-check after pushing this final handoff-only update.
 - Critical findings: none known.
 - Resolved findings: Earlier CodeRabbit PR-description warning was addressed by expanding the PR body to match repository template sections.
 - Deferred findings: none.
@@ -132,6 +133,20 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 ```bash
 gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup
 # Passed before local relation-validation-recovery push. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 867164b.
+# CodeRabbit: success
+# Vercel: success
+# Vercel Preview Comments: success
+# quality-gate / typecheck-lint-test-e2e-build: success
+
+gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10
+# Passed after pushing `0dcb702`.
+# CodeRabbit: passed
+# Vercel: passed
+# Vercel Preview Comments: passed
+# typecheck-lint-test-e2e-build: passed in 4m27s
+
+gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup
+# Passed after pushing `0dcb702`. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 0dcb702.
 # CodeRabbit: success
 # Vercel: success
 # Vercel Preview Comments: success
