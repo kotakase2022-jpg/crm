@@ -7,22 +7,22 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 14:57 JST
+- Last updated: 2026-07-08 15:12 JST
 
 ## 1. Current Goal
 
-Strengthen mechanical proof that daily CRM users can trust task triage, filtering, sales alert resolution, automation task generation, CS risk drill-down, tablet-width layout safety, and invalid-input recovery: urgent work surfaces first, completed work leaves actionable views, dashboard cards only show actionable today/overdue work, task status filters preserve search context, high-MRR deal warnings clear only after an open linked follow-up task exists, automation creates searchable follow-up tasks without duplication, account details show why a risky customer has a low health score, the dense health-score breakdown does not create page-level horizontal overflow, and invalid lead form input can be corrected and saved without losing work.
+Strengthen mechanical proof that daily CRM users can trust task triage, filtering, sales alert resolution, automation task generation, CS risk drill-down, tablet-width layout safety, invalid-input recovery, and relation-validation recovery: urgent work surfaces first, completed work leaves actionable views, dashboard cards only show actionable today/overdue work, task status filters preserve search context, high-MRR deal warnings clear only after an open linked follow-up task exists, automation creates searchable follow-up tasks without duplication, account details show why a risky customer has a low health score, the dense health-score breakdown does not create page-level horizontal overflow, invalid lead form input can be corrected and saved without losing work, and inconsistent task company/deal relations keep the user on a correctable form before saving successfully after correction.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
-- Latest local code commit: `f5ba9c8` (`Cover corrected invalid lead form flow`)
-- Latest remote head checked before this local handoff update: `518e863` (`Record tablet health score layout handoff`)
-- Last known good commit: `f5ba9c8` after local focused E2E and full `npm.cmd run quality`; live non-production Supabase acceptance also passed earlier in Loop 11 after user approval
+- Latest local code commit: `3778f6e` (`Cover relation validation recovery flow`)
+- Latest remote head checked before this local handoff update: `867164b` (`Record invalid form recovery handoff`)
+- Last known good commit: `3778f6e` after local focused E2E and full `npm.cmd run quality`; live non-production Supabase acceptance also passed earlier in Loop 11 after user approval
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `518e863`; re-check after pushing `f5ba9c8` plus this handoff update.
+- CodeRabbit OSS review status: passed on PR #4 remote head `867164b`; re-check after pushing `3778f6e` plus this handoff update.
 
 ## 3. What Was Done
 
@@ -66,10 +66,20 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 - Strengthened the invalid lead form E2E so the user can trigger browser validation, correct the email plus required fields, save, and land on the created lead detail page without console/page errors.
 - Re-ran the focused invalid-input E2E and the full local quality gate again; it passed with 53 Chromium E2E tests.
 - Updated PR #4 body to include invalid-input recovery coverage.
+- Pushed through handoff commit `867164b` and confirmed PR #4 remote head `867164b` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
+- Added Playwright E2E coverage for relation-validation recovery:
+  - opens an existing deal and captures its company;
+  - creates a different company;
+  - tries to create a task with mismatched company/deal relations;
+  - verifies the validation-error alert and relation fields remain correctable;
+  - fixes the company relation and saves the task successfully.
+- Re-ran the focused relation-validation E2E and the full local quality gate again; it passed with 54 Chromium E2E tests.
+- Updated PR #4 body to include relation-validation recovery coverage.
 
 ## 4. Files Changed
 
 - `tests/e2e/crm-flows.spec.ts`
+  - Added relation-validation recovery coverage so a mismatched task company/deal relation shows an error, stays on a correctable form, and saves after the relation is fixed.
   - Strengthened invalid-input coverage so a bad lead email is blocked, corrected, and then saved to the lead detail page.
   - Strengthened tablet-width layout coverage so the risky-customer company detail with the health-score breakdown stays within page width.
   - Strengthened dashboard risky-customer drill-down coverage so company details must show the health-score breakdown before opening a prefilled linked task.
@@ -87,13 +97,13 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ## 5. Current Status
 
-- Local quality gate is green at `f5ba9c8`.
+- Local quality gate is green at `3778f6e`.
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit paid-preview-branch approval.
-- The newest code commit is E2E-only and verifies invalid lead-form recovery after browser validation; no DB schema, migration, or persistence contract changed.
+- The newest code commit is E2E-only and verifies task relation-validation recovery after a mismatched company/deal selection; no DB schema, migration, or persistence contract changed.
 - PR #4 is open and non-draft.
 - PR #4 still has GitHub `reviewDecision: REVIEW_REQUIRED`; human or Claude Code review is still needed before merge.
 - Supabase preview branch `acceptance-crm-20260708` still exists and may continue billing until deleted.
-- After pushing `f5ba9c8` and this handoff update, GitHub Actions and CodeRabbit should be rechecked on the new remote head.
+- After pushing `3778f6e` and this handoff update, GitHub Actions and CodeRabbit should be rechecked on the new remote head.
 
 ## 6. Known Issues
 
@@ -104,7 +114,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `518e863`; re-check after pushing `f5ba9c8` and this handoff update.
+- Review status: Passed on PR #4 remote head `867164b`; re-check after pushing `3778f6e` and this handoff update.
 - Critical findings: none known.
 - Resolved findings: Earlier CodeRabbit PR-description warning was addressed by expanding the PR body to match repository template sections.
 - Deferred findings: none.
@@ -121,7 +131,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ```bash
 gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup
-# Passed before local invalid-form-recovery push. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 518e863.
+# Passed before local relation-validation-recovery push. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 867164b.
 # CodeRabbit: success
 # Vercel: success
 # Vercel Preview Comments: success
@@ -145,6 +155,9 @@ npm.cmd run test:e2e -- -g "tablet viewport keeps"
 npm.cmd run test:e2e -- -g "invalid form input can be corrected"
 # Passed. 1 Chromium test. This now verifies an invalid lead email is blocked, corrected, and saved to the lead detail page.
 
+npm.cmd run test:e2e -- -g "relation validation keeps"
+# Passed. 1 Chromium test. This verifies a mismatched task company/deal relation shows an alert, preserves relation fields for correction, and saves after the user fixes the company relation.
+
 npm.cmd run acceptance:supabase
 # Passed on 2026-07-08 after explicit user approval for paid non-production preview-branch use and acceptance execution.
 # Supabase acceptance passed: auth, profile bootstrap, anonymous/optional cross-organization read isolation,
@@ -163,14 +176,14 @@ npm.cmd run quality
 #   branches 86.54%
 #   functions 99.54%
 #   lines 95.94%
-# test:e2e: passed (53 Chromium tests)
+# test:e2e: passed (54 Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
 
 gh pr edit 4 --repo kotakase2022-jpg/crm --title "Cover CRM task triage and automation flow" --body-file -
 # Passed. PR body now describes priority sorting, completed-task quick-view behavior,
 # dashboard actionable-task filtering, task status filtering, high-MRR alert resolution,
 # automation task generation, health-score breakdown drill-down, tablet layout safety,
-# invalid-input recovery, quality, and Supabase acceptance.
+# invalid-input recovery, relation-validation recovery, quality, and Supabase acceptance.
 ```
 
 ## 10. Next Recommended Action
@@ -178,16 +191,18 @@ gh pr edit 4 --repo kotakase2022-jpg/crm --title "Cover CRM task triage and auto
 For Claude Code:
 
 1. Re-check PR #4 after the latest push with `gh pr checks 4 --repo kotakase2022-jpg/crm`.
-2. Review `tests/e2e/crm-flows.spec.ts` for the invalid-input recovery change; confirm it proves a realistic browser validation correction path without becoming brittle.
-3. Review `src/components/crm/entity-detail.tsx` and `tests/e2e/crm-flows.spec.ts` for the health-score breakdown drill-down and tablet-width layout coverage; confirm the extra columns improve CS diagnosis without page-level overflow or excessive visual noise.
-4. Review the Loop 11 task-triage/filtering/alert-resolution/automation E2E additions and confirm they prove useful workflows without brittleness.
-5. Review `tests/unit/supabase-live-acceptance.test.ts` and confirm the temporary cwd isolation is the right way to keep the missing-env guard independent from local acceptance credentials.
-6. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
+2. Review `tests/e2e/crm-flows.spec.ts` for the relation-validation recovery change; confirm it proves a realistic mismatched relation correction path without becoming brittle.
+3. Review `tests/e2e/crm-flows.spec.ts` for the invalid-input recovery change; confirm it proves a realistic browser validation correction path without becoming brittle.
+4. Review `src/components/crm/entity-detail.tsx` and `tests/e2e/crm-flows.spec.ts` for the health-score breakdown drill-down and tablet-width layout coverage; confirm the extra columns improve CS diagnosis without page-level overflow or excessive visual noise.
+5. Review the Loop 11 task-triage/filtering/alert-resolution/automation E2E additions and confirm they prove useful workflows without brittleness.
+6. Review `tests/unit/supabase-live-acceptance.test.ts` and confirm the temporary cwd isolation is the right way to keep the missing-env guard independent from local acceptance credentials.
+7. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
 
 ## 11. Suggested Review Scope for Claude Code
 
 - Do the E2E tests prove search preservation, priority ordering, completed-task removal from actionable views, dashboard exclusion of completed/future tasks, task status filtering, high-MRR alert resolution, and automation task creation without duplicate open tasks with real browser interactions?
 - Do the status-filter, alert-resolution, and automation E2Es avoid overfitting to implementation details while still proving meaningful user workflows?
+- Does the relation-validation E2E prove an operator can recover from mismatched company/deal task relations without crashing or saving inconsistent data?
 - Does the invalid lead-form E2E prove a realistic correction-and-save path without relying on implementation-only details?
 - Does the health-score breakdown on company detail give CS enough diagnostic context without overcrowding the related table on desktop/tablet or causing page-level horizontal overflow?
 - Does the Supabase acceptance-test unit change avoid reading local credentials without weakening the missing-env fail-closed assertion?
@@ -195,7 +210,7 @@ For Claude Code:
 
 ## 12. Risk Notes
 
-- The E2E changes increase Chromium suite count from 48 to 53.
+- The E2E changes increase Chromium suite count from 48 to 54.
 - The live Supabase preview branch is still a cost item. Creation/use and acceptance testing were approved by the user; deletion still needs explicit approval.
 - Do not run acceptance against production Supabase.
 - Do not push directly to `main`.
@@ -215,4 +230,4 @@ For Claude Code:
 - Current self-assessment after this loop:
   - Function/screen-transition defect-free score: 99 / 100
   - Daily CRM experience value score: 99 / 100
-- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, alert-resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, and invalid-input recovery proof improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
+- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, alert-resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, and relation-validation recovery proof improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
