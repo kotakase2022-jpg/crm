@@ -248,6 +248,51 @@ describe("CRM dashboard analytics", () => {
     expect(risky.map((score) => normalizedHealthScore(score))).toEqual([0, 0, 39]);
     expect(normalizedHealthScore(healthScores[4])).toBe(100);
   });
+
+  it("uses each company's latest health score for CS risk and upsell KPIs", () => {
+    const healthScores = [
+      {
+        id: "company-1-old-risk",
+        company_id: " company-1 ",
+        measured_on: "2026-06-01",
+        total_score: 25,
+        churn_risk: "high",
+        upsell_candidate: true,
+      },
+      {
+        id: "company-1-latest-healthy",
+        company_id: "company-1",
+        measured_on: "2026-07-01",
+        total_score: 85,
+        churn_risk: "low",
+        upsell_candidate: false,
+      },
+      {
+        id: "company-2-old-healthy",
+        company_id: "company-2",
+        measured_on: "2026-06-01",
+        total_score: 80,
+        churn_risk: "low",
+        upsell_candidate: false,
+      },
+      {
+        id: "company-2-latest-risk",
+        company_id: " company-2 ",
+        measured_on: "2026-07-02",
+        total_score: 35,
+        churn_risk: "high",
+        upsell_candidate: true,
+      },
+    ];
+
+    const cs = buildCsDashboard(snapshot({ healthScores }));
+    const risky = riskyHealthScores(healthScores);
+
+    expect(cs.kpis.lowHealthCompanies).toBe(1);
+    expect(cs.kpis.upsellCandidates).toBe(1);
+    expect(cs.riskCounts).toEqual({ low: 1, high: 1 });
+    expect(risky.map((score) => score.id)).toEqual(["company-2-latest-risk"]);
+  });
 });
 
 describe("CRM automation alerts", () => {
@@ -454,6 +499,49 @@ describe("CRM automation alerts", () => {
 
     expect(keys).toContain("documents-zero-company-invalid-usage");
     expect(keys).toContain("health-under-40-company-invalid-health");
+
+    vi.useRealTimers();
+  });
+
+  it("uses the latest health score per company for health-risk alerts", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T00:00:00.000Z"));
+
+    const alerts = buildAlerts(
+      snapshot({
+        healthScores: [
+          {
+            id: "company-1-old-risk",
+            company_id: "company-1",
+            measured_on: "2026-06-01",
+            total_score: 20,
+          },
+          {
+            id: "company-1-latest-healthy",
+            company_id: " company-1 ",
+            measured_on: "2026-07-01",
+            total_score: 82,
+          },
+          {
+            id: "company-2-old-healthy",
+            company_id: "company-2",
+            measured_on: "2026-06-01",
+            total_score: 90,
+          },
+          {
+            id: "company-2-latest-risk",
+            company_id: " company-2 ",
+            measured_on: "2026-07-02",
+            total_score: 30,
+          },
+        ],
+      }),
+    );
+
+    const keys = alerts.map((alert) => alert.key);
+
+    expect(keys).not.toContain("health-under-40-company-1");
+    expect(keys).toContain("health-under-40-company-2");
 
     vi.useRealTimers();
   });

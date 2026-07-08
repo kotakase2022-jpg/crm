@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseCsv } from "@/lib/crm/csv";
-import { runAllLeadImportsFromCron, saveLeadImportSetting } from "@/lib/crm/lead-imports";
+import { getDemoRows } from "@/lib/crm/demo-data";
+import { runAllLeadImportsFromCron, runLeadImportSetting, saveLeadImportSetting } from "@/lib/crm/lead-imports";
 import { leadStatuses } from "@/lib/crm/options";
 import {
   assertTrustedSpreadsheetCsvUrl,
@@ -252,6 +253,56 @@ describe("lead spreadsheet imports", () => {
     );
   });
 
+  it("soft deletes Supabase leads when first-call task creation fails during import", async () => {
+    const settingsSelect = selectQuery([{ id: "setting-1", organization_id: "org-1", spreadsheet_url: "https://docs.google.com/spreadsheets/d/sheet-id/edit" }]);
+    const runInsert = insertReturning({ id: "run-1" });
+    const existingLeadsSelect = selectQuery([]);
+    const leadInsert = insertReturning({ id: "lead-1" });
+    const taskInsert = insertFail({ message: "Task insert failed" });
+    const leadCleanup = updateReturning({ id: "lead-1" });
+    const runUpdate = updateReturning({ id: "run-1" });
+    const settingUpdate = updateReturning({ id: "setting-1" });
+    const builders: Record<string, Array<Record<string, unknown>>> = {
+      lead_import_settings: [settingsSelect, settingUpdate],
+      lead_import_runs: [runInsert, runUpdate],
+      leads: [existingLeadsSelect, leadInsert, leadCleanup],
+      tasks: [taskInsert],
+    };
+    const supabase = {
+      from: vi.fn((table: string) => {
+        const builder = builders[table]?.shift();
+        if (!builder) throw new Error(`Unexpected table query: ${table}`);
+        return builder;
+      }),
+    };
+
+    mocks.createAdminClient.mockReturnValue(supabase);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("name,company_name,email\nImported Lead,Imported Company,imported@example.test\n", { status: 200 }),
+    );
+
+    const results = await runAllLeadImportsFromCron();
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ status: "failed", importedCount: 0, skippedCount: 0, message: "Task insert failed" });
+    expect(leadCleanup.update).toHaveBeenCalledWith({
+      deleted_at: expect.any(String),
+      updated_by: null,
+    });
+    expect(leadCleanup.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(leadCleanup.eq).toHaveBeenCalledWith("id", "lead-1");
+    expect(leadCleanup.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(leadCleanup.select).toHaveBeenCalledWith("id");
+    expect(leadCleanup.single).toHaveBeenCalled();
+    expect(runUpdate.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        imported_count: 0,
+        error_message: "Task insert failed",
+      }),
+    );
+  });
+
   it("updates Supabase import settings only inside the current organization", async () => {
     const update = updateReturning({ id: "setting-1" });
     const supabase = {
@@ -273,6 +324,92 @@ describe("lead spreadsheet imports", () => {
     expect(update.is).toHaveBeenCalledWith("deleted_at", null);
     expect(update.select).toHaveBeenCalledWith("id");
     expect(update.single).toHaveBeenCalled();
+  });
+
+  it("imports demo spreadsheet rows into leads with first-call tasks and skips duplicates", async () => {
+    const marker = `unit-demo-import-${Date.now()}`;
+    const email = `${marker}@example.test`;
+    const csv = [
+      "name,company_name,email,phone,status",
+      `Imported ${marker},Imported Company ${marker},${email},050-9999-0000,unsupported-status`,
+    ].join("\n");
+    const formData = validSettingForm("");
+    formData.set("spreadsheet_url", "https://docs.google.com/spreadsheets/d/demo-import-sheet/edit#gid=123");
+
+    mocks.getCrmContext.mockResolvedValue({
+      mode: "demo",
+      organizationId: "demo-org",
+      userId: "demo-user",
+      role: "admin",
+    });
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(csv, { status: 200 }));
+
+    const settingId = await saveLeadImportSetting(formData);
+    const firstResult = await runLeadImportSetting(settingId);
+    const importedLeads = getDemoRows("leads").filter((lead) => lead.import_setting_id === settingId && lead.email === email);
+
+    expect(firstResult).toMatchObject({ status: "success", importedCount: 1, skippedCount: 0 });
+    expect(importedLeads).toHaveLength(1);
+    expect(importedLeads[0]).toMatchObject({
+      company_name: `Imported Company ${marker}`,
+      external_source: "spreadsheet",
+      external_source_id: `email:${email}`,
+      status: defaultLeadImportStatus,
+    });
+    expect(getDemoRows("tasks")).toContainEqual(
+      expect.objectContaining({
+        lead_id: importedLeads[0].id,
+        automation_key: `lead-first-call-${importedLeads[0].id}`,
+      }),
+    );
+
+    const secondResult = await runLeadImportSetting(settingId);
+
+    expect(secondResult).toMatchObject({ status: "success", importedCount: 0, skippedCount: 1 });
+    expect(getDemoRows("leads").filter((lead) => lead.import_setting_id === settingId && lead.email === email)).toHaveLength(1);
+  });
+
+  it("fails demo imports when a spreadsheet redirect leaves the trusted Google Sheets host", async () => {
+    const formData = validSettingForm("");
+    formData.set("spreadsheet_url", "https://docs.google.com/spreadsheets/d/demo-redirect-sheet/edit#gid=123");
+
+    mocks.getCrmContext.mockResolvedValue({
+      mode: "demo",
+      organizationId: "demo-org",
+      userId: "demo-user",
+      role: "admin",
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://example.com/leads.csv" },
+      }),
+    );
+
+    const settingId = await saveLeadImportSetting(formData);
+    const result = await runLeadImportSetting(settingId);
+    const setting = getDemoRows("lead_import_settings").find((row) => row.id === settingId);
+    const runs = getDemoRows("lead_import_runs").filter((run) => run.setting_id === settingId);
+
+    expect(result).toMatchObject({
+      status: "failed",
+      importedCount: 0,
+      skippedCount: 0,
+      message: "Spreadsheet imports only support Google Sheets CSV URLs.",
+    });
+    expect(getDemoRows("leads").filter((lead) => lead.import_setting_id === settingId)).toHaveLength(0);
+    expect(setting).toMatchObject({
+      last_run_status: "failed",
+      last_run_message: "Spreadsheet imports only support Google Sheets CSV URLs.",
+    });
+    expect(runs).toContainEqual(
+      expect.objectContaining({
+        status: "failed",
+        imported_count: 0,
+        skipped_count: 0,
+        error_message: "Spreadsheet imports only support Google Sheets CSV URLs.",
+      }),
+    );
   });
 
   it("does not treat missing Supabase import setting updates as saved", async () => {
@@ -328,6 +465,12 @@ function insertReturning(data: Record<string, unknown>) {
 function insertOnly() {
   return {
     insert: vi.fn(() => Promise.resolve({ error: null })),
+  };
+}
+
+function insertFail(error: { message: string }) {
+  return {
+    insert: vi.fn(() => Promise.resolve({ error })),
   };
 }
 

@@ -1,5 +1,6 @@
 import { daysUntil, offsetLocalDateString, toDate, toFiniteNumber } from "./format";
 import { hasOpenAutomationTask, isOpenTask } from "./automation";
+import { latestHealthScoresByCompany } from "./health";
 import { relationIdMatches, relationIdValue } from "./related";
 import { hasAnyValue, hasValue, latestUsageRowsByCompany } from "./usage";
 import type { CrmRecord, DashboardSnapshot } from "./types";
@@ -202,7 +203,7 @@ export function buildAlerts(snapshot: DashboardSnapshot): CrmAlert[] {
     }
   });
 
-  snapshot.healthScores
+  latestHealthScoresByCompany(snapshot.healthScores)
     .filter((score) => toFiniteNumber(score.total_score) < 40)
     .forEach((score) => {
       const companyId = relationIdValue(score.company_id);

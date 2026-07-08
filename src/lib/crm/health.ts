@@ -1,4 +1,5 @@
-import { toFiniteNumber } from "./format";
+import { toDate, toFiniteNumber } from "./format";
+import { relationIdValue } from "./related";
 import type { CrmRecord } from "./types";
 
 export type HealthBreakdown = {
@@ -78,4 +79,29 @@ export function calculateHealthScore(args: {
     health_status: scoreStatus(total_score),
     churn_risk: riskFromScore(total_score),
   };
+}
+
+function healthScoreSortTime(score: CrmRecord) {
+  for (const field of ["measured_on", "updated_at", "created_at"]) {
+    const value = toDate(score[field]);
+    if (value) return value.getTime();
+  }
+
+  return 0;
+}
+
+export function latestHealthScoresByCompany(rows: CrmRecord[]) {
+  const latest = new Map<string, CrmRecord>();
+
+  for (const row of rows) {
+    const companyId = relationIdValue(row.company_id);
+    if (!companyId) continue;
+
+    const current = latest.get(companyId);
+    if (!current || healthScoreSortTime(row) >= healthScoreSortTime(current)) {
+      latest.set(companyId, row);
+    }
+  }
+
+  return Array.from(latest.values());
 }
