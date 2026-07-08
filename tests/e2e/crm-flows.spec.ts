@@ -1454,14 +1454,36 @@ test("delete confirmation prevents accidental deletion and then soft deletes aft
   await strict.expectClean();
 });
 
-test("automation task generation runs and reports a success state", async ({ page }) => {
+test("automation task generation creates missing follow-up tasks without duplicates", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
+  const dealName = `E2E Automation Deal ${Date.now()}`;
+
+  await page.goto("/deals/new");
+  await page.locator('input[name="name"]').fill(dealName);
+  await page.locator('input[name="expected_mrr"]').fill("91000");
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+
+  await page.goto("/dashboard");
+  await expect(page.getByTestId("dashboard-alert-link").filter({ hasText: dealName })).toBeVisible();
+
+  await page.locator("main form button").first().click();
+  await expect(page).toHaveURL(/\/dashboard\?toast=automation&count=\d+$/);
+  const firstRunCount = Number(new URL(page.url()).searchParams.get("count"));
+  expect(firstRunCount).toBeGreaterThan(0);
+
+  await page.goto(`/tasks?q=${encodeURIComponent(dealName)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(dealName);
 
   await page.goto("/dashboard");
   await page.locator("main form button").first().click();
-
   await expect(page).toHaveURL(/\/dashboard\?toast=automation&count=\d+$/);
-  await expect(page.locator("main")).toBeVisible();
+  const secondRunCount = Number(new URL(page.url()).searchParams.get("count"));
+  expect(secondRunCount).toBe(0);
+
+  await page.goto(`/tasks?q=${encodeURIComponent(dealName)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
   await strict.expectClean();
 });
 
