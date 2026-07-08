@@ -7,7 +7,7 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 17:21 JST
+- Last updated: 2026-07-08 17:27 JST
 
 ## 1. Current Goal
 
@@ -18,11 +18,11 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
 - Latest local code commit: `d72bd99` (`Clean up failed activity next actions`)
-- Latest remote head checked before this handoff update: `993ce4a` (`Record activity next action cleanup handoff`)
-- Last known good code commit: `993ce4a` after focused unit tests, full `npm.cmd run quality`, live non-production Supabase acceptance, and green PR checks
+- Latest documentation/handoff commit: current branch `HEAD`; run `git log -1 --oneline` for the exact hash after checkout
+- Last known good code commit: `d72bd99` after focused unit tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `993ce4a`.
+- CodeRabbit OSS review status: passed on the latest PR #4 head after the documentation-only handoff push; confirm exact head with `gh pr view 4`.
 
 ## 3. What Was Done
 
@@ -89,7 +89,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Added a unit/integration regression test proving entity-scoped activity creation soft-deletes the activity when linked next-action task insertion fails.
 - Re-ran focused Supabase data tests, the full local quality gate, and live non-production Supabase CRUD/RLS acceptance; all passed.
 - Committed the activity next-action cleanup fix as `d72bd99`.
-- Pushed PR #4 remote head `993ce4a` and confirmed the latest checks are green:
+- Pushed PR #4 and confirmed the latest checks are green:
   - GitHub Actions `quality-gate / typecheck-lint-test-e2e-build`: success
   - CodeRabbit: success
   - Vercel: success
@@ -125,19 +125,19 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval, most recently at 2026-07-08 17:21 JST.
 - The latest code change is a focused Supabase data-consistency implementation/test update and does not change DB schema, migrations, Supabase secrets, or production data.
 - PR #4 is still open and `REVIEW_REQUIRED`.
-- PR #4 remote head `993ce4a` has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments.
+- PR #4 latest remote head has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments.
 - Supabase preview branch `acceptance-crm-20260708` may still exist and may continue billing until deleted. Delete it only with explicit user approval.
 
 ## 6. Known Issues
 
 - PR #4 needs human or Claude Code review before merge.
-- No known failing local or PR checks at remote head `993ce4a`.
+- No known failing local or PR checks on the latest PR #4 head.
 - Supabase preview branch cleanup remains a cost-control decision for the user.
 - Cursor Bugbot was not intentionally run by Codex; it remains optional backup only.
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `993ce4a`.
+- Review status: Passed on the latest PR #4 head.
 - Critical findings: none known.
 - Resolved findings: Earlier PR-description warning was addressed in a prior Loop 11 update.
 - Deferred findings: none.
@@ -238,16 +238,23 @@ git commit -m "Clean up failed activity next actions"
 # Pre-commit test guard also passed.
 
 git push origin codex/loop11-crm-quality-sweep
-# Passed. Remote head updated to 993ce4a.
+# Passed. Remote branch updated.
 # Pre-push guard passed: test:guard, lint, typecheck, and test.
 
 gh pr view 4 --repo kotakase2022-jpg/crm --json number,state,isDraft,reviewDecision,headRefOid,statusCheckRollup,url
-# Passed at 2026-07-08 17:20 JST.
-# PR #4 is OPEN, non-draft, REVIEW_REQUIRED, remote head 993ce4a.
+# Passed at 2026-07-08 17:20 JST and again after the documentation-only handoff push.
+# PR #4 is OPEN, non-draft, REVIEW_REQUIRED.
 # CodeRabbit: success
 # Vercel: success
 # Vercel Preview Comments: success
 # quality-gate / typecheck-lint-test-e2e-build: success
+
+gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10
+# Passed after pushing the documentation-only handoff update.
+# CodeRabbit: pass
+# Vercel: pass
+# Vercel Preview Comments: pass
+# typecheck-lint-test-e2e-build: pass
 
 Chrome Supabase dashboard
 # Confirmed an existing logged-in Supabase tab titled `crm (acceptance-crm-20260708) | suslab | Supabase`.
