@@ -7,7 +7,7 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and this branch `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 12:54 JST
+- Last updated: 2026-07-08 13:02 JST
 
 ## 1. Current Goal
 
@@ -29,6 +29,8 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 - Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, and `docs/testing.md`.
 - Confirmed PR #3 is merged and `main` quality-gate succeeded at `51a4a42`.
 - Confirmed `.env.acceptance.local` exists locally, remains gitignored, and live non-production Supabase acceptance had passed after user-approved preview branch usage.
+- Received explicit user approval for paid Supabase Preview Branch usage and for running acceptance tests against a branch that contains no production/real-customer data or is otherwise approved for acceptance testing.
+- Re-ran live non-production Supabase CRUD/RLS acceptance after that approval; it passed.
 - Added a Playwright E2E test proving the task list can:
   - create low, high, and urgent tasks;
   - search down to the created task set;
@@ -52,6 +54,7 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 ## 5. Current Status
 
 - Local quality gate is green.
+- Live non-production Supabase CRUD/RLS acceptance is green after explicit preview-branch approval.
 - The latest code-bearing commit is `a641448`.
 - No application runtime code changed in this loop; only test coverage was added/stabilized.
 - PR #4 is open, non-draft, and mechanically green at the latest check.
@@ -93,7 +96,7 @@ git check-ignore -v .env.acceptance.local
 # Passed. .env.acceptance.local is ignored by .gitignore.
 
 npm.cmd run acceptance:supabase
-# Passed earlier in Loop 11 after user-approved non-production Supabase preview branch use.
+# Passed on 2026-07-08 13:02 JST after explicit user approval for paid preview-branch use and acceptance execution.
 # Supabase acceptance passed: auth, profile bootstrap, anonymous/optional cross-organization read isolation,
 # lead create/read/update/soft-delete, and organization scoping.
 
@@ -155,7 +158,7 @@ For Claude Code:
 
 - The E2E change increases Chromium suite count from 48 to 49 and adds roughly one task-list scenario.
 - The unit-test fix is intentionally test-only; it does not change the live acceptance script.
-- The live Supabase preview branch is still a cost item.
+- The live Supabase preview branch is still a cost item. Creation/use and acceptance testing were approved by the user; deletion still needs explicit approval.
 - Do not run acceptance against `main PRODUCTION`.
 
 ## 13. Do Not Touch
