@@ -40,6 +40,10 @@ test("login page sanitizes external next redirects", async ({ page }) => {
 
   await expect(page.locator('input[name="next"]')).toHaveValue("/dashboard");
   await expect(page.locator("main")).toContainText("建設帳票CRM");
+  await expect(page.locator("main")).toContainText("demo@example.com");
+  await expect(page.locator("main")).toContainText("Demo-crm-2026!");
+  await expect(page.locator('input[name="email"]')).toHaveValue("demo@example.com");
+  await expect(page.locator('input[name="password"]')).toHaveValue("Demo-crm-2026!");
   await strict.expectClean();
 });
 

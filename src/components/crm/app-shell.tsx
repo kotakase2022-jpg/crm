@@ -34,7 +34,7 @@ export function AppShell({
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">{mode === "demo" ? "ローカルデモデータ" : "Supabase 永続化"}</p>
+              {mode === "demo" ? <p className="text-xs font-medium text-slate-500">ローカルデモデータ</p> : null}
               <h1 className="truncate text-base font-semibold text-slate-950">次に何をすべきかが分かるCRM</h1>
             </div>
             <div className="flex items-center gap-3">
