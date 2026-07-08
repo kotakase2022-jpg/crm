@@ -7,22 +7,22 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 13:56 JST
+- Last updated: 2026-07-08 14:08 JST
 
 ## 1. Current Goal
 
-Strengthen mechanical proof that daily CRM users can trust task triage, filtering, and sales alert resolution: urgent work surfaces first, completed work leaves actionable views, dashboard cards only show actionable today/overdue work, task status filters preserve search context, and high-MRR deal warnings clear after a linked follow-up task exists.
+Strengthen mechanical proof that daily CRM users can trust task triage, filtering, and sales alert resolution: urgent work surfaces first, completed work leaves actionable views, dashboard cards only show actionable today/overdue work, task status filters preserve search context, and high-MRR deal warnings clear only after an open linked follow-up task exists.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
-- Latest local code commit: `024b7e3` (`Cover high MRR alert resolution`)
-- Latest remote head checked before this local handoff update: `80edbf7` (`Record task status filter handoff`)
-- Last known good commit: `024b7e3` after local focused E2E and full `npm.cmd run quality`; live non-production Supabase acceptance also passed earlier in Loop 11 after user approval
+- Latest local code commit: `33ae051` (`Cover completed follow-up alert guard`)
+- Latest remote head checked before this local handoff update: `3f28e20` (`Record high MRR alert handoff`)
+- Last known good commit: `33ae051` after local focused E2E and full `npm.cmd run quality`; live non-production Supabase acceptance also passed earlier in Loop 11 after user approval
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and alert resolution`
-- CodeRabbit OSS review status: passed on PR #4 remote head `80edbf7`; re-check after pushing `024b7e3` plus this handoff update.
+- CodeRabbit OSS review status: passed on PR #4 remote head `3f28e20`; re-check after pushing `33ae051` plus this handoff update.
 
 ## 3. What Was Done
 
@@ -44,12 +44,15 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
   - creates a task prefilled with that deal relationship;
   - confirms the warning disappears from the dashboard.
 - Re-ran the focused E2E and the full local quality gate; it passed with 53 Chromium E2E tests.
+- Re-checked PR #4 remote head `3f28e20`; CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
+- Strengthened the high-MRR alert-resolution E2E so a completed linked follow-up task does not clear the warning; the warning clears only after an open linked task exists.
+- Re-ran the focused E2E and the full local quality gate again; it passed with 53 Chromium E2E tests.
 - Updated PR #4 title/body to include all five task-triage/filtering/alert-resolution E2E additions and the latest verification commands.
 
 ## 4. Files Changed
 
 - `tests/e2e/crm-flows.spec.ts`
-  - Added high-MRR deal alert-resolution E2E coverage.
+  - Strengthened high-MRR deal alert-resolution E2E coverage so completed follow-up tasks do not hide missing-next-action warnings.
   - Existing Loop 11 additions on this PR also cover task priority sorting, completed-task quick-view behavior, dashboard actionable-task filtering, and task status filtering.
 - `tests/unit/supabase-live-acceptance.test.ts`
   - Existing Loop 11 PR change isolates the CLI missing-env guard from local `.env.acceptance.local`.
@@ -60,7 +63,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ## 5. Current Status
 
-- Local quality gate is green at `024b7e3`.
+- Local quality gate is green at `33ae051`.
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit paid-preview-branch approval.
 - No production app runtime code changed in this latest step; the newest commit is E2E-only.
 - PR #4 is open and non-draft.
@@ -77,7 +80,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `80edbf7`; re-check after pushing `024b7e3` and this handoff update.
+- Review status: Passed on PR #4 remote head `3f28e20`; re-check after pushing `33ae051` and this handoff update.
 - Critical findings: none known.
 - Resolved findings: Earlier CodeRabbit PR-description warning was addressed by expanding the PR body to match repository template sections.
 - Deferred findings: none.
@@ -94,7 +97,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ```bash
 gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup
-# Passed before local push. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 80edbf7.
+# Passed before local push. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 3f28e20.
 # CodeRabbit: success
 # Vercel: success
 # Vercel Preview Comments: success
@@ -103,7 +106,7 @@ gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDe
 npm.cmd run test:e2e -- -g "list status filter narrows"
 # Passed. 1 Chromium test.
 
-npm.cmd run test:e2e -- -g "dashboard high-MRR deal alert clears"
+npm.cmd run test:e2e -- -g "dashboard high-MRR deal alert clears only"
 # Passed. 1 Chromium test.
 
 npm.cmd run acceptance:supabase
