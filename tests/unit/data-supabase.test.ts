@@ -23,14 +23,14 @@ describe("Supabase CRM data access", () => {
     vi.mocked(createClient).mockReset();
   });
 
-  function mockAuthenticatedSupabase(query: Record<string, unknown>) {
+  function mockAuthenticatedSupabase(query: Record<string, unknown> | ((table: string) => unknown)) {
     const supabase = {
       auth: {
         getClaims: vi.fn().mockResolvedValue({ data: { claims: { sub: "user-1" } } }),
         getUser: vi.fn(),
       },
       rpc: vi.fn().mockResolvedValue({ data: { organization_id: "org-1", role: "admin" }, error: null }),
-      from: vi.fn(() => query),
+      from: vi.fn(typeof query === "function" ? query : () => query),
     };
 
     vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
@@ -117,6 +117,37 @@ describe("Supabase CRM data access", () => {
     });
   });
 
+  it("soft deletes a Supabase lead when its automatic first-call task creation fails", async () => {
+    const leadInsert = insertReturning({ id: "lead-1", name: "New Lead", organization_id: "org-1" });
+    const leadRelationRead = maybeSingleReturning({ id: "lead-1", name: "New Lead", organization_id: "org-1" });
+    const leadConsistencyRead = maybeSingleReturning({ id: "lead-1", name: "New Lead", organization_id: "org-1" });
+    const taskInsert = insertFail({ message: "Task insert failed" });
+    const leadCleanup = updateReturning({ id: "lead-1" });
+    const builders: Record<string, Array<Record<string, unknown>>> = {
+      leads: [leadInsert, leadRelationRead, leadConsistencyRead, leadCleanup],
+      tasks: [taskInsert],
+    };
+    const supabase = mockAuthenticatedSupabase((table: string) => {
+      const builder = builders[table]?.shift();
+      if (!builder) throw new Error(`Unexpected table query: ${table}`);
+      return builder;
+    });
+
+    await expect(createRecord(entityConfigs.leads, { name: "New Lead" })).rejects.toThrow("Task insert failed");
+
+    expect(supabase.from).toHaveBeenCalledWith("leads");
+    expect(supabase.from).toHaveBeenCalledWith("tasks");
+    expect(leadCleanup.update).toHaveBeenCalledWith({
+      deleted_at: expect.any(String),
+      updated_by: "user-1",
+    });
+    expect(leadCleanup.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(leadCleanup.eq).toHaveBeenCalledWith("id", "lead-1");
+    expect(leadCleanup.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(leadCleanup.select).toHaveBeenCalledWith("*");
+    expect(leadCleanup.single).toHaveBeenCalled();
+  });
+
   it("soft deletes Supabase records by setting deleted_at within the current organization", async () => {
     const query = {
       update: vi.fn(() => query),
@@ -141,3 +172,42 @@ describe("Supabase CRM data access", () => {
     expect(query.is).toHaveBeenCalledWith("deleted_at", null);
   });
 });
+
+function insertReturning(data: Record<string, unknown>) {
+  const builder = {
+    insert: vi.fn(() => builder),
+    select: vi.fn(() => builder),
+    single: vi.fn().mockResolvedValue({ data, error: null }),
+  };
+  return builder;
+}
+
+function insertFail(error: { message: string }) {
+  const builder = {
+    insert: vi.fn(() => builder),
+    select: vi.fn(() => builder),
+    single: vi.fn().mockResolvedValue({ data: null, error }),
+  };
+  return builder;
+}
+
+function maybeSingleReturning(data: Record<string, unknown> | null, error: { message: string } | null = null) {
+  const builder = {
+    select: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    is: vi.fn(() => builder),
+    maybeSingle: vi.fn().mockResolvedValue({ data, error }),
+  };
+  return builder;
+}
+
+function updateReturning(data: Record<string, unknown> | null, error: { message: string } | null = null) {
+  const builder = {
+    update: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    is: vi.fn(() => builder),
+    select: vi.fn(() => builder),
+    single: vi.fn().mockResolvedValue({ data, error }),
+  };
+  return builder;
+}

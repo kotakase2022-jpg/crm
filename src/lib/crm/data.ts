@@ -375,18 +375,37 @@ export async function createRecord(config: EntityConfig, values: Record<string, 
   const record = await insertRow(ctx, config.table, values);
 
   if (config.slug === "leads") {
-    await insertRow(ctx, "tasks", {
-      title: "初回架電",
-      description: "新規リード登録後の自動タスクです。",
-      status: "未完了",
-      priority: "高",
-      due_date: localDateString(),
-      lead_id: record.id,
-      automation_key: `lead-first-call-${record.id}`,
-    });
+    try {
+      await insertRow(ctx, "tasks", {
+        title: "初回架電",
+        description: "新規リード登録後の自動タスクです。",
+        status: "未完了",
+        priority: "高",
+        due_date: localDateString(),
+        lead_id: record.id,
+        automation_key: `lead-first-call-${record.id}`,
+      });
+    } catch (error) {
+      await softDeleteCreatedRecordAfterFailure(ctx, config.table, record, error);
+    }
   }
 
   return record;
+}
+
+async function softDeleteCreatedRecordAfterFailure(ctx: CrmContext, table: TableName, record: CrmRecord, error: unknown): Promise<never> {
+  const message = error instanceof Error ? error.message : String(error);
+  let cleanupMessage = "";
+
+  try {
+    await updateRow(ctx, table, String(record.id), {
+      deleted_at: nowIso(),
+    });
+  } catch (cleanupError) {
+    cleanupMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+
+  throw new Error(cleanupMessage ? `${message}; cleanup failed: ${cleanupMessage}` : message);
 }
 
 export async function updateRecord(config: EntityConfig, idValue: string, values: Record<string, unknown>) {
