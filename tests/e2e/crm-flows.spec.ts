@@ -435,6 +435,52 @@ test("list column headers sort records while preserving the current search", asy
   await strict.expectClean();
 });
 
+test("task priority sorting surfaces urgent next actions first while preserving search", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const marker = `E2E Priority Sort ${unique}`;
+  const lowTask = `${marker} Low`;
+  const highTask = `${marker} High`;
+  const urgentTask = `${marker} Urgent`;
+
+  for (const [title, priority] of [
+    [lowTask, priorities[0]],
+    [highTask, priorities[2]],
+    [urgentTask, priorities[3]],
+  ] as const) {
+    await page.goto("/tasks/new");
+    await page.locator('input[name="title"]').fill(title);
+    await page.locator('select[name="priority"]').selectOption({ label: priority });
+    await page.locator('input[name="due_date"]').fill("2026-07-10");
+    await page.locator("form button").last().click();
+    await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  }
+
+  await page.goto(`/tasks?q=${encodeURIComponent(marker)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(3);
+
+  await page.getByTestId("sort-header-priority").click();
+  await expect(page).toHaveURL(/\/tasks\?.*sort=priority.*direction=desc/);
+  let url = new URL(page.url());
+  expect(url.searchParams.get("q")).toBe(marker);
+  expect(url.searchParams.get("sort")).toBe("priority");
+  expect(url.searchParams.get("direction")).toBe("desc");
+  await expect(page.locator("tbody tr").nth(0)).toContainText(urgentTask);
+  await expect(page.locator("tbody tr").nth(1)).toContainText(highTask);
+  await expect(page.locator("tbody tr").nth(2)).toContainText(lowTask);
+
+  await page.getByTestId("sort-header-priority").click();
+  await expect(page).toHaveURL(/\/tasks\?.*sort=priority.*direction=asc/);
+  url = new URL(page.url());
+  expect(url.searchParams.get("q")).toBe(marker);
+  expect(url.searchParams.get("sort")).toBe("priority");
+  expect(url.searchParams.get("direction")).toBe("asc");
+  await expect(page.locator("tbody tr").nth(0)).toContainText(lowTask);
+  await expect(page.locator("tbody tr").nth(1)).toContainText(highTask);
+  await expect(page.locator("tbody tr").nth(2)).toContainText(urgentTask);
+  await strict.expectClean();
+});
+
 test("dashboard alerts link directly to the related CRM record", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const dealName = `E2E Dashboard Alert Deal ${Date.now()}`;

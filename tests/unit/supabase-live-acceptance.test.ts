@@ -57,23 +57,28 @@ describe("Supabase live acceptance safety guards", () => {
     for (const key of Object.keys(cleanEnv)) {
       if (key.startsWith("ACCEPTANCE_")) delete cleanEnv[key];
     }
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), "crm-acceptance-missing-env-"));
 
-    const result = spawnSync(process.execPath, [scriptPath], {
-      cwd: process.cwd(),
-      encoding: "utf8",
-      env: cleanEnv,
-    });
-    const output = `${result.stdout}${result.stderr}`;
+    try {
+      const result = spawnSync(process.execPath, [scriptPath], {
+        cwd: tempDir,
+        encoding: "utf8",
+        env: cleanEnv,
+      });
+      const output = `${result.stdout}${result.stderr}`;
 
-    expect(result.error).toBeUndefined();
-    expect(result.status).toBe(1);
-    expect(output).toContain("Missing non-production Supabase acceptance environment variables.");
-    expect(output).toContain("ACCEPTANCE_SUPABASE_URL");
-    expect(output).toContain("ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY");
-    expect(output).toContain("ACCEPTANCE_TEST_EMAIL");
-    expect(output).toContain("ACCEPTANCE_TEST_PASSWORD");
-    expect(output).not.toContain("Supabase acceptance passed");
-    expect(output).not.toContain("at run");
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(output).toContain("Missing non-production Supabase acceptance environment variables.");
+      expect(output).toContain("ACCEPTANCE_SUPABASE_URL");
+      expect(output).toContain("ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY");
+      expect(output).toContain("ACCEPTANCE_TEST_EMAIL");
+      expect(output).toContain("ACCEPTANCE_TEST_PASSWORD");
+      expect(output).not.toContain("Supabase acceptance passed");
+      expect(output).not.toContain("at run");
+    } finally {
+      rmSync(tempDir, { force: true, recursive: true });
+    }
   });
 
   it("allows local Supabase targets without the remote confirmation flag", () => {
