@@ -7,7 +7,7 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and this branch `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 12:32 JST
+- Last updated: 2026-07-08 12:40 JST
 
 ## 1. Current Goal
 
@@ -22,7 +22,7 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 - Current handoff update: PR #4 status update; this file is expected to be the branch tip once committed.
 - Last known good commit: `a641448` after local `npm.cmd run quality`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
-- CodeRabbit OSS review status: pending initial PR review/check result
+- CodeRabbit OSS review status: passed on PR #4 at remote head `55f95c1` before this final handoff-status update
 
 ## 3. What Was Done
 
@@ -58,12 +58,12 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 ## 6. Known Issues
 
 - The Supabase preview branch created for acceptance is billed hourly while it exists. The user approved paid preview branch creation and acceptance execution, but has not explicitly instructed deletion.
-- CodeRabbit OSS review for Loop 11 is pending initial PR review/check result on PR #4.
+- CodeRabbit OSS review and GitHub Actions quality-gate passed for PR #4 at remote head `55f95c1` before this final handoff-status update. If this documentation-only handoff update is pushed, re-check the refreshed PR head.
 - Cursor Bugbot was not run; it remains optional backup only.
 
 ## 7. CodeRabbit Review
 
-- Review status: Pending initial PR #4 review/check result.
+- Review status: Passed on PR #4 at remote head `55f95c1` before this final handoff-status update.
 - Critical findings: none known.
 - Resolved findings: none.
 - Deferred findings: none.
@@ -114,6 +114,13 @@ npm.cmd run quality
 #   lines 95.94%
 # test:e2e: passed (49 Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
+
+gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10
+# Passed at remote head 55f95c1 before this final handoff-status update.
+# CodeRabbit: pass
+# Vercel: pass
+# Vercel Preview Comments: pass
+# typecheck-lint-test-e2e-build: pass
 ```
 
 ## 10. Next Recommended Action
@@ -122,7 +129,7 @@ For Claude Code:
 
 1. Review `tests/e2e/crm-flows.spec.ts` and confirm the new priority sorting E2E proves the intended task triage workflow without brittleness.
 2. Review `tests/unit/supabase-live-acceptance.test.ts` and confirm the temporary cwd isolation is the right way to keep the missing-env guard independent from local acceptance credentials.
-3. Check PR #4 CodeRabbit OSS and GitHub Actions after this handoff update reaches the remote branch.
+3. Re-check PR #4 CodeRabbit OSS and GitHub Actions after this final handoff-status update reaches the remote branch.
 4. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
 
 ## 11. Suggested Review Scope for Claude Code
