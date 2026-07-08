@@ -621,6 +621,35 @@ test("dashboard alerts link directly to the related CRM record", async ({ page }
   await strict.expectClean();
 });
 
+test("dashboard high-MRR deal alert clears after a linked follow-up task exists", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const dealName = `E2E High MRR Follow-up ${unique}`;
+  const taskTitle = `E2E High MRR Task ${unique}`;
+
+  await page.goto("/deals/new");
+  await page.locator('input[name="name"]').fill(dealName);
+  await page.locator('input[name="expected_mrr"]').fill("95000");
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/deals\/[^/]+\?toast=created$/);
+  const dealId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(dealId).toBeTruthy();
+
+  await page.goto("/dashboard");
+  await expect(page.getByTestId("dashboard-alert-link").filter({ hasText: dealName })).toBeVisible();
+
+  await page.goto(`/tasks/new?deal_id=${dealId}`);
+  await expect(page.locator('select[name="deal_id"]')).toHaveValue(dealId);
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+
+  await page.goto("/dashboard");
+  await expect(page.getByTestId("dashboard-alert-link").filter({ hasText: dealName })).toHaveCount(0);
+  await strict.expectClean();
+});
+
 test("lead spreadsheet import settings can be opened from leads and saved", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
 
