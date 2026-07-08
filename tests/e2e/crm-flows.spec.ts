@@ -1541,6 +1541,16 @@ test("tablet viewport keeps dashboards and dense lists within the page width", a
     expect(overflow).toBeLessThanOrEqual(5);
   }
 
+  await page.goto("/dashboard");
+  const riskyCompanyHref = await page.getByTestId("dashboard-risky-company-link").first().getAttribute("href");
+  expect(riskyCompanyHref).toMatch(/^\/companies\/[^/\s]+$/);
+  await page.goto(riskyCompanyHref ?? "/companies");
+  await expect(page.locator("main")).toContainText("ヘルススコア");
+  await expect(page.locator("main")).toContainText("ログイン頻度");
+  await expect(page.locator("main")).toContainText("CS評価");
+  const detailOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(detailOverflow).toBeLessThanOrEqual(5);
+
   await strict.expectClean();
 });
 
