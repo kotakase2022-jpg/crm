@@ -1554,8 +1554,11 @@ test("tablet viewport keeps dashboards and dense lists within the page width", a
   await strict.expectClean();
 });
 
-test("invalid form input is blocked by browser validation and does not create a crash", async ({ page }) => {
+test("invalid form input can be corrected and saved without crashing", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const leadName = `E2E Corrected Lead ${unique}`;
+  const companyName = `E2E Corrected Company ${unique}`;
 
   await page.goto("/leads/new");
   await page.locator('input[name="email"]').fill("not-an-email");
@@ -1564,6 +1567,16 @@ test("invalid form input is blocked by browser validation and does not create a 
   await expect(page).toHaveURL(/\/leads\/new$/);
   await expect(page.locator('input[name="email"]')).toHaveJSProperty("validity.valid", false);
   await expect(page.locator("main")).toBeVisible();
+
+  await page.locator('input[name="name"]').fill(leadName);
+  await page.locator('input[name="company_name"]').fill(companyName);
+  await page.locator('input[name="email"]').fill(`corrected-${unique}@example.test`);
+  await expect(page.locator('input[name="email"]')).toHaveJSProperty("validity.valid", true);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/leads\/[^/]+\?toast=created$/);
+  await expect(page.locator("body")).toContainText(leadName);
+  await expect(page.locator("body")).toContainText(companyName);
   await strict.expectClean();
 });
 
