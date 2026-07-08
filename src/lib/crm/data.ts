@@ -50,6 +50,11 @@ export type RelatedSection = {
   rows: CrmRecord[];
 };
 
+type CreatedRecord = {
+  table: TableName;
+  record: CrmRecord;
+};
+
 const relationTableByKey: Record<RelationKey, TableName> = {
   companies: "companies",
   contacts: "contacts",
@@ -394,18 +399,30 @@ export async function createRecord(config: EntityConfig, values: Record<string, 
 }
 
 async function softDeleteCreatedRecordAfterFailure(ctx: CrmContext, table: TableName, record: CrmRecord, error: unknown): Promise<never> {
-  const message = error instanceof Error ? error.message : String(error);
-  let cleanupMessage = "";
+  return softDeleteCreatedRecordsAfterFailure(ctx, [{ table, record }], error);
+}
 
-  try {
-    await updateRow(ctx, table, String(record.id), {
-      deleted_at: nowIso(),
-    });
-  } catch (cleanupError) {
-    cleanupMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+async function softDeleteCreatedRecordsAfterFailure(
+  ctx: CrmContext,
+  records: CreatedRecord[],
+  error: unknown,
+  existingCleanupMessages: string[] = [],
+): Promise<never> {
+  const message = error instanceof Error ? error.message : String(error);
+  const cleanupMessages = [...existingCleanupMessages];
+
+  for (const { table, record } of [...records].reverse()) {
+    try {
+      await updateRow(ctx, table, String(record.id), {
+        deleted_at: nowIso(),
+      });
+    } catch (cleanupError) {
+      const cleanupMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+      cleanupMessages.push(`${table}: ${cleanupMessage}`);
+    }
   }
 
-  throw new Error(cleanupMessage ? `${message}; cleanup failed: ${cleanupMessage}` : message);
+  throw new Error(cleanupMessages.length > 0 ? `${message}; cleanup failed: ${cleanupMessages.join("; ")}` : message);
 }
 
 export async function updateRecord(config: EntityConfig, idValue: string, values: Record<string, unknown>) {
@@ -511,7 +528,7 @@ export async function convertLead(idValue: string) {
   const lead =
     ctx.mode === "demo"
       ? getDemoRows("leads").find((row) => row.id === idValue)
-      : await getRecord(leadConfig, idValue);
+      : await readRowById(ctx, leadConfig.table, idValue);
 
   if (!lead) {
     throw new Error("リードが見つかりません。");
@@ -525,78 +542,104 @@ export async function convertLead(idValue: string) {
     }
   }
 
-  const company = await insertRow(ctx, "companies", {
-    name: lead.company_name ?? lead.name,
-    status: "prospect",
-    industry: lead.industry,
-    company_size: lead.company_size,
-    monthly_projects: lead.monthly_projects,
-    monthly_documents: lead.monthly_documents,
-    main_customer_type: lead.main_customer_type,
-    current_document_method: lead.current_document_method,
-    accounting_software: lead.accounting_software,
-    primary_device: lead.primary_device,
-    it_literacy: lead.it_literacy,
-    decision_maker_type: lead.decision_maker_type,
-    phone: lead.phone,
-    next_action_date: lead.next_action_date,
-    notes: lead.notes,
-  });
+  const createdRecords: CreatedRecord[] = [];
+  let leadConversionWasWritten = false;
 
-  const contact = await insertRow(ctx, "contacts", {
-    company_id: company.id,
-    name: lead.contact_name ?? "担当者未設定",
-    role: lead.decision_maker_type === "社長" ? "社長" : "その他",
-    email: lead.email,
-    phone: lead.phone,
-    notes: "リード変換時に自動作成。",
-  });
+  try {
+    const company = await insertRow(ctx, "companies", {
+      name: lead.company_name ?? lead.name,
+      status: "prospect",
+      industry: lead.industry,
+      company_size: lead.company_size,
+      monthly_projects: lead.monthly_projects,
+      monthly_documents: lead.monthly_documents,
+      main_customer_type: lead.main_customer_type,
+      current_document_method: lead.current_document_method,
+      accounting_software: lead.accounting_software,
+      primary_device: lead.primary_device,
+      it_literacy: lead.it_literacy,
+      decision_maker_type: lead.decision_maker_type,
+      phone: lead.phone,
+      next_action_date: lead.next_action_date,
+      notes: lead.notes,
+    });
+    createdRecords.push({ table: "companies", record: company });
 
-  const deal = await insertRow(ctx, "deals", {
-    company_id: company.id,
-    contact_id: contact.id,
-    lead_id: lead.id,
-    name: `${company.name} 帳票管理導入`,
-    stage: "初回接触",
-    expected_plan: "スタンダード",
-    expected_mrr: 0,
-    probability: 20,
-    expected_contract_date: null,
-    next_action_date: lead.next_action_date,
-    notes: "リードから自動変換された商談です。",
-  });
+    const contact = await insertRow(ctx, "contacts", {
+      company_id: company.id,
+      name: lead.contact_name ?? "担当者未設定",
+      role: lead.decision_maker_type === "社長" ? "社長" : "その他",
+      email: lead.email,
+      phone: lead.phone,
+      notes: "リード変換時に自動作成。",
+    });
+    createdRecords.push({ table: "contacts", record: contact });
 
-  await updateRow(ctx, "leads", idValue, {
-    status: "商談化",
-    converted_company_id: company.id,
-    converted_contact_id: contact.id,
-    converted_deal_id: deal.id,
-  });
+    const deal = await insertRow(ctx, "deals", {
+      company_id: company.id,
+      contact_id: contact.id,
+      lead_id: lead.id,
+      name: `${company.name} 帳票管理導入`,
+      stage: "初回接触",
+      expected_plan: "スタンダード",
+      expected_mrr: 0,
+      probability: 20,
+      expected_contract_date: null,
+      next_action_date: lead.next_action_date,
+      notes: "リードから自動変換された商談です。",
+    });
+    createdRecords.push({ table: "deals", record: deal });
 
-  await insertRow(ctx, "activities", {
-    type: "メモ",
-    subject: "リードを会社・担当者・商談へ変換",
-    content: "リード変換により営業管理を商談へ移行しました。",
-    occurred_at: nowIso(),
-    lead_id: lead.id,
-    company_id: company.id,
-    contact_id: contact.id,
-    deal_id: deal.id,
-  });
+    await updateRow(ctx, "leads", idValue, {
+      status: "商談化",
+      converted_company_id: company.id,
+      converted_contact_id: contact.id,
+      converted_deal_id: deal.id,
+    });
+    leadConversionWasWritten = true;
 
-  await ensureTask(ctx, {
-    automation_key: `converted-demo-schedule-${deal.id}`,
-    title: "デモ日程確認",
-    description: "リード商談化後の次アクションです。",
-    status: "未完了",
-    priority: "中",
-    due_date: offsetLocalDateString(1),
-    lead_id: lead.id,
-    company_id: company.id,
-    deal_id: deal.id,
-  });
+    await insertRow(ctx, "activities", {
+      type: "メモ",
+      subject: "リードを会社・担当者・商談へ変換",
+      content: "リード変換により営業管理を商談へ移行しました。",
+      occurred_at: nowIso(),
+      lead_id: lead.id,
+      company_id: company.id,
+      contact_id: contact.id,
+      deal_id: deal.id,
+    });
 
-  return String(deal.id);
+    await ensureTask(ctx, {
+      automation_key: `converted-demo-schedule-${deal.id}`,
+      title: "デモ日程確認",
+      description: "リード商談化後の次アクションです。",
+      status: "未完了",
+      priority: "中",
+      due_date: offsetLocalDateString(1),
+      lead_id: lead.id,
+      company_id: company.id,
+      deal_id: deal.id,
+    });
+
+    return String(deal.id);
+  } catch (error) {
+    const cleanupMessages: string[] = [];
+
+    if (leadConversionWasWritten) {
+      try {
+        await updateRow(ctx, "leads", idValue, {
+          status: typeof lead.status === "string" ? lead.status : null,
+          converted_company_id: relationIdValue(lead.converted_company_id),
+          converted_contact_id: relationIdValue(lead.converted_contact_id),
+          converted_deal_id: relationIdValue(lead.converted_deal_id),
+        });
+      } catch (cleanupError) {
+        cleanupMessages.push(`leads: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
+      }
+    }
+
+    return softDeleteCreatedRecordsAfterFailure(ctx, createdRecords, error, cleanupMessages);
+  }
 }
 
 async function getRelationOptionsForContext(ctx: CrmContext): Promise<RelationOptions> {

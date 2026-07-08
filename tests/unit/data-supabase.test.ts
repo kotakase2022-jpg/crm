@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createRecord, listRecords, softDeleteRecord } from "@/lib/crm/data";
+import { convertLead, createRecord, listRecords, softDeleteRecord } from "@/lib/crm/data";
 import { entityConfigs } from "@/lib/crm/entities";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -146,6 +146,49 @@ describe("Supabase CRM data access", () => {
     expect(leadCleanup.is).toHaveBeenCalledWith("deleted_at", null);
     expect(leadCleanup.select).toHaveBeenCalledWith("*");
     expect(leadCleanup.single).toHaveBeenCalled();
+  });
+
+  it("soft deletes created Supabase conversion rows when lead conversion fails mid-flow", async () => {
+    const leadRead = maybeSingleReturning({
+      id: "lead-1",
+      name: "Conversion Lead",
+      company_name: "Conversion Company",
+      contact_name: "Conversion Contact",
+      status: "新規（広告以外）",
+      organization_id: "org-1",
+    });
+    const companyInsert = insertReturning({ id: "company-1", name: "Conversion Company", organization_id: "org-1" });
+    const companyRelationRead = maybeSingleReturning({ id: "company-1", name: "Conversion Company", organization_id: "org-1" });
+    const companyConsistencyRead = maybeSingleReturning({ id: "company-1", name: "Conversion Company", organization_id: "org-1" });
+    const contactInsert = insertFail({ message: "Contact insert failed" });
+    const companyCleanup = updateReturning({ id: "company-1" });
+    const builders: Record<string, Array<Record<string, unknown>>> = {
+      leads: [leadRead],
+      companies: [companyInsert, companyRelationRead, companyConsistencyRead, companyCleanup],
+      contacts: [contactInsert],
+    };
+    const supabase = mockAuthenticatedSupabase((table: string) => {
+      const builder = builders[table]?.shift();
+      if (!builder) throw new Error(`Unexpected table query: ${table}`);
+      return builder;
+    });
+
+    await expect(convertLead("lead-1")).rejects.toThrow("Contact insert failed");
+
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
+    expect(supabase.from).toHaveBeenCalledWith("leads");
+    expect(supabase.from).toHaveBeenCalledWith("companies");
+    expect(supabase.from).toHaveBeenCalledWith("contacts");
+    expect(supabase.from).not.toHaveBeenCalledWith("deals");
+    expect(companyCleanup.update).toHaveBeenCalledWith({
+      deleted_at: expect.any(String),
+      updated_by: "user-1",
+    });
+    expect(companyCleanup.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(companyCleanup.eq).toHaveBeenCalledWith("id", "company-1");
+    expect(companyCleanup.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(companyCleanup.select).toHaveBeenCalledWith("*");
+    expect(companyCleanup.single).toHaveBeenCalled();
   });
 
   it("soft deletes Supabase records by setting deleted_at within the current organization", async () => {
