@@ -7,22 +7,22 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 18:04 JST
+- Last updated: 2026-07-08 18:24 JST
 
 ## 1. Current Goal
 
-Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, spreadsheet redirect safety, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity/task cleanup, activity next-action cleanup, demo follow-up task consistency that avoids transient failed deal updates, and live non-production Supabase CRUD/RLS acceptance.
+Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, spreadsheet redirect safety, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity/task cleanup, activity next-action cleanup, demo follow-up task consistency that avoids transient failed deal updates, latest-health-score CS risk accuracy, and live non-production Supabase CRUD/RLS acceptance.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
-- Latest local code commit: `c497ea2` (`Prevent transient failed demo updates`)
+- Latest local code commit: `a2fcf62` (`Use latest health score for CS risk`)
 - Latest documentation/handoff commit: current branch `HEAD`; run `git log -1 --oneline` for the exact hash after checkout
-- Last known good code commit: `c497ea2` after focused unit tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
+- Last known good code commit: `a2fcf62` after focused integration tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 after pushing the transient demo update and handoff commits. Confirm exact head with `gh pr view 4`.
+- CodeRabbit OSS review status: passed on PR #4 head `a2fcf62` after pushing the latest-health-score CS risk fix.
 
 ## 3. What Was Done
 
@@ -109,6 +109,12 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Added/updated unit integration coverage proving the deal update is not attempted when demo follow-up task creation fails, and that a newly created follow-up task is soft-deleted if the later deal update fails.
 - Re-ran focused Supabase data tests, `npm.cmd run typecheck`, full local `npm.cmd run quality`, live non-production Supabase CRUD/RLS acceptance, and `git diff --check`; all passed.
 - Committed the transient demo update prevention fix as `c497ea2`.
+- Added latest-health-score CS risk accuracy:
+  - dashboard low-health company count, risky-customer list, risk distribution, and upsell candidate count now use the latest `health_scores` row per company instead of counting historical rows;
+  - health-risk automation alerts now use the latest score per company, so an old danger score does not keep generating CS risk tasks after a newer healthy score exists.
+- Added integration tests for duplicate historical health-score rows, including CS KPI/risk list behavior and health-risk automation alert behavior.
+- Re-ran focused analytics/alerts integration tests, full local `npm.cmd run quality`, live non-production Supabase CRUD/RLS acceptance, and `git diff --check`; all passed.
+- Committed the latest-health-score CS risk fix as `a2fcf62`.
 
 ## 4. Files Changed
 
@@ -133,15 +139,24 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
   - Added `soft deletes activities when linked next-action task creation fails`.
   - Added/updated `does not update deals when demo follow-up task creation fails`.
   - Added `soft deletes demo follow-up tasks when the subsequent deal update fails`.
+- `src/lib/crm/health.ts`
+  - Added `latestHealthScoresByCompany` using `measured_on`, `updated_at`, then `created_at` recency per company.
+- `src/lib/crm/analytics.ts`
+  - Uses latest per-company health scores for low-health KPIs, risky-customer list, risk distribution, and upsell candidate count.
+- `src/lib/crm/alerts.ts`
+  - Uses latest per-company health scores before raising `health-under-40-*` automation alerts.
+- `tests/integration/analytics-alerts.test.ts`
+  - Added `uses each company's latest health score for CS risk and upsell KPIs`.
+  - Added `uses the latest health score per company for health-risk alerts`.
 
 ## 5. Current Status
 
-- Local focused unit tests are green at `c497ea2`.
-- Local full `npm.cmd run quality` is green at `c497ea2`.
-- Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval, most recently at 2026-07-08 17:54 JST.
+- Local focused integration tests are green at `a2fcf62`.
+- Local full `npm.cmd run quality` is green at `a2fcf62`.
+- Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval, most recently at 2026-07-08 18:17 JST.
 - The latest code change is a focused Supabase data-consistency implementation/test update and does not change DB schema, migrations, Supabase secrets, or production data.
 - PR #4 is still open and `REVIEW_REQUIRED`.
-- PR #4 latest pushed head has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments after the transient demo update and handoff commits.
+- PR #4 latest pushed head `a2fcf62` has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments after the latest-health-score CS risk fix.
 - Supabase preview branch `acceptance-crm-20260708` may still exist and may continue billing until deleted. Delete it only with explicit user approval.
 
 ## 6. Known Issues
@@ -153,7 +168,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on the latest pushed PR #4 head after the transient demo update and handoff commits.
+- Review status: Passed on PR #4 head `a2fcf62`.
 - Critical findings: none known.
 - Resolved findings: Earlier PR-description warning was addressed in a prior Loop 11 update.
 - Deferred findings: none.
@@ -201,6 +216,9 @@ npm.cmd run test -- --run tests/unit/data-supabase.test.ts
 npm.cmd run test -- --run tests/unit/data-conversion.test.ts tests/unit/data-supabase.test.ts
 # Passed after the lead-conversion cleanup fix: 2 files / 9 tests.
 
+npm.cmd run test -- --run tests/integration/analytics-alerts.test.ts
+# Passed after the latest-health-score CS risk fix: 1 file / 19 tests.
+
 git diff --check
 # Passed.
 
@@ -214,11 +232,12 @@ npm.cmd run quality
 # Later re-run after the activity next-action cleanup fix passed with 31 files / 215 tests.
 # Later re-run after the demo follow-up rollback fix passed with 31 files / 216 tests.
 # Later re-run after the transient demo update prevention fix passed with 31 files / 217 tests.
+# Later re-run after the latest-health-score CS risk fix passed with 31 files / 219 tests.
 # coverage: passed
-#   statements 93.79%
-#   branches 86.75%
+#   statements 93.68%
+#   branches 86.55%
 #   functions 99.54%
-#   lines 96.06%
+#   lines 96.00%
 # test:e2e: passed (55 Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
 
@@ -232,6 +251,7 @@ npm.cmd run acceptance:supabase
 # Passed again at 2026-07-08 17:21 JST using Preview Branch acceptance-crm-20260708 after the user explicitly approved paid Preview Branch usage and acceptance execution.
 # Passed again at 2026-07-08 17:41 JST after the demo follow-up rollback fix.
 # Passed again at 2026-07-08 17:54 JST after the transient demo update prevention fix.
+# Passed again at 2026-07-08 18:17 JST after the latest-health-score CS risk fix.
 
 git commit -m "Cover demo lead import persistence"
 # Passed. Commit: d3d8b02.
@@ -269,6 +289,10 @@ git commit -m "Prevent transient failed demo updates"
 # Passed. Commit: c497ea2.
 # Pre-commit test guard also passed.
 
+git commit -m "Use latest health score for CS risk"
+# Passed. Commit: a2fcf62.
+# Pre-commit test guard also passed.
+
 git push origin codex/loop11-crm-quality-sweep
 # Passed. Remote branch updated.
 # Pre-push guard passed: test:guard, lint, typecheck, and test.
@@ -282,7 +306,7 @@ gh pr view 4 --repo kotakase2022-jpg/crm --json number,state,isDraft,reviewDecis
 # quality-gate / typecheck-lint-test-e2e-build: success
 
 gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10
-# Passed after pushing the documentation-only handoff update.
+# Passed after pushing the latest-health-score CS risk fix.
 # CodeRabbit: pass
 # Vercel: pass
 # Vercel Preview Comments: pass
@@ -297,8 +321,8 @@ Chrome Supabase dashboard
 
 For Claude Code:
 
-1. Review `src/lib/crm/data.ts`, `src/lib/crm/lead-imports.ts`, `tests/unit/data-supabase.test.ts`, and `tests/unit/lead-imports.test.ts`, especially the failed automatic-task, lead-conversion, activity next-action cleanup, and demo follow-up consistency paths, for correctness and brittleness.
-2. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, lead conversion cleanup including the activity/task tail, activity next-action cleanup, demo follow-up pre-task/create-cleanup behavior, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
+1. Review `src/lib/crm/data.ts`, `src/lib/crm/lead-imports.ts`, `src/lib/crm/health.ts`, `src/lib/crm/analytics.ts`, `src/lib/crm/alerts.ts`, `tests/unit/data-supabase.test.ts`, `tests/unit/lead-imports.test.ts`, and `tests/integration/analytics-alerts.test.ts`, especially the failed automatic-task, lead-conversion, activity next-action cleanup, demo follow-up consistency, and latest-health-score CS risk paths, for correctness and brittleness.
+2. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, lead conversion cleanup including the activity/task tail, activity next-action cleanup, demo follow-up pre-task/create-cleanup behavior, latest per-company health-score CS KPI/alert behavior, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
 3. Review whether future work should add a route/action-level test seam for a UI-triggered import run, while keeping the current diff test-only and focused.
 4. PR #4 still needs human or Claude Code review before merge even though CodeRabbit/CI/Vercel are green.
 5. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing when acceptance is no longer needed; delete it only with explicit user approval.
@@ -315,6 +339,7 @@ For Claude Code:
 - Does the conversion activity cleanup logic avoid leaving a misleading activity record when the final follow-up task creation fails?
 - Does the activity next-action cleanup logic avoid leaving a misleading activity record when the user requested a next-action task and task persistence fails?
 - Does the demo follow-up consistency logic avoid writing a `デモ実施` deal update when its promised next-day follow-up task cannot persist, and soft-delete a newly created follow-up task if the later deal update fails?
+- Does the latest-health-score logic correctly use `measured_on`, `updated_at`, then `created_at` so stale low scores do not inflate CS KPIs or generate false health-risk alerts?
 - Does it avoid brittle localized text assertions and external network dependencies?
 - Confirm no secrets or `.env.acceptance.local` values were committed or printed.
 - Confirm PR #4 remains reviewable despite the accumulated Loop 11 E2E/test additions.
@@ -341,4 +366,4 @@ For Claude Code:
 - Current self-assessment after this loop:
   - Function/screen-transition defect-free score: 99 / 100
   - Daily CRM experience value score: 99 / 100
-- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, spreadsheet import persistence proof, spreadsheet redirect safety proof, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity cleanup, activity next-action cleanup, and demo follow-up consistency improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
+- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, latest health-score risk accuracy, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, spreadsheet import persistence proof, spreadsheet redirect safety proof, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity cleanup, activity next-action cleanup, and demo follow-up consistency improved. Still not claiming 100/100 because PR #4 still needs human/Claude review before merge and the Supabase preview-branch cost cleanup decision remains open.
