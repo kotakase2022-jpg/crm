@@ -7,204 +7,99 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 15:31 JST
+- Last updated: 2026-07-08 15:45 JST
 
 ## 1. Current Goal
 
-Strengthen mechanical proof that daily CRM users can trust task triage, filtering, empty-search recovery, sales alert resolution, automation task generation, CS risk drill-down, tablet-width layout safety, invalid-input recovery, and relation-validation recovery: urgent work surfaces first, completed work leaves actionable views, dashboard cards only show actionable today/overdue work, searches with no results stay clearable and recover to the populated list, task status filters preserve search context, high-MRR deal warnings clear only after an open linked follow-up task exists, automation creates searchable follow-up tasks without duplication, account details show why a risky customer has a low health score, the dense health-score breakdown does not create page-level horizontal overflow, invalid lead form input can be corrected and saved without losing work, and inconsistent task company/deal relations keep the user on a correctable form before saving successfully after correction.
+Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, and live non-production Supabase CRUD/RLS acceptance.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
-- Latest local code commit: `314a3cf` (`Cover clearable empty search state`)
-- Latest remote head checked before this local handoff update: `50caf26` (`Record relation validation PR verification`)
-- Last known good commit: `314a3cf` after local focused E2E and full `npm.cmd run quality`; live non-production Supabase acceptance also passed earlier in Loop 11 after user approval
+- Latest local code commit: `d3d8b02` (`Cover demo lead import persistence`)
+- Latest remote head checked before this handoff update: `1474923` (`Record empty search recovery handoff`)
+- Last known good code commit: `d3d8b02` after focused unit test, full `npm.cmd run quality`, and live non-production Supabase acceptance
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `50caf26`; re-check after pushing `314a3cf` plus this handoff update.
+- CodeRabbit OSS review status: passed on PR #4 remote head `1474923`; re-check after pushing `d3d8b02` plus this handoff update.
 
 ## 3. What Was Done
 
 - Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, and `docs/testing.md`.
-- Confirmed PR #4 is open, non-draft, and still `REVIEW_REQUIRED`.
-- Confirmed the previously checked PR #4 remote head `223a895` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
-- Added Playwright E2E coverage for task status filtering:
-  - creates one open task and one completed task;
-  - searches by a unique marker;
-  - applies the task status filter;
-  - verifies only the completed task remains visible;
-  - verifies the search query and filter query parameters are preserved.
-- Re-ran the full local quality gate; it passed with 52 Chromium E2E tests.
-- Re-ran live Supabase CRUD/RLS acceptance after the user explicitly approved paid non-production Supabase Preview Branch usage and acceptance execution; it passed.
-- Re-checked PR #4 remote head `80edbf7`; CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
-- Added Playwright E2E coverage for high-MRR sales alert resolution:
-  - creates a high-MRR deal with no follow-up task;
-  - confirms the dashboard shows the high-MRR/no-task warning;
-  - creates a task prefilled with that deal relationship;
-  - confirms the warning disappears from the dashboard.
-- Re-ran the focused E2E and the full local quality gate; it passed with 53 Chromium E2E tests.
-- Re-checked PR #4 remote head `3f28e20`; CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
-- Strengthened the high-MRR alert-resolution E2E so a completed linked follow-up task does not clear the warning; the warning clears only after an open linked task exists.
-- Re-ran the focused E2E and the full local quality gate again; it passed with 53 Chromium E2E tests.
-- Re-checked PR #4 remote head `a29371e`; CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
-- Strengthened the automation E2E so dashboard automation:
-  - creates a missing high-MRR follow-up task;
-  - makes the generated task searchable from the task list by the related deal name;
-  - does not duplicate that same open task on a second automation run.
-- Re-ran the focused E2E and the full local quality gate again; it passed with 53 Chromium E2E tests.
-- Pushed through handoff commit `b2e0d5f` and confirmed PR #4 remote head `b2e0d5f` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
-- Added the company-detail health-score breakdown columns so CS can inspect login frequency, document count, active users, setup, support, renewal, and CS subjective components from the risky-customer drill-down.
-- Updated the dashboard/reports/settings E2E flow to prove the risky-customer dashboard link opens the account detail page, displays the health-score breakdown, and keeps the linked task creation path prefilled with the company.
-- Re-ran the focused E2E and the full local quality gate again; it passed with 53 Chromium E2E tests.
-- Updated PR #4 body to include the CS health-score breakdown improvement, E2E proof, and latest verification commands.
-- Pushed through handoff commit `6e3797a` and confirmed PR #4 remote head `6e3797a` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
-- Extended the tablet-width E2E to open the dashboard's risky-customer company detail and confirm the health-score breakdown does not create page-level horizontal overflow.
-- Re-ran the focused tablet E2E and the full local quality gate again; it passed with 53 Chromium E2E tests.
-- Updated PR #4 body to include the tablet-width risky-customer detail verification.
-- Pushed through handoff commit `518e863` and confirmed PR #4 remote head `518e863` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
-- Strengthened the invalid lead form E2E so the user can trigger browser validation, correct the email plus required fields, save, and land on the created lead detail page without console/page errors.
-- Re-ran the focused invalid-input E2E and the full local quality gate again; it passed with 53 Chromium E2E tests.
-- Updated PR #4 body to include invalid-input recovery coverage.
-- Pushed through handoff commit `867164b` and confirmed PR #4 remote head `867164b` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
-- Added Playwright E2E coverage for relation-validation recovery:
-  - opens an existing deal and captures its company;
-  - creates a different company;
-  - tries to create a task with mismatched company/deal relations;
-  - verifies the validation-error alert and relation fields remain correctable;
-  - fixes the company relation and saves the task successfully.
-- Re-ran the focused relation-validation E2E and the full local quality gate again; it passed with 54 Chromium E2E tests.
-- Updated PR #4 body to include relation-validation recovery coverage.
-- Pushed through handoff commit `0dcb702` and confirmed PR #4 remote head `0dcb702` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
-- Pushed through handoff commit `50caf26` and confirmed PR #4 remote head `50caf26` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
-- Added Playwright E2E coverage for empty-search recovery:
-  - opens the company list;
-  - searches for an impossible company name;
-  - verifies the table disappears and a clear link is available;
-  - clicks clear and confirms the populated company list returns.
-- Fixed the new test after its first run by scoping the submit click to `data-testid="entity-filter-form"`; the initial failure was a test harness selector issue, not an implementation failure.
-- Re-ran the focused empty-search E2E and the full local quality gate again; it passed with 55 Chromium E2E tests.
-- Updated PR #4 body to include empty-search recovery coverage.
+- Confirmed PR #3 is already merged and approved.
+- Confirmed PR #4 is open, non-draft, and `REVIEW_REQUIRED`.
+- Confirmed PR #4 remote head `1474923` had green checks before the new local commit:
+  - GitHub Actions `quality-gate / typecheck-lint-test-e2e-build`: success
+  - CodeRabbit: success
+  - Vercel: success
+  - Vercel Preview Comments: success
+- Added unit/integration coverage for demo spreadsheet lead import persistence:
+  - saves a demo import setting;
+  - fetches a Google Sheets CSV response without touching external data;
+  - imports one lead into the demo store;
+  - applies the configured default lead status when the CSV row has an unsupported status;
+  - creates the linked first-call task;
+  - verifies a second run skips the duplicate source id without creating another lead.
+- Ran the focused unit test successfully.
+- Ran the full local quality gate successfully.
+- Ran live non-production Supabase CRUD/RLS acceptance successfully using the existing gitignored acceptance environment, after the user explicitly approved paid non-production Supabase Preview Branch usage and acceptance execution.
+- Committed the test addition as `d3d8b02`.
 
 ## 4. Files Changed
 
-- `tests/e2e/crm-flows.spec.ts`
-  - Added empty-search recovery coverage so a no-result company search stays clearable and returns the populated list.
-  - Added relation-validation recovery coverage so a mismatched task company/deal relation shows an error, stays on a correctable form, and saves after the relation is fixed.
-  - Strengthened invalid-input coverage so a bad lead email is blocked, corrected, and then saved to the lead detail page.
-  - Strengthened tablet-width layout coverage so the risky-customer company detail with the health-score breakdown stays within page width.
-  - Strengthened dashboard risky-customer drill-down coverage so company details must show the health-score breakdown before opening a prefilled linked task.
-  - Strengthened automation task-generation E2E coverage so generated tasks are searchable and not duplicated on repeated runs.
-  - Strengthened high-MRR deal alert-resolution E2E coverage so completed follow-up tasks do not hide missing-next-action warnings.
-  - Existing Loop 11 additions on this PR also cover task priority sorting, completed-task quick-view behavior, dashboard actionable-task filtering, and task status filtering.
-- `src/components/crm/entity-detail.tsx`
-  - Shows the health-score component columns on company detail related tables: login frequency, document count, active users, setup, support, renewal, and CS subjective score.
-- `tests/unit/supabase-live-acceptance.test.ts`
-  - Existing Loop 11 PR change isolates the CLI missing-env guard from local `.env.acceptance.local`.
-- `AI_HANDOFF.md`
-  - Updated with current Loop 11 status, verification results, PR review state, and next actions.
-- PR #4 metadata
-  - Title/body updated to describe task triage plus filtering scope.
+- `tests/unit/lead-imports.test.ts`
+  - Added `imports demo spreadsheet rows into leads with first-call tasks and skips duplicates`.
+  - Imports `runLeadImportSetting` and `getDemoRows` to verify the real demo persistence path rather than only CSV parsing.
 
 ## 5. Current Status
 
-- Local quality gate is green at `314a3cf`.
-- Live non-production Supabase CRUD/RLS acceptance is green after explicit paid-preview-branch approval.
-- The newest code commit is E2E-only and verifies empty-search recovery on the company list; no DB schema, migration, or persistence contract changed.
-- PR #4 is open and non-draft.
-- PR #4 still has GitHub `reviewDecision: REVIEW_REQUIRED`; human or Claude Code review is still needed before merge.
-- Supabase preview branch `acceptance-crm-20260708` still exists and may continue billing until deleted.
-- After pushing `314a3cf` and this handoff update, GitHub Actions and CodeRabbit should be rechecked on the new remote head.
+- Local focused unit test is green at `d3d8b02`.
+- Local full `npm.cmd run quality` is green at `d3d8b02`.
+- Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval.
+- The latest code change is test-only and does not change DB schema, migrations, Supabase secrets, production data, or app runtime behavior.
+- PR #4 is still open and `REVIEW_REQUIRED`.
+- PR #4 checks must be re-run after pushing `d3d8b02` and this handoff update.
+- Supabase preview branch `acceptance-crm-20260708` may still exist and may continue billing until deleted. Delete it only with explicit user approval.
 
 ## 6. Known Issues
 
-- The Supabase preview branch created for acceptance is billed hourly while it exists. The user approved paid preview branch creation and acceptance execution, but has not explicitly instructed deletion.
-- PR #4 needs CodeRabbit/GitHub Actions re-check after the next push.
 - PR #4 needs human or Claude Code review before merge.
+- CodeRabbit/GitHub Actions need to be rechecked after the next push.
+- Supabase preview branch cleanup remains a cost-control decision for the user.
 - Cursor Bugbot was not intentionally run by Codex; it remains optional backup only.
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `50caf26`; re-check after pushing `314a3cf` and this handoff update.
+- Review status: Passed on PR #4 remote head `1474923`; pending re-review after pushing `d3d8b02` and this handoff update.
 - Critical findings: none known.
-- Resolved findings: Earlier CodeRabbit PR-description warning was addressed by expanding the PR body to match repository template sections.
+- Resolved findings: Earlier PR-description warning was addressed in a prior Loop 11 update.
 - Deferred findings: none.
 - False positives / not applicable: none.
 
 ## 8. Optional Bugbot Findings
 
 - Status: Not intentionally run by Codex.
-- Reason: CodeRabbit OSS is the standard reviewer, and the latest change is a small E2E-only diff with a green local quality gate.
+- Reason: CodeRabbit OSS is the standard reviewer, local quality is green, and the latest change is a small test-only diff.
 - Findings: None from an intentional Codex-run Bugbot review.
 - Actions taken: None.
 
 ## 9. Verification Results
 
 ```bash
-gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup
-# Passed before local relation-validation-recovery push. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 867164b.
+gh pr list --repo kotakase2022-jpg/crm --state all --limit 6 --json number,title,state,isDraft,headRefName,reviewDecision,updatedAt
+# Passed. PR #3 is MERGED/APPROVED. PR #4 is OPEN, non-draft, REVIEW_REQUIRED.
+
+gh pr view 4 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup,url
+# Passed before the new local push. PR #4 remote head 1474923 was OPEN, non-draft, REVIEW_REQUIRED.
 # CodeRabbit: success
 # Vercel: success
 # Vercel Preview Comments: success
 # quality-gate / typecheck-lint-test-e2e-build: success
 
-gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10
-# Passed after pushing `0dcb702`.
-# CodeRabbit: passed
-# Vercel: passed
-# Vercel Preview Comments: passed
-# typecheck-lint-test-e2e-build: passed in 4m27s
-
-gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup
-# Passed after pushing `0dcb702`. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 0dcb702.
-# CodeRabbit: success
-# Vercel: success
-# Vercel Preview Comments: success
-# quality-gate / typecheck-lint-test-e2e-build: success
-
-gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10
-# Passed after pushing `50caf26`.
-# CodeRabbit: passed
-# Vercel: passed
-# Vercel Preview Comments: passed
-# typecheck-lint-test-e2e-build: passed in 4m20s
-
-gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup
-# Passed before local empty-search-recovery push. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 50caf26.
-# CodeRabbit: success
-# Vercel: success
-# Vercel Preview Comments: success
-# quality-gate / typecheck-lint-test-e2e-build: success
-
-npm.cmd run test:e2e -- -g "list status filter narrows"
-# Passed. 1 Chromium test.
-
-npm.cmd run test:e2e -- -g "dashboard high-MRR deal alert clears only"
-# Passed. 1 Chromium test.
-
-npm.cmd run test:e2e -- -g "automation task generation creates"
-# Passed. 1 Chromium test.
-
-npm.cmd run test:e2e -- -g "dashboards, reports, and settings"
-# Passed. 1 Chromium test. This now verifies risky-customer drill-down shows the health-score breakdown before opening a prefilled linked task.
-
-npm.cmd run test:e2e -- -g "tablet viewport keeps"
-# Passed. 1 Chromium test. This now verifies the risky-customer company detail with health-score breakdown stays within page width at 900px.
-
-npm.cmd run test:e2e -- -g "invalid form input can be corrected"
-# Passed. 1 Chromium test. This now verifies an invalid lead email is blocked, corrected, and saved to the lead detail page.
-
-npm.cmd run test:e2e -- -g "relation validation keeps"
-# Passed. 1 Chromium test. This verifies a mismatched task company/deal relation shows an alert, preserves relation fields for correction, and saves after the user fixes the company relation.
-
-npm.cmd run test:e2e -- -g "empty search results"
-# First run failed because the new test clicked the first page-level form button and navigated to `/login`; fixed by scoping the click to `data-testid="entity-filter-form"`.
-# Re-run passed. 1 Chromium test. This verifies a no-result company search exposes a clear link and returns to the populated company list.
-
-npm.cmd run acceptance:supabase
-# Passed on 2026-07-08 after explicit user approval for paid non-production preview-branch use and acceptance execution.
-# Supabase acceptance passed: auth, profile bootstrap, anonymous/optional cross-organization read isolation,
-# lead create/read/update/soft-delete, and organization scoping.
+npm.cmd run test -- --run tests/unit/lead-imports.test.ts
+# First run failed because the test reused the same Response object for two fetches; fixed the test harness to return a fresh Response per call.
+# Re-run passed: 1 file / 16 tests.
 
 git diff --check
 # Passed.
@@ -213,7 +108,7 @@ npm.cmd run quality
 # Passed.
 # typecheck: passed
 # lint: passed
-# test: passed (31 files / 208 tests)
+# test: passed (31 files / 209 tests)
 # coverage: passed
 #   statements 93.69%
 #   branches 86.54%
@@ -222,41 +117,38 @@ npm.cmd run quality
 # test:e2e: passed (55 Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
 
-gh pr edit 4 --repo kotakase2022-jpg/crm --title "Cover CRM task triage and automation flow" --body-file -
-# Passed. PR body now describes priority sorting, completed-task quick-view behavior,
-# dashboard actionable-task filtering, empty-search recovery, task status filtering, high-MRR alert resolution,
-# automation task generation, health-score breakdown drill-down, tablet layout safety,
-# invalid-input recovery, relation-validation recovery, quality, and Supabase acceptance.
+npm.cmd run acceptance:supabase
+# Passed after explicit user approval for paid non-production Supabase preview-branch use and acceptance execution.
+# Supabase acceptance passed: auth, profile bootstrap, anonymous/optional cross-organization read isolation,
+# lead create/read/update/soft-delete, and organization scoping.
+
+git commit -m "Cover demo lead import persistence"
+# Passed. Commit: d3d8b02.
+# Pre-commit test guard also passed.
 ```
 
 ## 10. Next Recommended Action
 
 For Claude Code:
 
-1. Re-check PR #4 after the latest push with `gh pr checks 4 --repo kotakase2022-jpg/crm`.
-2. Review `tests/e2e/crm-flows.spec.ts` for the empty-search recovery change; confirm it proves a realistic no-results recovery path without relying on fragile localized copy.
-3. Review `tests/e2e/crm-flows.spec.ts` for the relation-validation recovery change; confirm it proves a realistic mismatched relation correction path without becoming brittle.
-4. Review `tests/e2e/crm-flows.spec.ts` for the invalid-input recovery change; confirm it proves a realistic browser validation correction path without becoming brittle.
-5. Review `src/components/crm/entity-detail.tsx` and `tests/e2e/crm-flows.spec.ts` for the health-score breakdown drill-down and tablet-width layout coverage; confirm the extra columns improve CS diagnosis without page-level overflow or excessive visual noise.
-6. Review the Loop 11 task-triage/filtering/alert-resolution/automation E2E additions and confirm they prove useful workflows without brittleness.
-7. Review `tests/unit/supabase-live-acceptance.test.ts` and confirm the temporary cwd isolation is the right way to keep the missing-env guard independent from local acceptance credentials.
-8. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
+1. After Codex pushes, run `gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10` and confirm CodeRabbit, GitHub Actions, Vercel, and Vercel Preview Comments are green on the newest remote head.
+2. Review `tests/unit/lead-imports.test.ts`, especially the new demo spreadsheet import persistence test, for correctness and brittleness.
+3. Confirm the test proves the intended import behavior without using production data, real customer data, or Supabase service-role bypasses.
+4. Review whether future work should add a route/action-level test seam for a UI-triggered import run, while keeping the current diff test-only and focused.
+5. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
 
 ## 11. Suggested Review Scope for Claude Code
 
-- Do the E2E tests prove search preservation, priority ordering, completed-task removal from actionable views, dashboard exclusion of completed/future tasks, task status filtering, high-MRR alert resolution, and automation task creation without duplicate open tasks with real browser interactions?
-- Do the status-filter, alert-resolution, and automation E2Es avoid overfitting to implementation details while still proving meaningful user workflows?
-- Does the empty-search recovery E2E prove users can recover from no-result searches without relying on brittle localized text?
-- Does the relation-validation E2E prove an operator can recover from mismatched company/deal task relations without crashing or saving inconsistent data?
-- Does the invalid lead-form E2E prove a realistic correction-and-save path without relying on implementation-only details?
-- Does the health-score breakdown on company detail give CS enough diagnostic context without overcrowding the related table on desktop/tablet or causing page-level horizontal overflow?
-- Does the Supabase acceptance-test unit change avoid reading local credentials without weakening the missing-env fail-closed assertion?
+- Does the new test exercise the real `runLeadImportSetting` demo persistence path instead of only unit-level CSV parsing?
+- Does it verify lead creation, default-status fallback, source-id persistence, first-call task automation, and duplicate skip behavior?
+- Does it avoid brittle localized text assertions and external network dependencies?
 - Confirm no secrets or `.env.acceptance.local` values were committed or printed.
+- Confirm PR #4 remains reviewable despite the accumulated Loop 11 E2E/test additions.
 
 ## 12. Risk Notes
 
-- The E2E changes increase Chromium suite count from 48 to 55.
-- The live Supabase preview branch is still a cost item. Creation/use and acceptance testing were approved by the user; deletion still needs explicit approval.
+- The E2E suite currently has 55 Chromium tests and full `quality` takes roughly a few minutes locally.
+- The live Supabase preview branch is a cost item. Creation/use and acceptance testing were approved by the user; deletion still needs explicit approval.
 - Do not run acceptance against production Supabase.
 - Do not push directly to `main`.
 
@@ -275,4 +167,4 @@ For Claude Code:
 - Current self-assessment after this loop:
   - Function/screen-transition defect-free score: 99 / 100
   - Daily CRM experience value score: 99 / 100
-- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert-resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, and relation-validation recovery proof improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
+- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, and spreadsheet import persistence proof improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
