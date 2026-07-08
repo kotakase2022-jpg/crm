@@ -7,7 +7,7 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 17:56 JST
+- Last updated: 2026-07-08 18:04 JST
 
 ## 1. Current Goal
 
@@ -22,7 +22,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Last known good code commit: `c497ea2` after focused unit tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `f9db6da`; after pushing `c497ea2` plus this handoff update, confirm the latest PR checks with `gh pr checks 4`.
+- CodeRabbit OSS review status: passed on PR #4 after pushing the transient demo update and handoff commits. Confirm exact head with `gh pr view 4`.
 
 ## 3. What Was Done
 
@@ -141,19 +141,19 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval, most recently at 2026-07-08 17:54 JST.
 - The latest code change is a focused Supabase data-consistency implementation/test update and does not change DB schema, migrations, Supabase secrets, or production data.
 - PR #4 is still open and `REVIEW_REQUIRED`.
-- PR #4 remote head `f9db6da` has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments. Local code commit `c497ea2` still needs to be pushed and rechecked.
+- PR #4 latest pushed head has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments after the transient demo update and handoff commits.
 - Supabase preview branch `acceptance-crm-20260708` may still exist and may continue billing until deleted. Delete it only with explicit user approval.
 
 ## 6. Known Issues
 
 - PR #4 needs human or Claude Code review before merge.
-- No known failing local checks at `c497ea2`. PR checks were green on remote head `f9db6da` and must be rechecked after pushing `c497ea2` plus this handoff update.
+- No known failing local or PR checks on the latest pushed PR #4 head.
 - Supabase preview branch cleanup remains a cost-control decision for the user.
 - Cursor Bugbot was not intentionally run by Codex; it remains optional backup only.
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `f9db6da`; recheck after pushing the latest local commits.
+- Review status: Passed on the latest pushed PR #4 head after the transient demo update and handoff commits.
 - Critical findings: none known.
 - Resolved findings: Earlier PR-description warning was addressed in a prior Loop 11 update.
 - Deferred findings: none.
