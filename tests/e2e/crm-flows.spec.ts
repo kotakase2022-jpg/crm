@@ -340,6 +340,43 @@ test("task quick views keep their view filter when searching", async ({ page }) 
   await strict.expectClean();
 });
 
+test("completed tasks leave actionable today view but remain searchable", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const taskTitle = `E2E Completed Today ${unique}`;
+  const todayDate = localDateInputValue();
+
+  await page.goto("/tasks/new");
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.locator('input[name="due_date"]').fill(todayDate);
+  await page.getByRole("button", { name: "保存" }).click();
+
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+
+  await page.goto(`/tasks?view=today&q=${encodeURIComponent(taskTitle)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(taskTitle);
+
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+$/);
+  await page.locator("main form button").first().click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=completed$/);
+
+  await page.goto(`/tasks?view=today&q=${encodeURIComponent(taskTitle)}`);
+  let url = new URL(page.url());
+  expect(url.searchParams.get("view")).toBe("today");
+  expect(url.searchParams.get("q")).toBe(taskTitle);
+  await expect(page.locator("tbody tr")).toHaveCount(0);
+
+  await page.goto(`/tasks?q=${encodeURIComponent(taskTitle)}`);
+  url = new URL(page.url());
+  expect(url.searchParams.has("view")).toBe(false);
+  expect(url.searchParams.get("q")).toBe(taskTitle);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(taskTitle);
+  await strict.expectClean();
+});
+
 test("task quick links preserve the parent company scope", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();
