@@ -7,19 +7,19 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 17:27 JST
+- Last updated: 2026-07-08 17:41 JST
 
 ## 1. Current Goal
 
-Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, spreadsheet redirect safety, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity/task cleanup, activity next-action cleanup, and live non-production Supabase CRUD/RLS acceptance.
+Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, spreadsheet redirect safety, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity/task cleanup, activity next-action cleanup, demo follow-up task rollback consistency, and live non-production Supabase CRUD/RLS acceptance.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
-- Latest local code commit: `d72bd99` (`Clean up failed activity next actions`)
+- Latest local code commit: `92f1b9c` (`Rollback failed deal follow-up updates`)
 - Latest documentation/handoff commit: current branch `HEAD`; run `git log -1 --oneline` for the exact hash after checkout
-- Last known good code commit: `d72bd99` after focused unit tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
+- Last known good code commit: `92f1b9c` after focused unit tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
 - CodeRabbit OSS review status: passed on the latest PR #4 head after the documentation-only handoff push; confirm exact head with `gh pr view 4`.
@@ -97,6 +97,12 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Confirmed the user's Chrome Supabase session has the existing Preview Branch tab `crm (acceptance-crm-20260708) | suslab | Supabase`.
 - Did not create an additional paid Supabase Preview Branch because `acceptance-crm-20260708` already exists and is usable; avoiding a duplicate branch avoids unnecessary billing.
 - Re-ran live non-production Supabase CRUD/RLS acceptance at 2026-07-08 17:21 JST after the user explicitly approved paid Preview Branch usage and acceptance execution; it passed.
+- Added demo follow-up task rollback consistency:
+  - if a deal update moves the stage to `デモ実施` and the automatic next-day follow-up task fails to persist, the deal fields touched by that update are rolled back to their previous values;
+  - the original task insertion error remains visible unless the rollback itself fails.
+- Added a unit/integration regression test proving the deal update rollback is scoped by `organization_id`, deal id, and `deleted_at is null`, and that computed ARR is restored from the previous MRR.
+- Re-ran focused Supabase data tests, full local quality, and live non-production Supabase CRUD/RLS acceptance; all passed.
+- Committed the deal follow-up rollback fix as `92f1b9c`.
 
 ## 4. Files Changed
 
@@ -112,17 +118,19 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
   - Reuses the active CRM context during Supabase lead conversion and soft-deletes rows created by a failed conversion attempt.
   - Tracks the conversion activity as part of the conversion attempt so it is also soft-deleted if the follow-up task step fails.
   - Soft-deletes a newly created activity if its requested next-action task fails to persist.
+  - Rolls back touched deal fields if a `デモ実施` stage update succeeds but the automatic demo follow-up task fails to persist.
 - `tests/unit/data-supabase.test.ts`
   - Added `soft deletes a Supabase lead when its automatic first-call task creation fails`.
   - Added `soft deletes created Supabase conversion rows when lead conversion fails mid-flow`.
   - Added `rolls back converted leads and activities when conversion follow-up task creation fails`.
   - Added `soft deletes activities when linked next-action task creation fails`.
+  - Added `rolls back deal updates when demo follow-up task creation fails`.
 
 ## 5. Current Status
 
-- Local focused unit tests are green at `d72bd99`.
-- Local full `npm.cmd run quality` is green at `d72bd99`.
-- Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval, most recently at 2026-07-08 17:21 JST.
+- Local focused unit tests are green at `92f1b9c`.
+- Local full `npm.cmd run quality` is green at `92f1b9c`.
+- Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval, most recently at 2026-07-08 17:41 JST.
 - The latest code change is a focused Supabase data-consistency implementation/test update and does not change DB schema, migrations, Supabase secrets, or production data.
 - PR #4 is still open and `REVIEW_REQUIRED`.
 - PR #4 latest remote head has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments.
@@ -177,6 +185,8 @@ npm.cmd run test -- --run tests/unit/data-supabase.test.ts
 # Re-run passed after the implementation fix: 1 file / 7 tests.
 # Failed once after adding the activity next-action task failure regression test, proving the activity was not cleaned up.
 # Re-run passed after the implementation fix: 1 file / 8 tests.
+# Failed once after adding the demo follow-up task failure regression test, proving the deal update was not rolled back.
+# Re-run passed after the implementation fix: 1 file / 9 tests.
 
 npm.cmd run test -- --run tests/unit/data-conversion.test.ts tests/unit/data-supabase.test.ts
 # Passed after the lead-conversion cleanup fix: 2 files / 9 tests.
@@ -192,6 +202,7 @@ npm.cmd run quality
 # Later re-run after the lead-conversion cleanup fix passed with 31 files / 213 tests.
 # Later re-run after the conversion activity cleanup fix passed with 31 files / 214 tests.
 # Later re-run after the activity next-action cleanup fix passed with 31 files / 215 tests.
+# Later re-run after the demo follow-up rollback fix passed with 31 files / 216 tests.
 # coverage: passed
 #   statements 93.69%
 #   branches 86.54%
@@ -208,6 +219,7 @@ npm.cmd run acceptance:supabase
 # Passed again at 2026-07-08 16:57 JST after the conversion activity cleanup fix.
 # Passed again at 2026-07-08 17:10 JST after the activity next-action cleanup fix.
 # Passed again at 2026-07-08 17:21 JST using Preview Branch acceptance-crm-20260708 after the user explicitly approved paid Preview Branch usage and acceptance execution.
+# Passed again at 2026-07-08 17:41 JST after the demo follow-up rollback fix.
 
 git commit -m "Cover demo lead import persistence"
 # Passed. Commit: d3d8b02.
@@ -235,6 +247,10 @@ git commit -m "Clean up failed conversion activities"
 
 git commit -m "Clean up failed activity next actions"
 # Passed. Commit: d72bd99.
+# Pre-commit test guard also passed.
+
+git commit -m "Rollback failed deal follow-up updates"
+# Passed. Commit: 92f1b9c.
 # Pre-commit test guard also passed.
 
 git push origin codex/loop11-crm-quality-sweep
@@ -266,7 +282,7 @@ Chrome Supabase dashboard
 For Claude Code:
 
 1. Review `src/lib/crm/data.ts`, `src/lib/crm/lead-imports.ts`, `tests/unit/data-supabase.test.ts`, and `tests/unit/lead-imports.test.ts`, especially the failed automatic-task, lead-conversion, and activity next-action cleanup paths, for correctness and brittleness.
-2. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, lead conversion cleanup including the activity/task tail, activity next-action cleanup, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
+2. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, lead conversion cleanup including the activity/task tail, activity next-action cleanup, demo follow-up rollback, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
 3. Review whether future work should add a route/action-level test seam for a UI-triggered import run, while keeping the current diff test-only and focused.
 4. PR #4 still needs human or Claude Code review before merge even though CodeRabbit/CI/Vercel are green.
 5. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing when acceptance is no longer needed; delete it only with explicit user approval.
@@ -282,6 +298,7 @@ For Claude Code:
 - Is the lead rollback behavior acceptable if a failure occurs after conversion fields were written but before activity/task creation finishes?
 - Does the conversion activity cleanup logic avoid leaving a misleading activity record when the final follow-up task creation fails?
 - Does the activity next-action cleanup logic avoid leaving a misleading activity record when the user requested a next-action task and task persistence fails?
+- Does the demo follow-up rollback logic avoid leaving a `デモ実施` deal update without its promised next-day follow-up task when task persistence fails?
 - Does it avoid brittle localized text assertions and external network dependencies?
 - Confirm no secrets or `.env.acceptance.local` values were committed or printed.
 - Confirm PR #4 remains reviewable despite the accumulated Loop 11 E2E/test additions.
@@ -308,4 +325,4 @@ For Claude Code:
 - Current self-assessment after this loop:
   - Function/screen-transition defect-free score: 99 / 100
   - Daily CRM experience value score: 99 / 100
-- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, spreadsheet import persistence proof, spreadsheet redirect safety proof, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity cleanup, and activity next-action cleanup improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
+- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, spreadsheet import persistence proof, spreadsheet redirect safety proof, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity cleanup, activity next-action cleanup, and demo follow-up rollback consistency improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
