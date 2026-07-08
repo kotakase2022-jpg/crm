@@ -191,6 +191,65 @@ describe("Supabase CRM data access", () => {
     expect(companyCleanup.single).toHaveBeenCalled();
   });
 
+  it("rolls back converted leads and activities when conversion follow-up task creation fails", async () => {
+    const lead = {
+      id: "lead-1",
+      name: "Conversion Lead",
+      company_name: "Conversion Company",
+      contact_name: "Conversion Contact",
+      status: "新規（広告以外）",
+      organization_id: "org-1",
+    };
+    const company = { id: "company-1", name: "Conversion Company", organization_id: "org-1" };
+    const contact = { id: "contact-1", name: "Conversion Contact", company_id: "company-1", organization_id: "org-1" };
+    const deal = { id: "deal-1", name: "Conversion Deal", lead_id: "lead-1", company_id: "company-1", contact_id: "contact-1", organization_id: "org-1" };
+    const activity = { id: "activity-1", lead_id: "lead-1", company_id: "company-1", contact_id: "contact-1", deal_id: "deal-1", organization_id: "org-1" };
+    const { operations, supabase } = mockAuthenticatedSupabaseByOperation({
+      reads: {
+        leads: lead,
+        companies: company,
+        contacts: contact,
+        deals: deal,
+      },
+      lists: {
+        tasks: [],
+      },
+      inserts: {
+        companies: [{ data: company }],
+        contacts: [{ data: contact }],
+        deals: [{ data: deal }],
+        activities: [{ data: activity }],
+        tasks: [{ data: null, error: { message: "Task insert failed" } }],
+      },
+    });
+
+    await expect(convertLead("lead-1")).rejects.toThrow("Task insert failed");
+
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
+    expect(operations.updates.leads).toHaveLength(2);
+    expect(operations.updates.activities).toHaveLength(1);
+    const leadRollback = operations.updates.leads.at(-1)!;
+    const activityCleanup = operations.updates.activities[0]!;
+    const dealCleanup = operations.updates.deals[0]!;
+    const contactCleanup = operations.updates.contacts[0]!;
+    const companyCleanup = operations.updates.companies[0]!;
+    expect(leadRollback.update).toHaveBeenCalledWith({
+      status: "新規（広告以外）",
+      converted_company_id: null,
+      converted_contact_id: null,
+      converted_deal_id: null,
+      updated_by: "user-1",
+    });
+    expect(activityCleanup.update).toHaveBeenCalledWith({
+      deleted_at: expect.any(String),
+      updated_by: "user-1",
+    });
+    expect(activityCleanup.eq).toHaveBeenCalledWith("id", "activity-1");
+    expect(dealCleanup.eq).toHaveBeenCalledWith("id", "deal-1");
+    expect(contactCleanup.eq).toHaveBeenCalledWith("id", "contact-1");
+    expect(companyCleanup.eq).toHaveBeenCalledWith("id", "company-1");
+  });
+
   it("soft deletes Supabase records by setting deleted_at within the current organization", async () => {
     const query = {
       update: vi.fn(() => query),
@@ -253,4 +312,81 @@ function updateReturning(data: Record<string, unknown> | null, error: { message:
     single: vi.fn().mockResolvedValue({ data, error }),
   };
   return builder;
+}
+
+type OperationResponse = {
+  data: Record<string, unknown> | Array<Record<string, unknown>> | null;
+  error?: { message: string } | null;
+};
+
+function mockAuthenticatedSupabaseByOperation(config: {
+  reads: Record<string, Record<string, unknown>>;
+  lists?: Record<string, Array<Record<string, unknown>>>;
+  inserts?: Record<string, OperationResponse[]>;
+  updates?: Record<string, OperationResponse[]>;
+}) {
+  const operations: Record<"inserts" | "updates" | "reads" | "lists", Record<string, Array<Record<string, ReturnType<typeof vi.fn>>>>> = {
+    inserts: {},
+    updates: {},
+    reads: {},
+    lists: {},
+  };
+
+  function remember(operation: keyof typeof operations, table: string, builder: Record<string, ReturnType<typeof vi.fn>>) {
+    operations[operation][table] ??= [];
+    operations[operation][table].push(builder);
+  }
+
+  function takeResponse(responses: Record<string, OperationResponse[]> | undefined, table: string, fallback: unknown): OperationResponse {
+    return responses?.[table]?.shift() ?? { data: fallback as OperationResponse["data"], error: null };
+  }
+
+  const supabase = {
+    auth: {
+      getClaims: vi.fn().mockResolvedValue({ data: { claims: { sub: "user-1" } } }),
+      getUser: vi.fn(),
+    },
+    rpc: vi.fn().mockResolvedValue({ data: { organization_id: "org-1", role: "admin" }, error: null }),
+    from: vi.fn((table: string) => {
+      let operation: "select" | "insert" | "update" = "select";
+      const builder = {
+        select: vi.fn(() => builder),
+        insert: vi.fn(() => {
+          operation = "insert";
+          return builder;
+        }),
+        update: vi.fn(() => {
+          operation = "update";
+          return builder;
+        }),
+        eq: vi.fn(() => builder),
+        is: vi.fn(() => builder),
+        order: vi.fn(() => builder),
+        single: vi.fn().mockImplementation(() => {
+          if (operation === "insert") {
+            remember("inserts", table, builder);
+            return Promise.resolve(takeResponse(config.inserts, table, { id: `${table}-inserted` }));
+          }
+
+          remember("updates", table, builder);
+          return Promise.resolve(takeResponse(config.updates, table, { id: `${table}-updated` }));
+        }),
+        maybeSingle: vi.fn().mockImplementation(() => {
+          remember("reads", table, builder);
+          return Promise.resolve({ data: config.reads[table] ?? null, error: null });
+        }),
+        range: vi.fn().mockImplementation(() => {
+          remember("lists", table, builder);
+          return Promise.resolve({ data: config.lists?.[table] ?? [], error: null });
+        }),
+      };
+
+      return builder;
+    }),
+  };
+
+  vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+  vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+  return { operations, supabase };
 }

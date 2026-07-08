@@ -598,7 +598,7 @@ export async function convertLead(idValue: string) {
     });
     leadConversionWasWritten = true;
 
-    await insertRow(ctx, "activities", {
+    const activity = await insertRow(ctx, "activities", {
       type: "メモ",
       subject: "リードを会社・担当者・商談へ変換",
       content: "リード変換により営業管理を商談へ移行しました。",
@@ -608,6 +608,7 @@ export async function convertLead(idValue: string) {
       contact_id: contact.id,
       deal_id: deal.id,
     });
+    createdRecords.push({ table: "activities", record: activity });
 
     await ensureTask(ctx, {
       automation_key: `converted-demo-schedule-${deal.id}`,
