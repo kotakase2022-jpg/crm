@@ -253,6 +253,56 @@ describe("lead spreadsheet imports", () => {
     );
   });
 
+  it("soft deletes Supabase leads when first-call task creation fails during import", async () => {
+    const settingsSelect = selectQuery([{ id: "setting-1", organization_id: "org-1", spreadsheet_url: "https://docs.google.com/spreadsheets/d/sheet-id/edit" }]);
+    const runInsert = insertReturning({ id: "run-1" });
+    const existingLeadsSelect = selectQuery([]);
+    const leadInsert = insertReturning({ id: "lead-1" });
+    const taskInsert = insertFail({ message: "Task insert failed" });
+    const leadCleanup = updateReturning({ id: "lead-1" });
+    const runUpdate = updateReturning({ id: "run-1" });
+    const settingUpdate = updateReturning({ id: "setting-1" });
+    const builders: Record<string, Array<Record<string, unknown>>> = {
+      lead_import_settings: [settingsSelect, settingUpdate],
+      lead_import_runs: [runInsert, runUpdate],
+      leads: [existingLeadsSelect, leadInsert, leadCleanup],
+      tasks: [taskInsert],
+    };
+    const supabase = {
+      from: vi.fn((table: string) => {
+        const builder = builders[table]?.shift();
+        if (!builder) throw new Error(`Unexpected table query: ${table}`);
+        return builder;
+      }),
+    };
+
+    mocks.createAdminClient.mockReturnValue(supabase);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("name,company_name,email\nImported Lead,Imported Company,imported@example.test\n", { status: 200 }),
+    );
+
+    const results = await runAllLeadImportsFromCron();
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ status: "failed", importedCount: 0, skippedCount: 0, message: "Task insert failed" });
+    expect(leadCleanup.update).toHaveBeenCalledWith({
+      deleted_at: expect.any(String),
+      updated_by: null,
+    });
+    expect(leadCleanup.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(leadCleanup.eq).toHaveBeenCalledWith("id", "lead-1");
+    expect(leadCleanup.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(leadCleanup.select).toHaveBeenCalledWith("id");
+    expect(leadCleanup.single).toHaveBeenCalled();
+    expect(runUpdate.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        imported_count: 0,
+        error_message: "Task insert failed",
+      }),
+    );
+  });
+
   it("updates Supabase import settings only inside the current organization", async () => {
     const update = updateReturning({ id: "setting-1" });
     const supabase = {
@@ -415,6 +465,12 @@ function insertReturning(data: Record<string, unknown>) {
 function insertOnly() {
   return {
     insert: vi.fn(() => Promise.resolve({ error: null })),
+  };
+}
+
+function insertFail(error: { message: string }) {
+  return {
+    insert: vi.fn(() => Promise.resolve({ error })),
   };
 }
 

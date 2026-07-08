@@ -208,7 +208,32 @@ async function insertLeadInSupabase(supabase: SupabaseClient, setting: CrmRecord
     ...leadFirstCallTask(leadId),
   });
 
-  if (taskError) throw new Error(taskError.message);
+  if (taskError) {
+    let cleanupMessage = "";
+    try {
+      await softDeleteInsertedLeadInSupabase(supabase, setting, leadId, userId);
+    } catch (cleanupError) {
+      cleanupMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+    }
+
+    throw new Error(cleanupMessage ? `${taskError.message}; cleanup failed: ${cleanupMessage}` : taskError.message);
+  }
+}
+
+async function softDeleteInsertedLeadInSupabase(supabase: SupabaseClient, setting: CrmRecord, leadId: string, userId: string | null) {
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      deleted_at: nowIso(),
+      updated_by: userId,
+    })
+    .eq("organization_id", setting.organization_id)
+    .eq("id", leadId)
+    .is("deleted_at", null)
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
 }
 
 async function importWithPersistence({
