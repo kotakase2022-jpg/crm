@@ -319,6 +319,49 @@ describe("lead spreadsheet imports", () => {
     expect(getDemoRows("leads").filter((lead) => lead.import_setting_id === settingId && lead.email === email)).toHaveLength(1);
   });
 
+  it("fails demo imports when a spreadsheet redirect leaves the trusted Google Sheets host", async () => {
+    const formData = validSettingForm("");
+    formData.set("spreadsheet_url", "https://docs.google.com/spreadsheets/d/demo-redirect-sheet/edit#gid=123");
+
+    mocks.getCrmContext.mockResolvedValue({
+      mode: "demo",
+      organizationId: "demo-org",
+      userId: "demo-user",
+      role: "admin",
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://example.com/leads.csv" },
+      }),
+    );
+
+    const settingId = await saveLeadImportSetting(formData);
+    const result = await runLeadImportSetting(settingId);
+    const setting = getDemoRows("lead_import_settings").find((row) => row.id === settingId);
+    const runs = getDemoRows("lead_import_runs").filter((run) => run.setting_id === settingId);
+
+    expect(result).toMatchObject({
+      status: "failed",
+      importedCount: 0,
+      skippedCount: 0,
+      message: "Spreadsheet imports only support Google Sheets CSV URLs.",
+    });
+    expect(getDemoRows("leads").filter((lead) => lead.import_setting_id === settingId)).toHaveLength(0);
+    expect(setting).toMatchObject({
+      last_run_status: "failed",
+      last_run_message: "Spreadsheet imports only support Google Sheets CSV URLs.",
+    });
+    expect(runs).toContainEqual(
+      expect.objectContaining({
+        status: "failed",
+        imported_count: 0,
+        skipped_count: 0,
+        error_message: "Spreadsheet imports only support Google Sheets CSV URLs.",
+      }),
+    );
+  });
+
   it("does not treat missing Supabase import setting updates as saved", async () => {
     const update = updateReturning(null, { message: "No rows returned" });
     const supabase = {
