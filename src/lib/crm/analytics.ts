@@ -1,5 +1,6 @@
 import { dealStages } from "./options";
 import { daysUntil, toDate, toFiniteNumber } from "./format";
+import { latestHealthScoresByCompany } from "./health";
 import { relationIdValue } from "./related";
 import { hasAnyValue, hasValue, latestUsageRowsByCompany } from "./usage";
 import type { CrmRecord, DashboardSnapshot } from "./types";
@@ -55,7 +56,7 @@ export function normalizedHealthScore(score: CrmRecord) {
 }
 
 export function riskyHealthScores(healthScores: CrmRecord[], limit = 8) {
-  return [...healthScores]
+  return latestHealthScoresByCompany(healthScores)
     .filter((score) => normalizedHealthScore(score) < 60)
     .sort((a, b) => normalizedHealthScore(a) - normalizedHealthScore(b))
     .slice(0, limit);
@@ -101,8 +102,9 @@ export function buildSalesDashboard(snapshot: DashboardSnapshot) {
 export function buildCsDashboard(snapshot: DashboardSnapshot) {
   const paidContracts = snapshot.contracts.filter((contract) => hasValue(contract.status, "有料"));
   const latestUsageRows = latestUsageRowsByCompany(snapshot.usage);
+  const latestHealthScores = latestHealthScoresByCompany(snapshot.healthScores);
   const activeUsageRows = latestUsageRows.filter((usage) => toFiniteNumber(usage.login_count) > 0);
-  const lowHealth = riskyHealthScores(snapshot.healthScores, Number.POSITIVE_INFINITY);
+  const lowHealth = riskyHealthScores(latestHealthScores, Number.POSITIVE_INFINITY);
   const renewalSoon = snapshot.contracts.filter((contract) => {
     const days = daysUntil(contract.renewal_on);
     return days !== null && days >= 0 && days <= 30;
@@ -117,9 +119,9 @@ export function buildCsDashboard(snapshot: DashboardSnapshot) {
       renewalSoon: renewalSoon.length,
       churnScheduled: snapshot.contracts.filter((contract) => hasValue(contract.status, "解約予定")).length,
       unresolvedTickets: snapshot.tickets.filter((ticket) => !hasAnyValue(ticket.status, ["解決済み", "クローズ"])).length,
-      upsellCandidates: snapshot.healthScores.filter((score) => Boolean(score.upsell_candidate)).length,
+      upsellCandidates: latestHealthScores.filter((score) => Boolean(score.upsell_candidate)).length,
     },
-    riskCounts: countBy(snapshot.healthScores, "churn_risk"),
+    riskCounts: countBy(latestHealthScores, "churn_risk"),
   };
 }
 
