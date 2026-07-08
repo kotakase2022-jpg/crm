@@ -7,7 +7,7 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and this branch `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 13:12 JST
+- Last updated: 2026-07-08 13:20 JST
 
 ## 1. Current Goal
 
@@ -19,10 +19,11 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
 - Latest code commit: `3e69ca7` (`Cover completed task quick view behavior`)
 - Latest handoff commit before PR creation: `a7d5e67` (`Record Loop 11 task priority handoff`)
-- Current handoff update: completed-task quick-view E2E added; use `gh pr checks 4 --repo kotakase2022-jpg/crm` as the authoritative live state after this handoff push.
-- Last known good commit: `3e69ca7` after local `npm.cmd run quality`
+- Latest remote handoff/status commit checked: `9a0992d` (`Record completed task quick view handoff`)
+- Current handoff update: PR #4 title/body synced with both task-triage E2E additions; use `gh pr checks 4 --repo kotakase2022-jpg/crm` as the authoritative live state after this handoff push.
+- Last known good commit: `9a0992d` after local `npm.cmd run quality` and remote PR checks
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
-- CodeRabbit OSS review status: passed on the previously checked PR #4 head; re-check after this handoff push. The earlier CodeRabbit PR-description warning was addressed by editing the PR body to match `.github/pull_request_template.md`.
+- CodeRabbit OSS review status: passed on PR #4 head `9a0992d`; re-check again after this handoff push. The earlier CodeRabbit PR-description warning was addressed by editing the PR body to match `.github/pull_request_template.md`.
 
 ## 3. What Was Done
 
@@ -45,6 +46,8 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 - Ran focused checks and the full local quality gate successfully.
 - Confirmed PR #4 CodeRabbit / Vercel / Vercel Preview Comments / GitHub Actions `quality-gate` all passed on the previously checked remote head before the completed-task E2E addition.
 - Updated the PR #4 body to include the repository PR-template sections: Commands Run, Quality Gate, AI Review, E2E Flows Verified, and Safety Checklist.
+- Re-checked PR #4 latest remote head `9a0992d`; CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
+- Updated the PR #4 title/body so CodeRabbit and Claude Code see both task-triage E2E additions: priority sorting and completed-task quick-view behavior.
 
 ## 4. Files Changed
 
@@ -55,6 +58,8 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
   - Isolated the CLI missing-env test from local `.env.acceptance.local`.
 - `AI_HANDOFF.md`
   - Updated with Loop 11 status and verification results.
+- PR #4 metadata
+  - Title/body updated to describe the full current test-only scope.
 
 ## 5. Current Status
 
@@ -62,21 +67,21 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit preview-branch approval.
 - The latest code-bearing commit is `3e69ca7`.
 - No application runtime code changed in this loop; only test coverage was added/stabilized.
-- PR #4 is open and non-draft. Re-check its mechanical status after the latest push.
+- PR #4 is open, non-draft, and mechanically green at head `9a0992d`.
 - PR #4 still has GitHub `reviewDecision: REVIEW_REQUIRED`, so human or Claude Code review is still needed before merge.
 - Supabase preview branch `acceptance-crm-20260708` still exists and may continue billing until deleted.
 
 ## 6. Known Issues
 
 - The Supabase preview branch created for acceptance is billed hourly while it exists. The user approved paid preview branch creation and acceptance execution, but has not explicitly instructed deletion.
-- CodeRabbit OSS review and GitHub Actions quality-gate passed for PR #4 at the previously checked remote head.
-- After pushing this handoff update, re-check PR #4 live status because GitHub Actions and CodeRabbit will run on the new head.
+- CodeRabbit OSS review and GitHub Actions quality-gate passed for PR #4 at remote head `9a0992d`.
+- After pushing this handoff-only update, re-check PR #4 live status because GitHub Actions and CodeRabbit will run on the new head.
 - CodeRabbit's PR-description warning was addressed by expanding the PR body to the repository template.
 - Cursor Bugbot was not intentionally run by Codex; however, the PR body contains an auto-generated Cursor summary for commit `a7d5e67` with no actionable findings.
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on the previously checked PR #4 remote head; re-check after the latest push.
+- Review status: Passed on PR #4 remote head `9a0992d`; re-check after this handoff-only push.
 - Critical findings: none known.
 - Resolved findings: CodeRabbit PR-description warning addressed by editing the PR body to include template sections.
 - Deferred findings: none.
@@ -132,18 +137,21 @@ npm.cmd run quality
 # build: passed (Next.js 16.2.10 production build)
 
 gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10
-# Previously passed on the checked PR #4 remote head before the completed-task E2E addition.
+# Passed on PR #4 remote head 9a0992d.
 # CodeRabbit: pass
 # Vercel: pass
 # Vercel Preview Comments: pass
 # typecheck-lint-test-e2e-build: pass
 
+gh pr edit 4 --repo kotakase2022-jpg/crm --title "Cover task triage quick-view behavior" --body-file -
+# Passed. PR title/body now describe both task priority sorting and completed-task quick-view E2E coverage.
+
 gh pr edit 4 --repo kotakase2022-jpg/crm --body-file -
 # Passed. PR body was expanded to include Commands Run, Quality Gate, AI Review,
 # E2E Flows Verified, Safety Checklist, and notes addressing CodeRabbit's description warning.
 
-gh pr view 4 --repo kotakase2022-jpg/crm --json url,state,isDraft,reviewDecision,headRefOid,statusCheckRollup,comments,reviews
-# Passed. PR #4 is OPEN, non-draft, mechanically green, and still REVIEW_REQUIRED.
+gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup,comments,reviews
+# Passed. PR #4 is OPEN, non-draft, mechanically green at head 9a0992d, and still REVIEW_REQUIRED.
 # CodeRabbit's pre-merge checks show 5 passed checks, including Description check.
 ```
 
