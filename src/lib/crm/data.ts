@@ -9,6 +9,7 @@ import { assertCanWriteTable } from "./access";
 import { addDemoRow, demoStore, getDemoRows, newDemoId, nowIso, updateDemoRow } from "./demo-data";
 import { entityConfigs } from "./entities";
 import { localDateString, offsetLocalDateString, recordTitle, relationOptionLabel } from "./format";
+import { dealStages } from "./options";
 import { prepareRecordForPersistence, prepareRecordForUpdate, withComputedAmounts } from "./persistence";
 import {
   activityRelationForEntity,
@@ -425,21 +426,55 @@ async function softDeleteCreatedRecordsAfterFailure(
   throw new Error(cleanupMessages.length > 0 ? `${message}; cleanup failed: ${cleanupMessages.join("; ")}` : message);
 }
 
+function rollbackValuesFromPrevious(previous: CrmRecord, values: Record<string, unknown>) {
+  return Object.fromEntries(Object.keys(values).map((key) => [key, previous[key] ?? null]));
+}
+
+async function rollbackUpdatedRecordAfterFailure(
+  ctx: CrmContext,
+  table: TableName,
+  idValue: string,
+  previous: CrmRecord | null,
+  values: Record<string, unknown>,
+  error: unknown,
+): Promise<never> {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (!previous) {
+    throw new Error(message);
+  }
+
+  try {
+    await updateRow(ctx, table, idValue, rollbackValuesFromPrevious(previous, values));
+  } catch (cleanupError) {
+    const cleanupMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+    throw new Error(`${message}; rollback failed: ${cleanupMessage}`);
+  }
+
+  throw new Error(message);
+}
+
 export async function updateRecord(config: EntityConfig, idValue: string, values: Record<string, unknown>) {
   const ctx = await getCrmContext();
+  const shouldCreateDemoFollowUp = config.slug === "deals" && values.stage === dealStages[4];
+  const previous = shouldCreateDemoFollowUp ? await readRowById(ctx, config.table, idValue) : null;
   const record = await updateRow(ctx, config.table, idValue, values);
 
-  if (config.slug === "deals" && values.stage === "デモ実施") {
-    await ensureTask(ctx, {
-      automation_key: `demo-follow-up-${idValue}`,
-      title: "デモ後フォロー",
-      description: "デモ実施翌日のフォロータスクです。",
-      status: "未完了",
-      priority: "中",
-      due_date: offsetLocalDateString(1),
-      deal_id: idValue,
-      company_id: typeof record.company_id === "string" ? record.company_id : null,
-    });
+  if (shouldCreateDemoFollowUp) {
+    try {
+      await ensureTask(ctx, {
+        automation_key: `demo-follow-up-${idValue}`,
+        title: "デモ後フォロー",
+        description: "デモ実施翌日のフォロータスクです。",
+        status: "未完了",
+        priority: "中",
+        due_date: offsetLocalDateString(1),
+        deal_id: idValue,
+        company_id: typeof record.company_id === "string" ? record.company_id : null,
+      });
+    } catch (error) {
+      return rollbackUpdatedRecordAfterFailure(ctx, config.table, idValue, previous, values, error);
+    }
   }
 
   return record;

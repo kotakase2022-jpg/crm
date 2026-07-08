@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { convertLead, createActivityForEntity, createRecord, listRecords, softDeleteRecord } from "@/lib/crm/data";
+import { convertLead, createActivityForEntity, createRecord, listRecords, softDeleteRecord, updateRecord } from "@/lib/crm/data";
 import { entityConfigs } from "@/lib/crm/entities";
+import { dealStages } from "@/lib/crm/options";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
@@ -289,6 +290,56 @@ describe("Supabase CRM data access", () => {
     expect(activityCleanup.eq).toHaveBeenCalledWith("organization_id", "org-1");
     expect(activityCleanup.eq).toHaveBeenCalledWith("id", "activity-1");
     expect(activityCleanup.is).toHaveBeenCalledWith("deleted_at", null);
+  });
+
+  it("rolls back deal updates when demo follow-up task creation fails", async () => {
+    const previousDeal = {
+      id: "deal-1",
+      name: "Rollback Deal",
+      stage: dealStages[3],
+      expected_mrr: 100000,
+      company_id: "company-1",
+      organization_id: "org-1",
+    };
+    const updatedDeal = {
+      ...previousDeal,
+      stage: dealStages[4],
+      expected_mrr: 150000,
+    };
+    const { operations } = mockAuthenticatedSupabaseByOperation({
+      reads: {
+        deals: previousDeal,
+        companies: { id: "company-1", name: "Rollback Company", organization_id: "org-1" },
+      },
+      lists: {
+        tasks: [],
+      },
+      updates: {
+        deals: [{ data: updatedDeal }],
+      },
+      inserts: {
+        tasks: [{ data: null, error: { message: "Task insert failed" } }],
+      },
+    });
+
+    await expect(
+      updateRecord(entityConfigs.deals, "deal-1", {
+        stage: dealStages[4],
+        expected_mrr: 150000,
+      }),
+    ).rejects.toThrow("Task insert failed");
+
+    expect(operations.updates.deals).toHaveLength(2);
+    const rollback = operations.updates.deals.at(-1)!;
+    expect(rollback.update).toHaveBeenCalledWith({
+      stage: dealStages[3],
+      expected_mrr: 100000,
+      expected_arr: 1200000,
+      updated_by: "user-1",
+    });
+    expect(rollback.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(rollback.eq).toHaveBeenCalledWith("id", "deal-1");
+    expect(rollback.is).toHaveBeenCalledWith("deleted_at", null);
   });
 
   it("soft deletes Supabase records by setting deleted_at within the current organization", async () => {
