@@ -621,11 +621,12 @@ test("dashboard alerts link directly to the related CRM record", async ({ page }
   await strict.expectClean();
 });
 
-test("dashboard high-MRR deal alert clears after a linked follow-up task exists", async ({ page }) => {
+test("dashboard high-MRR deal alert clears only after an open linked follow-up task exists", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();
   const dealName = `E2E High MRR Follow-up ${unique}`;
-  const taskTitle = `E2E High MRR Task ${unique}`;
+  const completedTaskTitle = `E2E High MRR Completed Task ${unique}`;
+  const openTaskTitle = `E2E High MRR Open Task ${unique}`;
 
   await page.goto("/deals/new");
   await page.locator('input[name="name"]').fill(dealName);
@@ -641,7 +642,18 @@ test("dashboard high-MRR deal alert clears after a linked follow-up task exists"
 
   await page.goto(`/tasks/new?deal_id=${dealId}`);
   await expect(page.locator('select[name="deal_id"]')).toHaveValue(dealId);
-  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.locator('input[name="title"]').fill(completedTaskTitle);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  await page.locator("main form button").first().click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=completed$/);
+
+  await page.goto("/dashboard");
+  await expect(page.getByTestId("dashboard-alert-link").filter({ hasText: dealName })).toBeVisible();
+
+  await page.goto(`/tasks/new?deal_id=${dealId}`);
+  await expect(page.locator('select[name="deal_id"]')).toHaveValue(dealId);
+  await page.locator('input[name="title"]').fill(openTaskTitle);
   await page.getByRole("button", { name: "保存" }).click();
   await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
 
