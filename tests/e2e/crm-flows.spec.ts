@@ -1077,6 +1077,55 @@ test("deal related task creation keeps the deal relationship through save", asyn
   await strict.expectClean();
 });
 
+test("relation validation keeps task users on a correctable form", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Mismatch Company ${unique}`;
+  const taskTitle = `E2E Corrected Relation Task ${unique}`;
+
+  await page.goto("/deals");
+  await page.locator("tbody a").first().click();
+  await expect(page).toHaveURL(/\/deals\/[^/]+$/);
+  const dealPath = new URL(page.url()).pathname;
+  const dealId = dealPath.split("/").at(-1) ?? "";
+  expect(dealId).toBeTruthy();
+  const dealCompanyHref = await page.locator('dl a[href^="/companies/"]').first().getAttribute("href");
+  expect(dealCompanyHref).toMatch(/^\/companies\/[^/\s]+$/);
+  const dealCompanyId = (dealCompanyHref ?? "").split("/").at(-1) ?? "";
+  expect(dealCompanyId).toBeTruthy();
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const mismatchedCompanyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(mismatchedCompanyId).toBeTruthy();
+  expect(mismatchedCompanyId).not.toBe(dealCompanyId);
+
+  await page.goto(`/tasks/new?company_id=${mismatchedCompanyId}&deal_id=${dealId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(mismatchedCompanyId);
+  await expect(page.locator('select[name="deal_id"]')).toHaveValue(dealId);
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(
+    new RegExp(`/tasks/new\\?toast=validation-error&company_id=${escapeRegExp(mismatchedCompanyId)}&deal_id=${escapeRegExp(dealId)}$`),
+  );
+  await expect(page.getByTestId("toast-notice")).toHaveAttribute("role", "alert");
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(mismatchedCompanyId);
+  await expect(page.locator('select[name="deal_id"]')).toHaveValue(dealId);
+
+  await page.locator('select[name="company_id"]').selectOption(dealCompanyId);
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  await expect(page.locator("body")).toContainText(taskTitle);
+  await expect(page.locator(`main a[href="${dealPath}"]`).first()).toBeVisible();
+  await expect(page.locator(`main a[href="${dealCompanyHref}"]`).first()).toBeVisible();
+  await strict.expectClean();
+});
+
 test("ticket related task creation keeps the support context through save", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();
