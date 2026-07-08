@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseCsv } from "@/lib/crm/csv";
-import { runAllLeadImportsFromCron, saveLeadImportSetting } from "@/lib/crm/lead-imports";
+import { getDemoRows } from "@/lib/crm/demo-data";
+import { runAllLeadImportsFromCron, runLeadImportSetting, saveLeadImportSetting } from "@/lib/crm/lead-imports";
 import { leadStatuses } from "@/lib/crm/options";
 import {
   assertTrustedSpreadsheetCsvUrl,
@@ -273,6 +274,49 @@ describe("lead spreadsheet imports", () => {
     expect(update.is).toHaveBeenCalledWith("deleted_at", null);
     expect(update.select).toHaveBeenCalledWith("id");
     expect(update.single).toHaveBeenCalled();
+  });
+
+  it("imports demo spreadsheet rows into leads with first-call tasks and skips duplicates", async () => {
+    const marker = `unit-demo-import-${Date.now()}`;
+    const email = `${marker}@example.test`;
+    const csv = [
+      "name,company_name,email,phone,status",
+      `Imported ${marker},Imported Company ${marker},${email},050-9999-0000,unsupported-status`,
+    ].join("\n");
+    const formData = validSettingForm("");
+    formData.set("spreadsheet_url", "https://docs.google.com/spreadsheets/d/demo-import-sheet/edit#gid=123");
+
+    mocks.getCrmContext.mockResolvedValue({
+      mode: "demo",
+      organizationId: "demo-org",
+      userId: "demo-user",
+      role: "admin",
+    });
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(csv, { status: 200 }));
+
+    const settingId = await saveLeadImportSetting(formData);
+    const firstResult = await runLeadImportSetting(settingId);
+    const importedLeads = getDemoRows("leads").filter((lead) => lead.import_setting_id === settingId && lead.email === email);
+
+    expect(firstResult).toMatchObject({ status: "success", importedCount: 1, skippedCount: 0 });
+    expect(importedLeads).toHaveLength(1);
+    expect(importedLeads[0]).toMatchObject({
+      company_name: `Imported Company ${marker}`,
+      external_source: "spreadsheet",
+      external_source_id: `email:${email}`,
+      status: defaultLeadImportStatus,
+    });
+    expect(getDemoRows("tasks")).toContainEqual(
+      expect.objectContaining({
+        lead_id: importedLeads[0].id,
+        automation_key: `lead-first-call-${importedLeads[0].id}`,
+      }),
+    );
+
+    const secondResult = await runLeadImportSetting(settingId);
+
+    expect(secondResult).toMatchObject({ status: "success", importedCount: 0, skippedCount: 1 });
+    expect(getDemoRows("leads").filter((lead) => lead.import_setting_id === settingId && lead.email === email)).toHaveLength(1);
   });
 
   it("does not treat missing Supabase import setting updates as saved", async () => {
