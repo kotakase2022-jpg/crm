@@ -18,10 +18,11 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
 - Latest code commit: `a641448` (`Cover task priority sorting`)
-- Latest handoff commit: pending; commit this file after review.
+- Latest handoff commit before PR creation: `a7d5e67` (`Record Loop 11 task priority handoff`)
+- Current handoff update: PR #4 status update; this file is expected to be the branch tip once committed.
 - Last known good commit: `a641448` after local `npm.cmd run quality`
-- PR: not opened yet at the time this handoff was written
-- CodeRabbit OSS review status: pending PR creation
+- PR: https://github.com/kotakase2022-jpg/crm/pull/4
+- CodeRabbit OSS review status: pending initial PR review/check result
 
 ## 3. What Was Done
 
@@ -57,12 +58,12 @@ Move the CRM closer to the persistent 100/100 goals by strengthening proof that 
 ## 6. Known Issues
 
 - The Supabase preview branch created for acceptance is billed hourly while it exists. The user approved paid preview branch creation and acceptance execution, but has not explicitly instructed deletion.
-- CodeRabbit OSS review for Loop 11 is not yet available because the PR has not been opened at the time of this handoff update.
+- CodeRabbit OSS review for Loop 11 is pending initial PR review/check result on PR #4.
 - Cursor Bugbot was not run; it remains optional backup only.
 
 ## 7. CodeRabbit Review
 
-- Review status: Pending PR creation for Loop 11.
+- Review status: Pending initial PR #4 review/check result.
 - Critical findings: none known.
 - Resolved findings: none.
 - Deferred findings: none.
@@ -121,7 +122,7 @@ For Claude Code:
 
 1. Review `tests/e2e/crm-flows.spec.ts` and confirm the new priority sorting E2E proves the intended task triage workflow without brittleness.
 2. Review `tests/unit/supabase-live-acceptance.test.ts` and confirm the temporary cwd isolation is the right way to keep the missing-env guard independent from local acceptance credentials.
-3. Push/open the Loop 11 PR if not already done, then check CodeRabbit OSS and GitHub Actions.
+3. Check PR #4 CodeRabbit OSS and GitHub Actions after this handoff update reaches the remote branch.
 4. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
 
 ## 11. Suggested Review Scope for Claude Code
