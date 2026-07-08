@@ -7,14 +7,14 @@
 - Loop: 10
 - Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`; Loop 10 is the current Codex improvement branch from `origin/main`.
 - Phase: Handoff
-- Last updated: 2026-07-08 09:21:42 +09:00
+- Last updated: 2026-07-08 09:36:01 +09:00
 
 ## 1. Current Goal
 
 Current goal:
 
 - Continue the autonomous CRM hardening loop until both top-level scores can be proven as 100/100.
-- This turn fixed a lead status select UX regression where the lead creation form showed duplicate `未設定` options, and added E2E coverage that locks the lead/manual-import status defaults and option order.
+- This turn added Playwright coverage proving a spreadsheet lead import run can be cancelled at the confirmation dialog before any external fetch or import history creation occurs.
 
 Current score:
 
@@ -27,18 +27,29 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD/RLS a
 
 - Branch: `codex/loop10-crm-ux-hardening`
 - Base: `main` after PR #2 merge (`42d0b81`, `Merge pull request #2 from kotakase2022-jpg/codex/ai-handoff-loop`)
-- Latest code commit: `6aab265` (`Avoid duplicate unset lead status options`)
+- Latest code commit: `ce22369` (`Cover cancelled spreadsheet import run`)
 - Latest branch commit: this handoff commit; run `git log --oneline -1` for the exact hash after commit.
-- Last known good local commit: `6aab265`
+- Last known good local commit: `ce22369`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this loop continuation.
-- CodeRabbit OSS review status: green on PR #3 at remote head `4f6d670` before `6aab265`; re-check after pushing `6aab265` and this final handoff update.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `4f6d670` before `6aab265`; local `npm.cmd run quality` passes after `6aab265`.
-- Vercel preview: green on PR #3 at remote head `4f6d670` before `6aab265`; re-check after pushing `6aab265` and this final handoff update.
+- CodeRabbit OSS review status: green on PR #3 at remote head `9eaac43` before `ce22369`; re-check after pushing `ce22369` and this final handoff update.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `9eaac43` before `ce22369`; local `npm.cmd run quality` passes after `ce22369`.
+- Vercel preview: green on PR #3 at remote head `9eaac43` before `ce22369`; re-check after pushing `ce22369` and this final handoff update.
 
 ## 3. What Was Done
 
 Completed this turn:
+
+- Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, `docs/testing.md`, and `docs/ai-review.md`.
+- Re-checked PR #3 latest remote head `9eaac43`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
+- Confirmed PR #3 remains open, non-draft, mergeable, and blocked only by `REVIEW_REQUIRED`.
+- Added a Playwright E2E flow proving the spreadsheet lead import "run now" action can be cancelled at the browser confirmation dialog before any external CSV fetch happens.
+- The new flow saves a trusted Google Sheets-style URL, verifies there is still no import history, dismisses the confirmation dialog, and verifies the page remains on the saved-settings state with no import history created.
+- Re-ran the focused E2E, `npm.cmd run typecheck`, `npm.cmd run lint`, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
+- Confirmed `npm.cmd run quality` passes with 31 unit spec files / 208 unit tests and 48 Chromium E2E tests after `ce22369`.
+- Confirmed `npm.cmd run acceptance:supabase` still fails loudly without dedicated `ACCEPTANCE_*` variables and does not fall back to mock/demo success.
+
+Previous Loop 10 continuation:
 
 - Re-read `AGENTS.md`, `CLAUDE.md`, `AI_HANDOFF.md`, `README.md`, `package.json`, `docs/testing.md`, and `docs/ai-review.md`.
 - Re-checked PR #3 latest remote head `4f6d670`: CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all passed.
@@ -189,9 +200,7 @@ Important earlier PR #3 context:
 
 Main files changed this turn:
 
-- `src/components/crm/entity-form.tsx`
 - `tests/e2e/crm-flows.spec.ts`
-- `tests/unit/entity-form.test.ts`
 - `AI_HANDOFF.md`
 
 Main files changed in the previous Loop 10 continuation:
@@ -232,10 +241,10 @@ Important earlier PR #3 files:
 
 ## 5. Current Status
 
-- Local code quality is green after `6aab265`.
+- Local code quality is green after `ce22369`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `4f6d670` had CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green before the new `6aab265` lead status select fix. This final handoff update will trigger another re-check after push.
+- PR #3 remote head `9eaac43` had CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green before the new `ce22369` spreadsheet import cancellation E2E. This final handoff update will trigger another re-check after push.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -243,6 +252,7 @@ Important earlier PR #3 files:
 ## 6. Known Issues
 
 - No current Critical/High code issue is known after the latest local quality gate.
+- `ce22369` is E2E-only and covers the spreadsheet lead import confirmation-cancel path, proving an accidental click does not start an external fetch or create import history.
 - `6aab265` fixes duplicate `未設定` options in lead status selects and adds regression coverage for the manual lead default status, spreadsheet import default status, and canonical status option ordering.
 - `31ca0d0` adds demo-mode E2E coverage for the contract renewal/payment/status workflow and account-level related-contract link. It does not remove the need to run live acceptance with safe non-production credentials.
 - `a6b53ef` makes the support ticket lifecycle E2E select business labels from the canonical CRM option arrays instead of fragile select indexes.
@@ -264,7 +274,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `4f6d670`; re-check after pushing `6aab265` and this final handoff commit.
+- Review status: Passed on PR #3 at remote head `9eaac43`; re-check after pushing `ce22369` and this final handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -285,6 +295,53 @@ Cursor Bugbot optional backup:
 Current turn commands:
 
 ```bash
+gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
+# Passed.
+# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head 9eaac43.
+# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at 9eaac43 before ce22369.
+
+gh pr checks 3 --repo kotakase2022-jpg/crm
+# Passed at remote head 9eaac43 before ce22369.
+# CodeRabbit: pass
+# Vercel: pass
+# Vercel Preview Comments: pass
+# typecheck-lint-test-e2e-build: pass
+
+npm.cmd run test:e2e -- -g "lead spreadsheet import run can be cancelled"
+# Passed after ce22369. 1 Chromium test.
+
+npm.cmd run typecheck
+# Passed after ce22369.
+
+npm.cmd run lint
+# Passed after ce22369.
+
+git diff --check
+# Passed after ce22369.
+
+npm.cmd run quality
+# Passed after ce22369.
+# typecheck: passed
+# lint: passed
+# test: passed (31 files / 208 tests)
+# coverage: passed
+#   statements 93.69%
+#   branches 86.54%
+#   functions 99.54%
+#   lines 95.94%
+# test:e2e: passed (48 Chromium tests)
+# build: passed (Next.js 16.2.10 production build)
+
+npm.cmd run acceptance:supabase
+# Failed as expected with missing dedicated ACCEPTANCE_* variables:
+# ACCEPTANCE_SUPABASE_URL, ACCEPTANCE_SUPABASE_PUBLISHABLE_KEY, ACCEPTANCE_TEST_EMAIL, ACCEPTANCE_TEST_PASSWORD.
+# No stack trace or secret value was printed, and no mock/demo fallback was used.
+
+git commit -m "Cover cancelled spreadsheet import run"
+# Passed. Created ce22369.
+
+# Previous current-turn commands from the prior continuation:
+
 gh pr view 3 --repo kotakase2022-jpg/crm --json number,title,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefName,baseRefName,url,headRefOid,statusCheckRollup
 # Passed.
 # PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head 4f6d670.
@@ -850,33 +907,35 @@ npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -8`.
-2. Confirm `6aab265` and this handoff commit are pushed to PR #3.
+2. Confirm `ce22369` and this handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `6aab265` and this handoff commit. The previous remote head `4f6d670` was green before the new lead status select fix.
-5. Review `src/components/crm/entity-form.tsx` and `tests/unit/entity-form.test.ts`; the select placeholder logic should remove duplicate visible `未設定` options only when a non-relation select already has an explicit unset option, while keeping relation and ordinary select blank placeholders.
-6. Review the strengthened lead creation/import-settings E2E assertions in `tests/e2e/crm-flows.spec.ts`; they should lock manual lead default status to `新規（広告以外）`, spreadsheet import default status to `新規（広告経由）`, and the canonical `leadStatuses` ordering.
-7. Review the new contract lifecycle E2E in `tests/e2e/crm-flows.spec.ts`; it should prove company -> contract create -> paid status/payment/renewal edit -> list search/status filter -> account related-contract navigation without console/page errors.
-8. Review the stabilized support ticket lifecycle E2E in `tests/e2e/crm-flows.spec.ts`; it should select canonical CRM option labels instead of fragile indexes while still proving create -> detail -> edit status/timestamps -> ticket queue search -> detail navigation without console/page errors.
-9. Review `tests/unit/supabase-live-acceptance.test.ts`; it should prove the acceptance script is import-safe for tests, runs through the CLI, fails closed before network access when `ACCEPTANCE_*` variables are absent, and enforces remote target / service-role key / env-file guards before live network access.
-10. Review `src/lib/crm/demo-data.ts` and `tests/unit/demo-data.test.ts`; they should prove the E2E persistent demo store cannot lose rows from newer route workers when a stale worker writes later.
-11. Review `src/lib/supabase/admin.ts` and `tests/unit/supabase-admin.test.ts`; they should prove blank admin config and accidentally supplied publishable/anon keys fail closed while valid server-only settings are trimmed and passed to `createClient()`.
-12. Review the new cron route response tests in `tests/unit/lead-import-cron-route.test.ts`; they should prove missing/wrong `CRON_SECRET`, partial import failures, and thrown cron errors are not reported as successful.
-13. Review the retry-success and persistent-failure tests in `tests/unit/demo-data.test.ts`.
-14. Review the Windows `EPERM` demo-store retry in `src/lib/crm/demo-data.ts`; it should be limited to the E2E-only persistent demo store path and avoid affecting production Supabase mode.
-15. Review the auth redirect sanitization tests in `tests/unit/actions.test.ts`; they should prove direct malicious `next` posts cannot escape the app after sign-in/sign-up success or failure.
-16. Review the Supabase pagination regression test in `tests/unit/data-supabase.test.ts`; it should protect `readRows()` from silently dropping records after the first 1000 rows.
-17. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
-18. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
-19. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
-20. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
-21. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
-22. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
-23. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
+4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `ce22369` and this handoff commit. The previous remote head `9eaac43` was green before the new spreadsheet import cancellation E2E.
+5. Review the new spreadsheet import cancellation E2E in `tests/e2e/crm-flows.spec.ts`; it should prove the "run now" confirmation can be dismissed before external fetch and no import history is created.
+6. Review `src/components/crm/entity-form.tsx` and `tests/unit/entity-form.test.ts`; the select placeholder logic should remove duplicate visible `未設定` options only when a non-relation select already has an explicit unset option, while keeping relation and ordinary select blank placeholders.
+7. Review the strengthened lead creation/import-settings E2E assertions in `tests/e2e/crm-flows.spec.ts`; they should lock manual lead default status to `新規（広告以外）`, spreadsheet import default status to `新規（広告経由）`, and the canonical `leadStatuses` ordering.
+8. Review the new contract lifecycle E2E in `tests/e2e/crm-flows.spec.ts`; it should prove company -> contract create -> paid status/payment/renewal edit -> list search/status filter -> account related-contract navigation without console/page errors.
+9. Review the stabilized support ticket lifecycle E2E in `tests/e2e/crm-flows.spec.ts`; it should select canonical CRM option labels instead of fragile indexes while still proving create -> detail -> edit status/timestamps -> ticket queue search -> detail navigation without console/page errors.
+10. Review `tests/unit/supabase-live-acceptance.test.ts`; it should prove the acceptance script is import-safe for tests, runs through the CLI, fails closed before network access when `ACCEPTANCE_*` variables are absent, and enforces remote target / service-role key / env-file guards before live network access.
+11. Review `src/lib/crm/demo-data.ts` and `tests/unit/demo-data.test.ts`; they should prove the E2E persistent demo store cannot lose rows from newer route workers when a stale worker writes later.
+12. Review `src/lib/supabase/admin.ts` and `tests/unit/supabase-admin.test.ts`; they should prove blank admin config and accidentally supplied publishable/anon keys fail closed while valid server-only settings are trimmed and passed to `createClient()`.
+13. Review the new cron route response tests in `tests/unit/lead-import-cron-route.test.ts`; they should prove missing/wrong `CRON_SECRET`, partial import failures, and thrown cron errors are not reported as successful.
+14. Review the retry-success and persistent-failure tests in `tests/unit/demo-data.test.ts`.
+15. Review the Windows `EPERM` demo-store retry in `src/lib/crm/demo-data.ts`; it should be limited to the E2E-only persistent demo store path and avoid affecting production Supabase mode.
+16. Review the auth redirect sanitization tests in `tests/unit/actions.test.ts`; they should prove direct malicious `next` posts cannot escape the app after sign-in/sign-up success or failure.
+17. Review the Supabase pagination regression test in `tests/unit/data-supabase.test.ts`; it should protect `readRows()` from silently dropping records after the first 1000 rows.
+18. Review the new support ticket related-task E2E for brittleness and whether it proves the intended CS next-action workflow.
+19. Review the strengthened lead conversion E2E flow for brittleness and whether it proves lead -> company/contact/deal relationship navigation.
+20. Review the strengthened dashboard risky-company E2E flow for brittleness and whether it proves the intended CS priority workflow.
+21. If a safe non-production Supabase URL, publishable key, and disposable test user are available, place them in `.env.acceptance.local` or shell env and run `npm.cmd run acceptance:supabase`.
+22. For the strongest RLS evidence, configure `ACCEPTANCE_OTHER_TEST_EMAIL` and `ACCEPTANCE_OTHER_TEST_PASSWORD` with a second disposable user in a different organization before running live acceptance.
+23. If live acceptance passes and PR #3 review is complete, update `AI_HANDOFF.md` with the result and reassess the two 99/100 scores.
+24. If code changes are made, run at least the focused tests plus `npm.cmd run quality`.
 
 ## 11. Suggested Review Scope for Claude Code
 
 Please review:
 
+- Does the new spreadsheet import cancellation E2E prove an accidental "run now" click can be dismissed before the server action starts external CSV fetch or creates import history?
 - Does `shouldShowEmptySelectOption()` remove only the duplicate visible `未設定` placeholder for non-relation selects that already include an explicit unset option, without changing relation select blank behavior?
 - Do the lead creation and import settings E2E assertions correctly lock the user-requested status defaults and option ordering: `未設定`, `新規（広告経由）`, `新規（広告以外）`, then the remaining statuses?
 - Does the new contract lifecycle E2E prove a real CS/finance path from account context to paid contract update, renewal/payment visibility, queue search/filter, and account-level related-contract navigation?
@@ -909,6 +968,7 @@ Please review:
 
 ## 12. Risk Notes
 
+- `ce22369` is E2E-only. It covers the safe cancellation path before external spreadsheet fetch; it intentionally does not exercise live Google fetch or successful import creation to avoid adding an external-network dependency to the E2E suite.
 - `6aab265` changes shared select rendering. It is intentionally narrow: only non-relation selects whose option labels already contain `未設定` suppress the extra blank placeholder. Relation selects and ordinary selects keep the blank placeholder, and this is covered by `tests/unit/entity-form.test.ts`.
 - `31ca0d0` is E2E-only and covers contract renewal/payment/status searchability in demo mode. It still cannot prove live Supabase CRUD/RLS behavior without safe non-production credentials.
 - `a6b53ef` is E2E-only and improves selector stability for support ticket status tests by using canonical CRM option labels.
