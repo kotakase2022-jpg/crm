@@ -287,6 +287,28 @@ test("list search filters results and can be cleared", async ({ page }) => {
   await strict.expectClean();
 });
 
+test("empty search results remain clearable without losing the list", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const impossibleQuery = `no-company-${Date.now()}`;
+
+  await page.goto("/companies");
+  const initialRowCount = await page.locator("tbody tr").count();
+  expect(initialRowCount).toBeGreaterThan(0);
+
+  await page.locator('input[name="q"]').fill(impossibleQuery);
+  await page.getByTestId("entity-filter-form").locator("button").first().click();
+
+  await expect(page).toHaveURL(new RegExp(`/companies\\?q=${impossibleQuery}`));
+  await expect(page.locator("main table")).toHaveCount(0);
+  await expect(page.locator('main a[href="/companies"]')).toBeVisible();
+
+  await page.locator('main a[href="/companies"]').click();
+
+  await expect(page).toHaveURL(/\/companies$/);
+  await expect(page.locator("tbody tr")).toHaveCount(initialRowCount);
+  await strict.expectClean();
+});
+
 test("list status filter narrows searched task results", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();
