@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { convertLead, createRecord, listRecords, softDeleteRecord } from "@/lib/crm/data";
+import { convertLead, createActivityForEntity, createRecord, listRecords, softDeleteRecord } from "@/lib/crm/data";
 import { entityConfigs } from "@/lib/crm/entities";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -248,6 +248,47 @@ describe("Supabase CRM data access", () => {
     expect(dealCleanup.eq).toHaveBeenCalledWith("id", "deal-1");
     expect(contactCleanup.eq).toHaveBeenCalledWith("id", "contact-1");
     expect(companyCleanup.eq).toHaveBeenCalledWith("id", "company-1");
+  });
+
+  it("soft deletes activities when linked next-action task creation fails", async () => {
+    const company = { id: "company-1", name: "Activity Company", organization_id: "org-1" };
+    const activity = {
+      id: "activity-1",
+      company_id: "company-1",
+      subject: "Next action follow-up",
+      has_next_action: true,
+      organization_id: "org-1",
+    };
+    const { operations } = mockAuthenticatedSupabaseByOperation({
+      reads: {
+        companies: company,
+      },
+      lists: {
+        tasks: [],
+      },
+      inserts: {
+        activities: [{ data: activity }],
+        tasks: [{ data: null, error: { message: "Task insert failed" } }],
+      },
+    });
+
+    await expect(
+      createActivityForEntity("companies", "company-1", {
+        subject: "Next action follow-up",
+        has_next_action: true,
+      }),
+    ).rejects.toThrow("Task insert failed");
+
+    expect(operations.inserts.activities).toHaveLength(1);
+    expect(operations.updates.activities).toHaveLength(1);
+    const activityCleanup = operations.updates.activities[0]!;
+    expect(activityCleanup.update).toHaveBeenCalledWith({
+      deleted_at: expect.any(String),
+      updated_by: "user-1",
+    });
+    expect(activityCleanup.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(activityCleanup.eq).toHaveBeenCalledWith("id", "activity-1");
+    expect(activityCleanup.is).toHaveBeenCalledWith("deleted_at", null);
   });
 
   it("soft deletes Supabase records by setting deleted_at within the current organization", async () => {

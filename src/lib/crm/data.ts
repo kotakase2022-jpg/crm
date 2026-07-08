@@ -477,7 +477,12 @@ export async function createActivity(values: Record<string, unknown>) {
     ...values,
   });
 
-  await createTaskForNextActionActivity(ctx, activity);
+  try {
+    await createTaskForNextActionActivity(ctx, activity);
+  } catch (error) {
+    return softDeleteCreatedRecordAfterFailure(ctx, "activities", activity, error);
+  }
+
   return activity;
 }
 
@@ -502,7 +507,12 @@ export async function createActivityForEntity(entity: EntitySlug, idValue: strin
     ...activityRelationForEntity(entity, record),
   });
 
-  await createTaskForNextActionActivity(ctx, activity);
+  try {
+    await createTaskForNextActionActivity(ctx, activity);
+  } catch (error) {
+    return softDeleteCreatedRecordAfterFailure(ctx, "activities", activity, error);
+  }
+
   return activity;
 }
 
