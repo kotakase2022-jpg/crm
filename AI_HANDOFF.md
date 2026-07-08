@@ -7,7 +7,7 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 17:10 JST
+- Last updated: 2026-07-08 17:21 JST
 
 ## 1. Current Goal
 
@@ -18,11 +18,11 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
 - Latest local code commit: `d72bd99` (`Clean up failed activity next actions`)
-- Latest remote head checked before this handoff update: `9ab9439` (`Record conversion activity cleanup handoff`)
-- Last known good code commit: `d72bd99` after focused unit tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
+- Latest remote head checked before this handoff update: `993ce4a` (`Record activity next action cleanup handoff`)
+- Last known good code commit: `993ce4a` after focused unit tests, full `npm.cmd run quality`, live non-production Supabase acceptance, and green PR checks
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `9ab9439`; re-check after pushing `d72bd99` plus this handoff update.
+- CodeRabbit OSS review status: passed on PR #4 remote head `993ce4a`.
 
 ## 3. What Was Done
 
@@ -89,6 +89,14 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Added a unit/integration regression test proving entity-scoped activity creation soft-deletes the activity when linked next-action task insertion fails.
 - Re-ran focused Supabase data tests, the full local quality gate, and live non-production Supabase CRUD/RLS acceptance; all passed.
 - Committed the activity next-action cleanup fix as `d72bd99`.
+- Pushed PR #4 remote head `993ce4a` and confirmed the latest checks are green:
+  - GitHub Actions `quality-gate / typecheck-lint-test-e2e-build`: success
+  - CodeRabbit: success
+  - Vercel: success
+  - Vercel Preview Comments: success
+- Confirmed the user's Chrome Supabase session has the existing Preview Branch tab `crm (acceptance-crm-20260708) | suslab | Supabase`.
+- Did not create an additional paid Supabase Preview Branch because `acceptance-crm-20260708` already exists and is usable; avoiding a duplicate branch avoids unnecessary billing.
+- Re-ran live non-production Supabase CRUD/RLS acceptance at 2026-07-08 17:21 JST after the user explicitly approved paid Preview Branch usage and acceptance execution; it passed.
 
 ## 4. Files Changed
 
@@ -114,22 +122,22 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 
 - Local focused unit tests are green at `d72bd99`.
 - Local full `npm.cmd run quality` is green at `d72bd99`.
-- Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval.
+- Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval, most recently at 2026-07-08 17:21 JST.
 - The latest code change is a focused Supabase data-consistency implementation/test update and does not change DB schema, migrations, Supabase secrets, or production data.
 - PR #4 is still open and `REVIEW_REQUIRED`.
-- PR #4 checks must be re-run after pushing `d72bd99` and this handoff update.
+- PR #4 remote head `993ce4a` has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments.
 - Supabase preview branch `acceptance-crm-20260708` may still exist and may continue billing until deleted. Delete it only with explicit user approval.
 
 ## 6. Known Issues
 
 - PR #4 needs human or Claude Code review before merge.
-- CodeRabbit/GitHub Actions need to be rechecked after the next push.
+- No known failing local or PR checks at remote head `993ce4a`.
 - Supabase preview branch cleanup remains a cost-control decision for the user.
 - Cursor Bugbot was not intentionally run by Codex; it remains optional backup only.
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `9ab9439`; pending re-review after pushing `d72bd99` and this handoff update.
+- Review status: Passed on PR #4 remote head `993ce4a`.
 - Critical findings: none known.
 - Resolved findings: Earlier PR-description warning was addressed in a prior Loop 11 update.
 - Deferred findings: none.
@@ -199,6 +207,7 @@ npm.cmd run acceptance:supabase
 # Passed again at 2026-07-08 16:39 JST after the lead-conversion cleanup fix.
 # Passed again at 2026-07-08 16:57 JST after the conversion activity cleanup fix.
 # Passed again at 2026-07-08 17:10 JST after the activity next-action cleanup fix.
+# Passed again at 2026-07-08 17:21 JST using Preview Branch acceptance-crm-20260708 after the user explicitly approved paid Preview Branch usage and acceptance execution.
 
 git commit -m "Cover demo lead import persistence"
 # Passed. Commit: d3d8b02.
@@ -227,17 +236,33 @@ git commit -m "Clean up failed conversion activities"
 git commit -m "Clean up failed activity next actions"
 # Passed. Commit: d72bd99.
 # Pre-commit test guard also passed.
+
+git push origin codex/loop11-crm-quality-sweep
+# Passed. Remote head updated to 993ce4a.
+# Pre-push guard passed: test:guard, lint, typecheck, and test.
+
+gh pr view 4 --repo kotakase2022-jpg/crm --json number,state,isDraft,reviewDecision,headRefOid,statusCheckRollup,url
+# Passed at 2026-07-08 17:20 JST.
+# PR #4 is OPEN, non-draft, REVIEW_REQUIRED, remote head 993ce4a.
+# CodeRabbit: success
+# Vercel: success
+# Vercel Preview Comments: success
+# quality-gate / typecheck-lint-test-e2e-build: success
+
+Chrome Supabase dashboard
+# Confirmed an existing logged-in Supabase tab titled `crm (acceptance-crm-20260708) | suslab | Supabase`.
+# No additional paid Preview Branch was created because the intended branch already exists.
 ```
 
 ## 10. Next Recommended Action
 
 For Claude Code:
 
-1. After Codex pushes, run `gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10` and confirm CodeRabbit, GitHub Actions, Vercel, and Vercel Preview Comments are green on the newest remote head.
-2. Review `src/lib/crm/data.ts`, `src/lib/crm/lead-imports.ts`, `tests/unit/data-supabase.test.ts`, and `tests/unit/lead-imports.test.ts`, especially the failed automatic-task, lead-conversion, and activity next-action cleanup paths, for correctness and brittleness.
-3. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, lead conversion cleanup including the activity/task tail, activity next-action cleanup, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
-4. Review whether future work should add a route/action-level test seam for a UI-triggered import run, while keeping the current diff test-only and focused.
-5. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
+1. Review `src/lib/crm/data.ts`, `src/lib/crm/lead-imports.ts`, `tests/unit/data-supabase.test.ts`, and `tests/unit/lead-imports.test.ts`, especially the failed automatic-task, lead-conversion, and activity next-action cleanup paths, for correctness and brittleness.
+2. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, lead conversion cleanup including the activity/task tail, activity next-action cleanup, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
+3. Review whether future work should add a route/action-level test seam for a UI-triggered import run, while keeping the current diff test-only and focused.
+4. PR #4 still needs human or Claude Code review before merge even though CodeRabbit/CI/Vercel are green.
+5. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing when acceptance is no longer needed; delete it only with explicit user approval.
 
 ## 11. Suggested Review Scope for Claude Code
 
@@ -257,7 +282,7 @@ For Claude Code:
 ## 12. Risk Notes
 
 - The E2E suite currently has 55 Chromium tests and full `quality` takes roughly a few minutes locally.
-- The live Supabase preview branch is a cost item. Creation/use and acceptance testing were approved by the user; deletion still needs explicit approval.
+- The live Supabase preview branch is a cost item. Creation/use and acceptance testing were approved by the user; no duplicate branch was created; deletion still needs explicit approval.
 - Do not run acceptance against production Supabase.
 - Do not push directly to `main`.
 
