@@ -7,7 +7,7 @@
 - Loop: 10
 - Loop number inferred from: Previous handoff recorded Loop 9 as Claude Code -> Codex after PR #2 was merged to `main`; Loop 10 is the current Codex improvement branch from `origin/main`.
 - Phase: Handoff
-- Last updated: 2026-07-08 09:36:01 +09:00
+- Last updated: 2026-07-08 09:42:48 +09:00
 
 ## 1. Current Goal
 
@@ -32,9 +32,9 @@ Not yet 100 because a safe non-production Supabase authenticated live CRUD/RLS a
 - Last known good local commit: `ce22369`
 - PR: https://github.com/kotakase2022-jpg/crm/pull/3
 - PR #2: merged by the user before this loop continuation.
-- CodeRabbit OSS review status: green on PR #3 at remote head `9eaac43` before `ce22369`; re-check after pushing `ce22369` and this final handoff update.
-- GitHub Actions `quality-gate`: green on PR #3 at remote head `9eaac43` before `ce22369`; local `npm.cmd run quality` passes after `ce22369`.
-- Vercel preview: green on PR #3 at remote head `9eaac43` before `ce22369`; re-check after pushing `ce22369` and this final handoff update.
+- CodeRabbit OSS review status: green on PR #3 at remote head `611c57b` after `ce22369` and its handoff commit; re-check after pushing this final status handoff update.
+- GitHub Actions `quality-gate`: green on PR #3 at remote head `611c57b` after `ce22369` and its handoff commit; local `npm.cmd run quality` passes after `ce22369`.
+- Vercel preview: green on PR #3 at remote head `611c57b` after `ce22369` and its handoff commit; re-check after pushing this final status handoff update.
 
 ## 3. What Was Done
 
@@ -48,6 +48,7 @@ Completed this turn:
 - Re-ran the focused E2E, `npm.cmd run typecheck`, `npm.cmd run lint`, `git diff --check`, the full local `npm.cmd run quality` gate, and the fail-closed missing-env Supabase acceptance path.
 - Confirmed `npm.cmd run quality` passes with 31 unit spec files / 208 unit tests and 48 Chromium E2E tests after `ce22369`.
 - Confirmed `npm.cmd run acceptance:supabase` still fails loudly without dedicated `ACCEPTANCE_*` variables and does not fall back to mock/demo success.
+- Pushed `ce22369` and handoff `611c57b`; confirmed PR #3 remote head `611c57b` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` all green.
 
 Previous Loop 10 continuation:
 
@@ -244,7 +245,7 @@ Important earlier PR #3 files:
 - Local code quality is green after `ce22369`.
 - Working tree should be clean after this handoff update is committed.
 - PR #3 is open and mergeable, but review is still required.
-- PR #3 remote head `9eaac43` had CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green before the new `ce22369` spreadsheet import cancellation E2E. This final handoff update will trigger another re-check after push.
+- PR #3 remote head `611c57b` has CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate` green after the new `ce22369` spreadsheet import cancellation E2E and its handoff commit. This final status handoff update will trigger one more re-check after push.
 - No production DB, production API, migration, RLS, or Vercel setting changes were made.
 - No secrets were read or printed.
 - Cursor Bugbot was not used; CodeRabbit OSS remains the standard review path.
@@ -274,7 +275,7 @@ Important earlier PR #3 files:
 
 CodeRabbit OSS findings and response:
 
-- Review status: Passed on PR #3 at remote head `9eaac43`; re-check after pushing `ce22369` and this final handoff commit.
+- Review status: Passed on PR #3 at remote head `611c57b`; re-check after pushing this final status handoff commit.
 - Critical findings: none known.
 - Resolved findings: none; CodeRabbit previously produced no actionable comments.
 - Deferred findings: none.
@@ -339,6 +340,25 @@ npm.cmd run acceptance:supabase
 
 git commit -m "Cover cancelled spreadsheet import run"
 # Passed. Created ce22369.
+
+git commit -m "Record cancelled import handoff"
+# Passed. Created 611c57b.
+
+git push origin codex/loop10-crm-ux-hardening
+# Passed for ce22369 and 611c57b.
+# pre-push test:guard, lint, typecheck, and unit test all passed.
+
+gh pr checks 3 --repo kotakase2022-jpg/crm --watch --interval 10
+# Passed at remote head 611c57b.
+# CodeRabbit: pass
+# Vercel: pass
+# Vercel Preview Comments: pass
+# typecheck-lint-test-e2e-build: pass
+
+gh pr view 3 --repo kotakase2022-jpg/crm --json number,state,isDraft,mergeStateStatus,mergeable,reviewDecision,headRefOid,statusCheckRollup,url
+# Passed.
+# PR #3 open, non-draft, mergeable, mergeStateStatus BLOCKED, reviewDecision REVIEW_REQUIRED, remote head 611c57b.
+# CodeRabbit, Vercel, Vercel Preview Comments, and quality-gate were all green at 611c57b.
 
 # Previous current-turn commands from the prior continuation:
 
@@ -907,9 +927,9 @@ npm.cmd run test:e2e -- -g "record editing persists updated notes|datetime-local
 Claude Code should start here:
 
 1. Run `git status --short --branch` and `git log --oneline -8`.
-2. Confirm `ce22369` and this handoff commit are pushed to PR #3.
+2. Confirm `ce22369`, `611c57b`, and this final status handoff commit are pushed to PR #3.
 3. Run `gh pr checks 3 --repo kotakase2022-jpg/crm`.
-4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after `ce22369` and this handoff commit. The previous remote head `9eaac43` was green before the new spreadsheet import cancellation E2E.
+4. Confirm the latest `quality-gate`, CodeRabbit, and Vercel checks are green after this final status handoff commit. The previous remote head `611c57b` was green after `ce22369` and its handoff commit.
 5. Review the new spreadsheet import cancellation E2E in `tests/e2e/crm-flows.spec.ts`; it should prove the "run now" confirmation can be dismissed before external fetch and no import history is created.
 6. Review `src/components/crm/entity-form.tsx` and `tests/unit/entity-form.test.ts`; the select placeholder logic should remove duplicate visible `未設定` options only when a non-relation select already has an explicit unset option, while keeping relation and ordinary select blank placeholders.
 7. Review the strengthened lead creation/import-settings E2E assertions in `tests/e2e/crm-flows.spec.ts`; they should lock manual lead default status to `新規（広告以外）`, spreadsheet import default status to `新規（広告経由）`, and the canonical `leadStatuses` ordering.
