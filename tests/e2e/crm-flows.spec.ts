@@ -491,6 +491,28 @@ test("lead spreadsheet import settings rejects unsupported URLs without crashing
   await strict.expectClean();
 });
 
+test("lead spreadsheet import run can be cancelled before external fetch", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const sheetId = `e2e-cancelled-import-${Date.now()}`;
+
+  await page.goto("/leads/import-settings");
+  await page.locator('input[name="spreadsheet_url"]').fill(`https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0`);
+  await page.getByRole("button", { name: "設定を保存" }).click();
+
+  await expect(page).toHaveURL(/\/leads\/import-settings\?toast=settings-saved$/);
+  await expect(page.locator("main")).toContainText("まだ取込履歴はありません");
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.type()).toBe("confirm");
+    await dialog.dismiss();
+  });
+  await page.locator("form").nth(1).locator("button").click();
+
+  await expect(page).toHaveURL(/\/leads\/import-settings\?toast=settings-saved$/);
+  await expect(page.locator("main")).toContainText("まだ取込履歴はありません");
+  await strict.expectClean();
+});
+
 test("lead spreadsheet import result toasts show imported and skipped counts", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
 
