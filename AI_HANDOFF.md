@@ -7,22 +7,22 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 15:20 JST
+- Last updated: 2026-07-08 15:31 JST
 
 ## 1. Current Goal
 
-Strengthen mechanical proof that daily CRM users can trust task triage, filtering, sales alert resolution, automation task generation, CS risk drill-down, tablet-width layout safety, invalid-input recovery, and relation-validation recovery: urgent work surfaces first, completed work leaves actionable views, dashboard cards only show actionable today/overdue work, task status filters preserve search context, high-MRR deal warnings clear only after an open linked follow-up task exists, automation creates searchable follow-up tasks without duplication, account details show why a risky customer has a low health score, the dense health-score breakdown does not create page-level horizontal overflow, invalid lead form input can be corrected and saved without losing work, and inconsistent task company/deal relations keep the user on a correctable form before saving successfully after correction.
+Strengthen mechanical proof that daily CRM users can trust task triage, filtering, empty-search recovery, sales alert resolution, automation task generation, CS risk drill-down, tablet-width layout safety, invalid-input recovery, and relation-validation recovery: urgent work surfaces first, completed work leaves actionable views, dashboard cards only show actionable today/overdue work, searches with no results stay clearable and recover to the populated list, task status filters preserve search context, high-MRR deal warnings clear only after an open linked follow-up task exists, automation creates searchable follow-up tasks without duplication, account details show why a risky customer has a low health score, the dense health-score breakdown does not create page-level horizontal overflow, invalid lead form input can be corrected and saved without losing work, and inconsistent task company/deal relations keep the user on a correctable form before saving successfully after correction.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
-- Latest local code commit: `3778f6e` (`Cover relation validation recovery flow`)
-- Latest remote head checked before this local handoff update: `0dcb702` (`Record relation validation recovery handoff`)
-- Last known good commit: `3778f6e` after local focused E2E and full `npm.cmd run quality`; live non-production Supabase acceptance also passed earlier in Loop 11 after user approval
+- Latest local code commit: `314a3cf` (`Cover clearable empty search state`)
+- Latest remote head checked before this local handoff update: `50caf26` (`Record relation validation PR verification`)
+- Last known good commit: `314a3cf` after local focused E2E and full `npm.cmd run quality`; live non-production Supabase acceptance also passed earlier in Loop 11 after user approval
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `0dcb702`; re-check after pushing this final handoff-only update.
+- CodeRabbit OSS review status: passed on PR #4 remote head `50caf26`; re-check after pushing `314a3cf` plus this handoff update.
 
 ## 3. What Was Done
 
@@ -76,10 +76,20 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 - Re-ran the focused relation-validation E2E and the full local quality gate again; it passed with 54 Chromium E2E tests.
 - Updated PR #4 body to include relation-validation recovery coverage.
 - Pushed through handoff commit `0dcb702` and confirmed PR #4 remote head `0dcb702` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
+- Pushed through handoff commit `50caf26` and confirmed PR #4 remote head `50caf26` had green CodeRabbit, Vercel, Vercel Preview Comments, and GitHub Actions `quality-gate`.
+- Added Playwright E2E coverage for empty-search recovery:
+  - opens the company list;
+  - searches for an impossible company name;
+  - verifies the table disappears and a clear link is available;
+  - clicks clear and confirms the populated company list returns.
+- Fixed the new test after its first run by scoping the submit click to `data-testid="entity-filter-form"`; the initial failure was a test harness selector issue, not an implementation failure.
+- Re-ran the focused empty-search E2E and the full local quality gate again; it passed with 55 Chromium E2E tests.
+- Updated PR #4 body to include empty-search recovery coverage.
 
 ## 4. Files Changed
 
 - `tests/e2e/crm-flows.spec.ts`
+  - Added empty-search recovery coverage so a no-result company search stays clearable and returns the populated list.
   - Added relation-validation recovery coverage so a mismatched task company/deal relation shows an error, stays on a correctable form, and saves after the relation is fixed.
   - Strengthened invalid-input coverage so a bad lead email is blocked, corrected, and then saved to the lead detail page.
   - Strengthened tablet-width layout coverage so the risky-customer company detail with the health-score breakdown stays within page width.
@@ -98,13 +108,13 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ## 5. Current Status
 
-- Local quality gate is green at `3778f6e`.
+- Local quality gate is green at `314a3cf`.
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit paid-preview-branch approval.
-- The newest code commit is E2E-only and verifies task relation-validation recovery after a mismatched company/deal selection; no DB schema, migration, or persistence contract changed.
+- The newest code commit is E2E-only and verifies empty-search recovery on the company list; no DB schema, migration, or persistence contract changed.
 - PR #4 is open and non-draft.
 - PR #4 still has GitHub `reviewDecision: REVIEW_REQUIRED`; human or Claude Code review is still needed before merge.
 - Supabase preview branch `acceptance-crm-20260708` still exists and may continue billing until deleted.
-- PR #4 remote head `0dcb702` was mechanically green before this final handoff-only update; after pushing this handoff update, GitHub Actions and CodeRabbit should be rechecked on the new remote head.
+- After pushing `314a3cf` and this handoff update, GitHub Actions and CodeRabbit should be rechecked on the new remote head.
 
 ## 6. Known Issues
 
@@ -115,7 +125,7 @@ Strengthen mechanical proof that daily CRM users can trust task triage, filterin
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `0dcb702`; re-check after pushing this final handoff-only update.
+- Review status: Passed on PR #4 remote head `50caf26`; re-check after pushing `314a3cf` and this handoff update.
 - Critical findings: none known.
 - Resolved findings: Earlier CodeRabbit PR-description warning was addressed by expanding the PR body to match repository template sections.
 - Deferred findings: none.
@@ -152,6 +162,20 @@ gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDe
 # Vercel Preview Comments: success
 # quality-gate / typecheck-lint-test-e2e-build: success
 
+gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10
+# Passed after pushing `50caf26`.
+# CodeRabbit: passed
+# Vercel: passed
+# Vercel Preview Comments: passed
+# typecheck-lint-test-e2e-build: passed in 4m20s
+
+gh pr view 4 --repo kotakase2022-jpg/crm --json url,title,state,isDraft,reviewDecision,headRefOid,statusCheckRollup
+# Passed before local empty-search-recovery push. PR #4 was OPEN, non-draft, REVIEW_REQUIRED, and mechanically green at remote head 50caf26.
+# CodeRabbit: success
+# Vercel: success
+# Vercel Preview Comments: success
+# quality-gate / typecheck-lint-test-e2e-build: success
+
 npm.cmd run test:e2e -- -g "list status filter narrows"
 # Passed. 1 Chromium test.
 
@@ -173,6 +197,10 @@ npm.cmd run test:e2e -- -g "invalid form input can be corrected"
 npm.cmd run test:e2e -- -g "relation validation keeps"
 # Passed. 1 Chromium test. This verifies a mismatched task company/deal relation shows an alert, preserves relation fields for correction, and saves after the user fixes the company relation.
 
+npm.cmd run test:e2e -- -g "empty search results"
+# First run failed because the new test clicked the first page-level form button and navigated to `/login`; fixed by scoping the click to `data-testid="entity-filter-form"`.
+# Re-run passed. 1 Chromium test. This verifies a no-result company search exposes a clear link and returns to the populated company list.
+
 npm.cmd run acceptance:supabase
 # Passed on 2026-07-08 after explicit user approval for paid non-production preview-branch use and acceptance execution.
 # Supabase acceptance passed: auth, profile bootstrap, anonymous/optional cross-organization read isolation,
@@ -191,12 +219,12 @@ npm.cmd run quality
 #   branches 86.54%
 #   functions 99.54%
 #   lines 95.94%
-# test:e2e: passed (54 Chromium tests)
+# test:e2e: passed (55 Chromium tests)
 # build: passed (Next.js 16.2.10 production build)
 
 gh pr edit 4 --repo kotakase2022-jpg/crm --title "Cover CRM task triage and automation flow" --body-file -
 # Passed. PR body now describes priority sorting, completed-task quick-view behavior,
-# dashboard actionable-task filtering, task status filtering, high-MRR alert resolution,
+# dashboard actionable-task filtering, empty-search recovery, task status filtering, high-MRR alert resolution,
 # automation task generation, health-score breakdown drill-down, tablet layout safety,
 # invalid-input recovery, relation-validation recovery, quality, and Supabase acceptance.
 ```
@@ -206,17 +234,19 @@ gh pr edit 4 --repo kotakase2022-jpg/crm --title "Cover CRM task triage and auto
 For Claude Code:
 
 1. Re-check PR #4 after the latest push with `gh pr checks 4 --repo kotakase2022-jpg/crm`.
-2. Review `tests/e2e/crm-flows.spec.ts` for the relation-validation recovery change; confirm it proves a realistic mismatched relation correction path without becoming brittle.
-3. Review `tests/e2e/crm-flows.spec.ts` for the invalid-input recovery change; confirm it proves a realistic browser validation correction path without becoming brittle.
-4. Review `src/components/crm/entity-detail.tsx` and `tests/e2e/crm-flows.spec.ts` for the health-score breakdown drill-down and tablet-width layout coverage; confirm the extra columns improve CS diagnosis without page-level overflow or excessive visual noise.
-5. Review the Loop 11 task-triage/filtering/alert-resolution/automation E2E additions and confirm they prove useful workflows without brittleness.
-6. Review `tests/unit/supabase-live-acceptance.test.ts` and confirm the temporary cwd isolation is the right way to keep the missing-env guard independent from local acceptance credentials.
-7. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
+2. Review `tests/e2e/crm-flows.spec.ts` for the empty-search recovery change; confirm it proves a realistic no-results recovery path without relying on fragile localized copy.
+3. Review `tests/e2e/crm-flows.spec.ts` for the relation-validation recovery change; confirm it proves a realistic mismatched relation correction path without becoming brittle.
+4. Review `tests/e2e/crm-flows.spec.ts` for the invalid-input recovery change; confirm it proves a realistic browser validation correction path without becoming brittle.
+5. Review `src/components/crm/entity-detail.tsx` and `tests/e2e/crm-flows.spec.ts` for the health-score breakdown drill-down and tablet-width layout coverage; confirm the extra columns improve CS diagnosis without page-level overflow or excessive visual noise.
+6. Review the Loop 11 task-triage/filtering/alert-resolution/automation E2E additions and confirm they prove useful workflows without brittleness.
+7. Review `tests/unit/supabase-live-acceptance.test.ts` and confirm the temporary cwd isolation is the right way to keep the missing-env guard independent from local acceptance credentials.
+8. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
 
 ## 11. Suggested Review Scope for Claude Code
 
 - Do the E2E tests prove search preservation, priority ordering, completed-task removal from actionable views, dashboard exclusion of completed/future tasks, task status filtering, high-MRR alert resolution, and automation task creation without duplicate open tasks with real browser interactions?
 - Do the status-filter, alert-resolution, and automation E2Es avoid overfitting to implementation details while still proving meaningful user workflows?
+- Does the empty-search recovery E2E prove users can recover from no-result searches without relying on brittle localized text?
 - Does the relation-validation E2E prove an operator can recover from mismatched company/deal task relations without crashing or saving inconsistent data?
 - Does the invalid lead-form E2E prove a realistic correction-and-save path without relying on implementation-only details?
 - Does the health-score breakdown on company detail give CS enough diagnostic context without overcrowding the related table on desktop/tablet or causing page-level horizontal overflow?
@@ -225,7 +255,7 @@ For Claude Code:
 
 ## 12. Risk Notes
 
-- The E2E changes increase Chromium suite count from 48 to 54.
+- The E2E changes increase Chromium suite count from 48 to 55.
 - The live Supabase preview branch is still a cost item. Creation/use and acceptance testing were approved by the user; deletion still needs explicit approval.
 - Do not run acceptance against production Supabase.
 - Do not push directly to `main`.
@@ -245,4 +275,4 @@ For Claude Code:
 - Current self-assessment after this loop:
   - Function/screen-transition defect-free score: 99 / 100
   - Daily CRM experience value score: 99 / 100
-- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, alert-resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, and relation-validation recovery proof improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
+- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert-resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, and relation-validation recovery proof improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
