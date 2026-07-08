@@ -3,15 +3,21 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseEnv } from "./env";
 
+function isKnownNonAdminKey(key: string) {
+  const normalized = key.toLowerCase();
+  return normalized.startsWith("sb_publishable_") || normalized.startsWith("sb_anon_");
+}
+
 export function createAdminClient() {
   const env = getSupabaseEnv();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = env.url?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
-  if (!env.url || !serviceRoleKey) {
+  if (!url || !serviceRoleKey || isKnownNonAdminKey(serviceRoleKey)) {
     return null;
   }
 
-  return createClient(env.url, serviceRoleKey, {
+  return createClient(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

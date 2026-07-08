@@ -1,14 +1,19 @@
 import { defineConfig, devices } from "@playwright/test";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
+import path from "node:path";
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3025);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${port}`;
+const demoStoreFile = process.env.CRM_DEMO_STORE_FILE ?? path.join(process.cwd(), ".tmp", `playwright-demo-store-${port}.json`);
 const localChromeAvailable =
   !process.env.CI &&
   process.platform === "win32" &&
   (existsSync("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe") ||
     existsSync("C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"));
 const browserUse = localChromeAvailable ? { channel: "chrome" as const } : {};
+
+mkdirSync(path.dirname(demoStoreFile), { recursive: true });
+rmSync(demoStoreFile, { force: true });
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -35,6 +40,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       E2E_TEST_MODE: "demo",
+      CRM_DEMO_STORE_FILE: demoStoreFile,
       NEXT_PUBLIC_SUPABASE_URL: "",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
     },

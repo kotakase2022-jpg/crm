@@ -22,10 +22,34 @@ const messages: Record<string, string> = {
 
 const errorToasts = new Set(["settings-error", "validation-error", "import-failed"]);
 
+function countLabel(value: string | null) {
+  const count = Number(value);
+  return Number.isFinite(count) && count >= 0 ? String(count) : null;
+}
+
+function toastMessage(toast: string, params: URLSearchParams) {
+  const baseMessage = messages[toast] ?? "処理が完了しました。";
+  const count = countLabel(params.get("count"));
+
+  if (toast === "automation" && count) {
+    return `${count}件の自動タスクを作成しました。`;
+  }
+
+  if (toast === "import-success" || toast === "import-failed") {
+    const imported = countLabel(params.get("imported"));
+    const skipped = countLabel(params.get("skipped"));
+
+    if (imported || skipped) {
+      return `${baseMessage} 取込 ${imported ?? "0"}件 / スキップ ${skipped ?? "0"}件`;
+    }
+  }
+
+  return baseMessage;
+}
+
 export function ToastNotice() {
   const params = useSearchParams();
   const toast = params.get("toast");
-  const count = params.get("count");
 
   if (!toast) return null;
 
@@ -42,7 +66,7 @@ export function ToastNotice() {
       data-testid="toast-notice"
     >
       <Icon className={`h-5 w-5 ${isError ? "text-rose-600" : "text-emerald-600"}`} aria-hidden />
-      <span>{toast === "automation" && count ? `${count}件の自動タスクを作成しました。` : messages[toast] ?? "処理が完了しました。"}</span>
+      <span>{toastMessage(toast, params)}</span>
     </div>
   );
 }

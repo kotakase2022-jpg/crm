@@ -6,12 +6,31 @@ import { CrmValidationError, parseActivityFormValues, parseEntityFormValues } fr
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
-const mocks = vi.hoisted(() => ({
-  revalidatePath: vi.fn(),
-  redirect: vi.fn(),
-  runLeadImportSetting: vi.fn(),
-  saveLeadImportSetting: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  function isSafeInternalPath(path: string) {
+    return path.startsWith("/") && !path.startsWith("//") && !path.includes("\\") && !/[\u0000-\u001f\u007f]/.test(path);
+  }
+
+  function defaultSafeInternalRedirectPath(value: unknown, fallback = "/dashboard") {
+    const safeFallback = isSafeInternalPath(fallback) ? fallback : "/dashboard";
+    const path = typeof value === "string" ? value.trim() : "";
+
+    if (!path || !isSafeInternalPath(path)) {
+      return safeFallback;
+    }
+
+    return path;
+  }
+
+  return {
+    revalidatePath: vi.fn(),
+    redirect: vi.fn(),
+    runLeadImportSetting: vi.fn(),
+    safeInternalRedirectPath: vi.fn(defaultSafeInternalRedirectPath),
+    saveLeadImportSetting: vi.fn(),
+    defaultSafeInternalRedirectPath,
+  };
+});
 
 vi.mock("next/cache", () => ({
   revalidatePath: mocks.revalidatePath,
@@ -48,7 +67,7 @@ vi.mock("@/lib/crm/lead-imports", () => ({
 }));
 
 vi.mock("@/lib/crm/navigation", () => ({
-  safeInternalRedirectPath: vi.fn((value: unknown) => (typeof value === "string" ? value : "/dashboard")),
+  safeInternalRedirectPath: mocks.safeInternalRedirectPath,
 }));
 
 vi.mock("@/lib/crm/validation", () => ({
@@ -78,6 +97,8 @@ describe("CRM server actions", () => {
     mocks.revalidatePath.mockReset();
     mocks.redirect.mockReset();
     mocks.runLeadImportSetting.mockReset();
+    mocks.safeInternalRedirectPath.mockReset();
+    mocks.safeInternalRedirectPath.mockImplementation(mocks.defaultSafeInternalRedirectPath);
     mocks.saveLeadImportSetting.mockReset();
     vi.mocked(createClient).mockReset();
     vi.mocked(completeTask).mockReset();
@@ -107,7 +128,7 @@ describe("CRM server actions", () => {
     expect(Math.max(...revalidateOrders)).toBeLessThan(redirectOrder);
   }
 
-  function mockConfig(slug: "deals" | "tasks" | "tickets") {
+  function mockConfig(slug: "deals" | "tasks" | "tickets", fields: Array<Record<string, unknown>> = []) {
     const tableBySlug = {
       deals: "deals",
       tasks: "tasks",
@@ -126,7 +147,7 @@ describe("CRM server actions", () => {
       sortFields: [],
       listFields: [],
       detailFields: [],
-      fields: [],
+      fields,
     } as never);
   }
 
@@ -171,6 +192,29 @@ describe("CRM server actions", () => {
     expect(createRecord).not.toHaveBeenCalled();
     expect(revalidatedPaths()).toEqual([]);
     expect(mocks.redirect).toHaveBeenCalledWith("/tasks/new?toast=validation-error");
+  });
+
+  it("preserves parent relation context when create validation fails", async () => {
+    mockConfig("tasks", [
+      { name: "company_id", label: "Company", type: "select", relation: "companies" },
+      { name: "deal_id", label: "Deal", type: "select", relation: "deals" },
+      { name: "title", label: "Title", type: "text", required: true },
+    ]);
+    vi.mocked(parseEntityFormValues).mockImplementation(() => {
+      throw new CrmValidationError({ title: "Required" });
+    });
+    const formData = new FormData();
+    formData.set("company_id", " company-1 ");
+    formData.set("deal_id", "deal-1");
+    formData.set("title", "");
+
+    const { createEntityAction } = await import("@/lib/crm/actions");
+
+    await createEntityAction("tasks", formData);
+
+    expect(createRecord).not.toHaveBeenCalled();
+    expect(revalidatedPaths()).toEqual([]);
+    expect(mocks.redirect).toHaveBeenCalledWith("/tasks/new?toast=validation-error&company_id=company-1&deal_id=deal-1");
   });
 
   it("revalidates entity detail, related records, operational views, and task alerts after deal updates", async () => {
@@ -385,6 +429,66 @@ describe("CRM server actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/dashboard");
   });
 
+  it("sanitizes direct sign-in next targets before redirecting after auth success", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signInWithPassword } } as never);
+    const formData = new FormData();
+    formData.set("email", "sales@example.test");
+    formData.set("password", "password");
+    formData.set("next", "https://evil.example/phishing");
+
+    const { signInAction } = await import("@/lib/crm/actions");
+
+    await signInAction(formData);
+
+    expect(mocks.safeInternalRedirectPath).toHaveBeenCalledWith("https://evil.example/phishing");
+    expect(mocks.redirect).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("redirects sign-in failures back to login with an error and safe next path", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signInWithPassword = vi.fn().mockResolvedValue({ error: new Error("Invalid login credentials") });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signInWithPassword } } as never);
+    const formData = new FormData();
+    formData.set("email", "sales@example.test");
+    formData.set("password", "wrong-password");
+    formData.set("next", "/deals?stage=demo");
+
+    const { signInAction } = await import("@/lib/crm/actions");
+
+    await signInAction(formData);
+
+    expect(signInWithPassword).toHaveBeenCalledWith({
+      email: "sales@example.test",
+      password: "wrong-password",
+    });
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      `/login?error=${encodeURIComponent("メールアドレスまたはパスワードを確認してください。")}&next=${encodeURIComponent("/deals?stage=demo")}`,
+    );
+  });
+
+  it("sanitizes direct sign-in next targets before redirecting after auth failure", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signInWithPassword = vi.fn().mockResolvedValue({ error: new Error("Invalid login credentials") });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signInWithPassword } } as never);
+    const formData = new FormData();
+    formData.set("email", "sales@example.test");
+    formData.set("password", "wrong-password");
+    formData.set("next", "https://evil.example/phishing");
+
+    const { signInAction } = await import("@/lib/crm/actions");
+
+    await signInAction(formData);
+
+    const redirectTarget = String(mocks.redirect.mock.calls.find(([target]) => String(target).startsWith("/login?error="))?.[0]);
+    const params = new URL(`https://crm.example.test${redirectTarget}`).searchParams;
+
+    expect(mocks.safeInternalRedirectPath).toHaveBeenCalledWith("https://evil.example/phishing");
+    expect(params.get("next")).toBe("/dashboard");
+    expect(redirectTarget).not.toContain("evil.example");
+  });
+
   it("normalizes sign-up email without altering the password", async () => {
     vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
     const signUp = vi.fn().mockResolvedValue({ error: null });
@@ -405,5 +509,69 @@ describe("CRM server actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith(
       `/login?notice=${encodeURIComponent("アカウントを作成しました。確認が必要な場合はメールを確認してください。")}&next=${encodeURIComponent("/dashboard")}`,
     );
+  });
+
+  it("sanitizes direct sign-up next targets before redirecting to the confirmation notice", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signUp = vi.fn().mockResolvedValue({ error: null });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signUp } } as never);
+    const formData = new FormData();
+    formData.set("email", "cs@example.test");
+    formData.set("password", "secret");
+    formData.set("next", "https://evil.example/phishing");
+
+    const { signUpAction } = await import("@/lib/crm/actions");
+
+    await signUpAction(formData);
+
+    const redirectTarget = String(mocks.redirect.mock.calls.at(-1)?.[0]);
+    const params = new URL(`https://crm.example.test${redirectTarget}`).searchParams;
+
+    expect(mocks.safeInternalRedirectPath).toHaveBeenCalledWith("https://evil.example/phishing");
+    expect(params.get("next")).toBe("/dashboard");
+    expect(redirectTarget).not.toContain("evil.example");
+  });
+
+  it("redirects sign-up failures back to login with a safe generic error", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signUp = vi.fn().mockResolvedValue({ error: new Error("User already registered") });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signUp } } as never);
+    const formData = new FormData();
+    formData.set("email", "cs@example.test");
+    formData.set("password", "secret");
+    formData.set("next", "/reports");
+
+    const { signUpAction } = await import("@/lib/crm/actions");
+
+    await signUpAction(formData);
+
+    expect(signUp).toHaveBeenCalledWith({
+      email: "cs@example.test",
+      password: "secret",
+    });
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      `/login?error=${encodeURIComponent("メールアドレスまたはパスワードを確認してください。")}&next=${encodeURIComponent("/reports")}`,
+    );
+  });
+
+  it("sanitizes direct sign-up next targets before redirecting after auth failure", async () => {
+    vi.mocked(getSupabaseEnv).mockReturnValue({ configured: true } as never);
+    const signUp = vi.fn().mockResolvedValue({ error: new Error("User already registered") });
+    vi.mocked(createClient).mockResolvedValue({ auth: { signUp } } as never);
+    const formData = new FormData();
+    formData.set("email", "cs@example.test");
+    formData.set("password", "secret");
+    formData.set("next", "https://evil.example/phishing");
+
+    const { signUpAction } = await import("@/lib/crm/actions");
+
+    await signUpAction(formData);
+
+    const redirectTarget = String(mocks.redirect.mock.calls.find(([target]) => String(target).startsWith("/login?error="))?.[0]);
+    const params = new URL(`https://crm.example.test${redirectTarget}`).searchParams;
+
+    expect(mocks.safeInternalRedirectPath).toHaveBeenCalledWith("https://evil.example/phishing");
+    expect(params.get("next")).toBe("/dashboard");
+    expect(redirectTarget).not.toContain("evil.example");
   });
 });

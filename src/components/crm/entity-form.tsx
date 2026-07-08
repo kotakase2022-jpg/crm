@@ -20,6 +20,16 @@ function relationOptions(field: FieldConfig, relations: RelationOptions) {
   return field.relation ? relations[field.relation] ?? [] : [];
 }
 
+export function shouldShowEmptySelectOption(field: FieldConfig) {
+  if (field.type !== "select") return false;
+  if (field.relation) return true;
+
+  return !(field.options ?? []).some((option) => {
+    const optionValue = String(option);
+    return optionValue.trim() === "未設定" || optionLabelForField(field, optionValue).trim() === "未設定";
+  });
+}
+
 function FieldInput({
   field,
   record,
@@ -49,7 +59,7 @@ function FieldInput({
 
     return (
       <Select {...baseProps} defaultValue={String(value)}>
-        <option value="">未設定</option>
+        {shouldShowEmptySelectOption(field) ? <option value="">未設定</option> : null}
         {options.map((option, index) => {
           const optionValue = String(values[index] ?? option);
           return (

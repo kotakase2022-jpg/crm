@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { getDemoRows } from "@/lib/crm/demo-data";
+import { describe, expect, it, vi } from "vitest";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import path from "node:path";
+import { tmpdir } from "node:os";
+import { demoStore, getDemoRows, mergeDemoStoresForPersistentWrite } from "@/lib/crm/demo-data";
 import { relationConsistencyErrors } from "@/lib/crm/related";
-import type { CrmRecord } from "@/lib/crm/types";
+import type { CrmRecord, TableName } from "@/lib/crm/types";
+import type { DemoStore } from "@/lib/crm/demo-data";
 
 function byId(rows: CrmRecord[]) {
   return new Map(rows.map((row) => [String(row.id), row]));
@@ -10,6 +14,12 @@ function byId(rows: CrmRecord[]) {
 function stringField(row: CrmRecord, field: string) {
   const value = row[field];
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function cloneDemoStore(store: DemoStore) {
+  return Object.fromEntries(
+    (Object.entries(store) as Array<[TableName, CrmRecord[]]>).map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]),
+  ) as DemoStore;
 }
 
 describe("demo CRM data", () => {
@@ -52,6 +62,61 @@ describe("demo CRM data", () => {
     ...billing.map((row) => ["billing_records", row] as const),
     ...stageHistory.map((row) => ["deal_stage_history", row] as const),
   ];
+
+  it("shares the demo store through globalThis for route-bundle consistency", () => {
+    const globalStore = (globalThis as typeof globalThis & { __crmDemoStore?: typeof demoStore }).__crmDemoStore;
+
+    expect(globalStore).toBe(demoStore);
+    expect(globalStore?.leads.length).toBeGreaterThan(0);
+  });
+
+  it("merges E2E persistent-store writes without dropping rows from newer route workers", () => {
+    const staleWriterStore = cloneDemoStore(demoStore);
+    const latestFileStore = cloneDemoStore(demoStore);
+    const staleLead = staleWriterStore.leads[0];
+    const latestLead = latestFileStore.leads[0];
+    const currentOnlyLead = {
+      ...staleLead,
+      id: "lead-current-writer",
+      updated_at: "2026-07-08T00:02:00.000Z",
+      name: "Current writer lead",
+    };
+    const latestOnlyLead = {
+      ...latestLead,
+      id: "lead-newer-worker",
+      updated_at: "2026-07-08T00:03:00.000Z",
+      name: "Newer worker lead",
+    };
+    const sameId = "lead-shared-update";
+
+    staleWriterStore.leads = [
+      {
+        ...staleLead,
+        id: sameId,
+        updated_at: "2026-07-08T00:01:00.000Z",
+        name: "Stale writer version",
+      },
+      currentOnlyLead,
+      ...staleWriterStore.leads,
+    ];
+    latestFileStore.leads = [
+      {
+        ...latestLead,
+        id: sameId,
+        updated_at: "2026-07-08T00:04:00.000Z",
+        name: "Latest file version",
+      },
+      latestOnlyLead,
+      ...latestFileStore.leads,
+    ];
+
+    const merged = mergeDemoStoresForPersistentWrite(staleWriterStore, latestFileStore);
+    const leadMap = byId(merged.leads);
+
+    expect(leadMap.get("lead-current-writer")?.name).toBe("Current writer lead");
+    expect(leadMap.get("lead-newer-worker")?.name).toBe("Newer worker lead");
+    expect(leadMap.get(sameId)?.name).toBe("Latest file version");
+  });
 
   it("keeps every demo relation id resolvable", () => {
     const failures = allRows.flatMap(([table, row]) =>
@@ -114,5 +179,188 @@ describe("demo CRM data", () => {
     });
 
     expect(failures).toEqual([]);
+  });
+
+  it("persists E2E demo rows through the configured store file across module instances", async () => {
+    const originalMode = process.env.E2E_TEST_MODE;
+    const originalStoreFile = process.env.CRM_DEMO_STORE_FILE;
+    const tempDir = mkdtempSync(path.join(tmpdir(), "crm-demo-store-"));
+    const storeFile = path.join(tempDir, "store.json");
+    const leadId = "lead-persistent-store-test";
+    const globalStore = globalThis as typeof globalThis & { __crmDemoStore?: typeof demoStore };
+
+    try {
+      process.env.E2E_TEST_MODE = "demo";
+      process.env.CRM_DEMO_STORE_FILE = storeFile;
+      delete globalStore.__crmDemoStore;
+
+      vi.resetModules();
+      const firstModule = await import("@/lib/crm/demo-data");
+      firstModule.addDemoRow("leads", {
+        id: leadId,
+        organization_id: "demo-org",
+        created_at: "2026-07-08T00:00:00.000Z",
+        updated_at: "2026-07-08T00:00:00.000Z",
+        created_by: "demo-user",
+        updated_by: "demo-user",
+        name: "Persistent store lead",
+        company_name: "Persistent Store Construction",
+        contact_name: "Persistent Contact",
+        email: "persistent-store@example.test",
+        status: "test-status",
+      });
+
+      expect(readFileSync(storeFile, "utf8")).toContain(leadId);
+
+      delete globalStore.__crmDemoStore;
+      vi.resetModules();
+      const secondModule = await import("@/lib/crm/demo-data");
+      const restored = secondModule.getDemoRows("leads").find((row) => row.id === leadId);
+
+      expect(restored).toMatchObject({
+        id: leadId,
+        company_name: "Persistent Store Construction",
+      });
+    } finally {
+      if (originalMode === undefined) {
+        delete process.env.E2E_TEST_MODE;
+      } else {
+        process.env.E2E_TEST_MODE = originalMode;
+      }
+
+      if (originalStoreFile === undefined) {
+        delete process.env.CRM_DEMO_STORE_FILE;
+      } else {
+        process.env.CRM_DEMO_STORE_FILE = originalStoreFile;
+      }
+
+      delete globalStore.__crmDemoStore;
+      vi.resetModules();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("retries transient Windows rename locks when writing the E2E demo store", async () => {
+    const originalMode = process.env.E2E_TEST_MODE;
+    const originalStoreFile = process.env.CRM_DEMO_STORE_FILE;
+    const tempDir = mkdtempSync(path.join(tmpdir(), "crm-demo-store-retry-"));
+    const storeFile = path.join(tempDir, "store.json");
+    const leadId = "lead-persistent-store-retry-test";
+    const globalStore = globalThis as typeof globalThis & { __crmDemoStore?: typeof demoStore };
+    let renameAttempts = 0;
+
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+
+      return {
+        ...actual,
+        renameSync: vi.fn((from: string, to: string) => {
+          renameAttempts += 1;
+          if (renameAttempts === 1) {
+            const error = new Error("locked destination") as NodeJS.ErrnoException;
+            error.code = "EPERM";
+            throw error;
+          }
+
+          return actual.renameSync(from, to);
+        }),
+      };
+    });
+
+    try {
+      process.env.E2E_TEST_MODE = "demo";
+      process.env.CRM_DEMO_STORE_FILE = storeFile;
+      delete globalStore.__crmDemoStore;
+
+      vi.resetModules();
+      const demoDataModule = await import("@/lib/crm/demo-data");
+      demoDataModule.addDemoRow("leads", {
+        id: leadId,
+        organization_id: "demo-org",
+        created_at: "2026-07-08T00:00:00.000Z",
+        updated_at: "2026-07-08T00:00:00.000Z",
+        created_by: "demo-user",
+        updated_by: "demo-user",
+        name: "Retry store lead",
+        company_name: "Retry Store Construction",
+        contact_name: "Retry Contact",
+        email: "retry-store@example.test",
+        status: "test-status",
+      });
+
+      expect(renameAttempts).toBeGreaterThanOrEqual(2);
+      expect(readFileSync(storeFile, "utf8")).toContain(leadId);
+    } finally {
+      if (originalMode === undefined) {
+        delete process.env.E2E_TEST_MODE;
+      } else {
+        process.env.E2E_TEST_MODE = originalMode;
+      }
+
+      if (originalStoreFile === undefined) {
+        delete process.env.CRM_DEMO_STORE_FILE;
+      } else {
+        process.env.CRM_DEMO_STORE_FILE = originalStoreFile;
+      }
+
+      vi.doUnmock("node:fs");
+      delete globalStore.__crmDemoStore;
+      vi.resetModules();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not hide persistent rename failures when writing the E2E demo store", async () => {
+    const originalMode = process.env.E2E_TEST_MODE;
+    const originalStoreFile = process.env.CRM_DEMO_STORE_FILE;
+    const tempDir = mkdtempSync(path.join(tmpdir(), "crm-demo-store-failure-"));
+    const storeFile = path.join(tempDir, "store.json");
+    const globalStore = globalThis as typeof globalThis & { __crmDemoStore?: typeof demoStore };
+    let renameAttempts = 0;
+
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+
+      return {
+        ...actual,
+        renameSync: vi.fn(() => {
+          renameAttempts += 1;
+          const error = new Error("still locked") as NodeJS.ErrnoException;
+          error.code = "EPERM";
+          throw error;
+        }),
+      };
+    });
+
+    try {
+      process.env.E2E_TEST_MODE = "demo";
+      process.env.CRM_DEMO_STORE_FILE = storeFile;
+      delete globalStore.__crmDemoStore;
+
+      vi.resetModules();
+      const demoDataModule = await import("@/lib/crm/demo-data");
+
+      expect(() => demoDataModule.getDemoRows("leads")).toThrow("still locked");
+
+      expect(renameAttempts).toBe(5);
+      expect(readdirSync(tempDir).filter((file) => file.endsWith(".tmp"))).toEqual([]);
+    } finally {
+      if (originalMode === undefined) {
+        delete process.env.E2E_TEST_MODE;
+      } else {
+        process.env.E2E_TEST_MODE = originalMode;
+      }
+
+      if (originalStoreFile === undefined) {
+        delete process.env.CRM_DEMO_STORE_FILE;
+      } else {
+        process.env.CRM_DEMO_STORE_FILE = originalStoreFile;
+      }
+
+      vi.doUnmock("node:fs");
+      delete globalStore.__crmDemoStore;
+      vi.resetModules();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

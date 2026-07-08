@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { valueForField } from "@/components/crm/entity-form";
+import { shouldShowEmptySelectOption, valueForField } from "@/components/crm/entity-form";
+import { leadStatuses } from "@/lib/crm/options";
 import type { EntityConfig, FieldConfig } from "@/lib/crm/types";
 
 const formConfig = {
@@ -33,5 +34,15 @@ describe("entity form helpers", () => {
       "見積作成が遅い",
       "請求漏れがある",
     ]);
+  });
+
+  it("does not duplicate unset labels when a select already has an explicit unset option", () => {
+    const leadStatusField = { name: "status", label: "Status", type: "select", options: leadStatuses } satisfies FieldConfig;
+    const relationField = { name: "company_id", label: "Company", type: "select", relation: "companies" } satisfies FieldConfig;
+    const plainSelectField = { name: "priority", label: "Priority", type: "select", options: ["Low", "High"] } satisfies FieldConfig;
+
+    expect(shouldShowEmptySelectOption(leadStatusField)).toBe(false);
+    expect(shouldShowEmptySelectOption(relationField)).toBe(true);
+    expect(shouldShowEmptySelectOption(plainSelectField)).toBe(true);
   });
 });

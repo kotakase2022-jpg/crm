@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { contractStatuses, leadStatuses, paymentMethods, priorities, ticketStatuses, ticketTypes } from "../../src/lib/crm/options";
 import { attachStrictPageChecks } from "./strict-page";
 
 async function selectFirstRealOption(page: Page, name: string) {
@@ -39,6 +40,19 @@ test("login page sanitizes external next redirects", async ({ page }) => {
 
   await expect(page.locator('input[name="next"]')).toHaveValue("/dashboard");
   await expect(page.locator("main")).toContainText("建設帳票CRM");
+  await strict.expectClean();
+});
+
+test("login page exposes auth feedback accessibly", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  const authError = "メールアドレスまたはパスワードを確認してください。";
+  const notice = "確認メールを送信しました。";
+  await page.goto(`/login?error=${encodeURIComponent(authError)}&notice=${encodeURIComponent(notice)}&next=%2Fdeals%3Fstage%3Ddemo`);
+
+  await expect(page.locator('input[name="next"]')).toHaveValue("/deals?stage=demo");
+  await expect(page.locator("main").getByRole("alert")).toContainText(authError);
+  await expect(page.locator("main").getByRole("status")).toContainText(notice);
   await strict.expectClean();
 });
 
@@ -136,11 +150,15 @@ test("lead creation persists to the detail page and converts into a deal", async
   const unique = Date.now();
   const leadName = `E2E Lead ${unique}`;
   const companyName = `E2E Construction ${unique}`;
+  const contactName = `E2E Contact ${unique}`;
 
   await page.goto("/leads/new");
+  const leadStatusSelect = page.locator('select[name="status"]');
+  await expect(leadStatusSelect).toHaveValue(leadStatuses[2]);
+  await expect(leadStatusSelect.locator("option")).toHaveText([...leadStatuses]);
   await page.locator('input[name="name"]').fill(leadName);
   await page.locator('input[name="company_name"]').fill(companyName);
-  await page.locator('input[name="contact_name"]').fill(`E2E Contact ${unique}`);
+  await page.locator('input[name="contact_name"]').fill(contactName);
   await page.locator('input[name="email"]').fill(`lead-${unique}@example.test`);
   await page.locator('input[name="phone"]').fill("050-1234-5678");
   await page.locator('input[name="monthly_projects"]').fill("8");
@@ -150,6 +168,7 @@ test("lead creation persists to the detail page and converts into a deal", async
   await expect(page).toHaveURL(/\/leads\/[^/]+\?toast=created$/);
   await expect(page.locator("body")).toContainText(leadName);
   await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText(leadStatuses[2]);
   await expect(page.locator("body")).toContainText("初回架電");
   const leadPath = new URL(page.url()).pathname;
 
@@ -159,6 +178,23 @@ test("lead creation persists to the detail page and converts into a deal", async
   await expect(page.locator("body")).toContainText(companyName);
   await expect(page.locator("body")).toContainText("デモ日程確認");
   await expect(page.locator("body")).toContainText("ID:");
+  const convertedDealPath = new URL(page.url()).pathname;
+  const convertedCompanyHref = await page.locator('dl a[href^="/companies/"]').first().getAttribute("href");
+  const convertedContactHref = await page.locator('dl a[href^="/contacts/"]').first().getAttribute("href");
+  expect(convertedCompanyHref).toMatch(/^\/companies\/[^/\s]+$/);
+  expect(convertedContactHref).toMatch(/^\/contacts\/[^/\s]+$/);
+  await expect(page.locator(`dl a[href="${leadPath}"]`)).toBeVisible();
+
+  await page.locator(`dl a[href="${convertedCompanyHref}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(convertedCompanyHref ?? "")}$`));
+  await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator(`tbody a[href="${convertedDealPath}"]`).first()).toBeVisible();
+
+  await page.goto(convertedDealPath);
+  await page.locator(`dl a[href="${convertedContactHref}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(convertedContactHref ?? "")}$`));
+  await expect(page.locator("body")).toContainText(contactName);
+  await expect(page.locator(`dl a[href="${convertedCompanyHref}"]`).first()).toBeVisible();
 
   await page.goto(leadPath);
   await expect(page.locator("body")).toContainText(leadName);
@@ -430,7 +466,9 @@ test("lead spreadsheet import settings can be opened from leads and saved", asyn
   await page.getByRole("link", { name: "スプレッドシート取込設定" }).click();
 
   await expect(page).toHaveURL(/\/leads\/import-settings$/);
-  await expect(page.locator('select[name="default_status"]')).toHaveValue("新規（広告経由）");
+  const importStatusSelect = page.locator('select[name="default_status"]');
+  await expect(importStatusSelect).toHaveValue(leadStatuses[1]);
+  await expect(importStatusSelect.locator("option")).toHaveText([...leadStatuses]);
 
   await page.locator('input[name="spreadsheet_url"]').fill("https://docs.google.com/spreadsheets/d/e2e-sheet-id/edit#gid=0");
   await page.getByRole("button", { name: "設定を保存" }).click();
@@ -450,6 +488,41 @@ test("lead spreadsheet import settings rejects unsupported URLs without crashing
   await expect(page).toHaveURL(/\/leads\/import-settings\?toast=settings-error$/);
   await expect(page.getByTestId("toast-notice")).toContainText("保存できませんでした");
   await expect(page.locator('input[name="spreadsheet_url"]')).toBeVisible();
+  await strict.expectClean();
+});
+
+test("lead spreadsheet import run can be cancelled before external fetch", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const sheetId = `e2e-cancelled-import-${Date.now()}`;
+
+  await page.goto("/leads/import-settings");
+  await page.locator('input[name="spreadsheet_url"]').fill(`https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0`);
+  await page.getByRole("button", { name: "設定を保存" }).click();
+
+  await expect(page).toHaveURL(/\/leads\/import-settings\?toast=settings-saved$/);
+  await expect(page.locator("main")).toContainText("まだ取込履歴はありません");
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.type()).toBe("confirm");
+    await dialog.dismiss();
+  });
+  await page.locator("form").nth(1).locator("button").click();
+
+  await expect(page).toHaveURL(/\/leads\/import-settings\?toast=settings-saved$/);
+  await expect(page.locator("main")).toContainText("まだ取込履歴はありません");
+  await strict.expectClean();
+});
+
+test("lead spreadsheet import result toasts show imported and skipped counts", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+
+  await page.goto("/leads/import-settings?toast=import-success&imported=2&skipped=1");
+  await expect(page.getByTestId("toast-notice")).toContainText("2");
+  await expect(page.getByTestId("toast-notice")).toContainText("1");
+
+  await page.goto("/leads/import-settings?toast=import-failed&imported=0&skipped=3");
+  await expect(page.getByTestId("toast-notice")).toContainText("0");
+  await expect(page.getByTestId("toast-notice")).toContainText("3");
   await strict.expectClean();
 });
 
@@ -595,6 +668,12 @@ test("company related create action prefills the parent company on a new contact
   await expect(page).toHaveURL(new RegExp(`/contacts/new\\?company_id=${companyId}$`));
   await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
   await expect(page.locator('select[name="company_id"] option:checked')).toContainText(companyName);
+
+  await page.locator('select[name="company_id"]').locator("xpath=ancestor::form").evaluate((form) => form.setAttribute("novalidate", "novalidate"));
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(new RegExp(`/contacts/new\\?toast=validation-error&company_id=${escapeRegExp(companyId)}$`));
+  await expect(page.getByTestId("toast-notice")).toContainText("入力した項目を確認");
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
 
   await page.getByRole("link", { name: "キャンセル" }).click();
   await expect(page).toHaveURL(new RegExp(`${escapeRegExp(companyPath)}$`));
@@ -795,6 +874,136 @@ test("deal related task creation keeps the deal relationship through save", asyn
   await strict.expectClean();
 });
 
+test("ticket related task creation keeps the support context through save", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Ticket Company ${unique}`;
+  const contactName = `E2E Ticket Contact ${unique}`;
+  const ticketTitle = `E2E Support Ticket ${unique}`;
+  const taskTitle = `E2E Ticket Task ${unique}`;
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(companyId).toBeTruthy();
+
+  await page.goto(`/contacts/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="name"]').fill(contactName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/contacts\/[^/]+\?toast=created$/);
+  const contactId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(contactId).toBeTruthy();
+
+  await page.goto(`/tickets/new?company_id=${companyId}&contact_id=${contactId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('select[name="contact_id"]')).toHaveValue(contactId);
+  await page.locator('input[name="title"]').fill(ticketTitle);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\?toast=created$/);
+
+  const ticketUrl = new URL(page.url());
+  const ticketPath = ticketUrl.pathname;
+  const ticketId = ticketPath.split("/").at(-1) ?? "";
+  expect(ticketId).toBeTruthy();
+
+  const taskCreateLink = page.locator(`main a[href^="/tasks/new?support_ticket_id=${ticketId}"]`).first();
+  await expect(taskCreateLink).toBeVisible();
+  await taskCreateLink.click();
+
+  await expect(page).toHaveURL(new RegExp(`/tasks/new\\?.*support_ticket_id=${escapeRegExp(ticketId)}`));
+  const taskNewUrl = new URL(page.url());
+  expect(taskNewUrl.pathname).toBe("/tasks/new");
+  expect(taskNewUrl.searchParams.get("support_ticket_id")).toBe(ticketId);
+  expect(taskNewUrl.searchParams.get("company_id")).toBe(companyId);
+  expect(taskNewUrl.searchParams.get("contact_id")).toBe(contactId);
+  await expect(page.locator('select[name="support_ticket_id"]')).toHaveValue(ticketId);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('select[name="contact_id"]')).toHaveValue(contactId);
+
+  await page.locator('input[name="title"]').fill(taskTitle);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  const taskPath = new URL(page.url()).pathname;
+  await expect(page.locator("body")).toContainText(taskTitle);
+  await expect(page.locator(`main a[href="${ticketPath}"]`).first()).toBeVisible();
+  await expect(page.locator(`main a[href="/companies/${companyId}"]`).first()).toBeVisible();
+  await expect(page.locator(`main a[href="/contacts/${contactId}"]`).first()).toBeVisible();
+
+  await page.goto(ticketPath);
+  await expect(page.locator("body")).toContainText(ticketTitle);
+  await expect(page.locator(`main a[href="${taskPath}"]`).first()).toBeVisible();
+  await strict.expectClean();
+});
+
+test("support ticket lifecycle keeps status updates searchable from the queue", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Ticket Lifecycle Company ${unique}`;
+  const ticketTitle = `E2E Ticket Lifecycle ${unique}`;
+  const description = `Lifecycle support memo ${unique}`;
+  const openedAt = "2026-07-05T09:15";
+  const resolvedAt = "2026-07-05T12:30";
+  const priorityLabel = priorities[3];
+  const ticketTypeLabel = ticketTypes[0];
+  const initialStatusLabel = ticketStatuses[0];
+  const resolvedStatusLabel = ticketStatuses[3];
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(companyId).toBeTruthy();
+
+  await page.goto(`/tickets/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await page.locator('input[name="title"]').fill(ticketTitle);
+  await page.locator('textarea[name="description"]').fill(description);
+  await page.locator('select[name="priority"]').selectOption({ label: priorityLabel });
+  await page.locator('select[name="type"]').selectOption({ label: ticketTypeLabel });
+  await page.locator('select[name="status"]').selectOption({ label: initialStatusLabel });
+  await page.locator('input[name="opened_at"]').fill(openedAt);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\?toast=created$/);
+  const ticketPath = new URL(page.url()).pathname;
+  await expect(page.locator("body")).toContainText(ticketTitle);
+  await expect(page.locator("body")).toContainText(description);
+  await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText(priorityLabel);
+  await expect(page.locator("body")).toContainText(initialStatusLabel);
+
+  await page.locator('main a[href$="/edit"]').first().click();
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\/edit$/);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('textarea[name="description"]')).toHaveValue(description);
+  await page.locator('select[name="status"]').selectOption({ label: resolvedStatusLabel });
+  await page.locator('input[name="last_response_at"]').fill(resolvedAt);
+  await page.locator('input[name="resolved_at"]').fill(resolvedAt);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/tickets\/[^/]+\?toast=updated$/);
+  await expect(page.locator("body")).toContainText(ticketTitle);
+  await expect(page.locator("body")).toContainText(resolvedStatusLabel);
+
+  await page.goto(`/tickets?q=${encodeURIComponent(ticketTitle)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(ticketTitle);
+  await expect(page.locator("tbody")).toContainText(companyName);
+  await expect(page.locator("tbody")).toContainText(priorityLabel);
+  await expect(page.locator("tbody")).toContainText(resolvedStatusLabel);
+  await page.locator(`tbody a[href="${ticketPath}"]`).first().click();
+
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(ticketPath)}$`));
+  await expect(page.locator("body")).toContainText(ticketTitle);
+  await expect(page.locator("body")).toContainText(resolvedStatusLabel);
+  await strict.expectClean();
+});
+
 test("task detail shows activity context from its linked company", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const subject = `E2E Task Context Activity ${Date.now()}`;
@@ -910,6 +1119,64 @@ test("contract creation calculates ARR from MRR", async ({ page }) => {
   await strict.expectClean();
 });
 
+test("contract lifecycle keeps renewal and payment updates searchable from the account", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Contract Account ${unique}`;
+  const marker = `E2E Contract Lifecycle ${unique}`;
+  const paidStatus = contractStatuses[1];
+  const paymentMethod = paymentMethods[1];
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(companyId).toBeTruthy();
+
+  await page.goto(`/contracts/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await selectFirstRealOption(page, "plan");
+  await page.locator('input[name="mrr"]').fill("75000");
+  await page.locator('input[name="started_on"]').fill("2026-07-01");
+  await page.locator('textarea[name="notes"]').fill(marker);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/contracts\/[^/]+\?toast=created$/);
+  const contractPath = new URL(page.url()).pathname;
+  await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText(marker);
+
+  await page.locator('main a[href$="/edit"]').first().click();
+  await expect(page).toHaveURL(/\/contracts\/[^/]+\/edit$/);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('textarea[name="notes"]')).toHaveValue(marker);
+  await page.locator('select[name="status"]').selectOption({ label: paidStatus });
+  await page.locator('select[name="payment_method"]').selectOption({ label: paymentMethod });
+  await page.locator('input[name="renewal_on"]').fill("2027-07-01");
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/contracts\/[^/]+\?toast=updated$/);
+  await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText(paidStatus);
+  await expect(page.locator("body")).toContainText(paymentMethod);
+
+  await page.goto(`/contracts?q=${encodeURIComponent(marker)}&filter=${encodeURIComponent(paidStatus)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(companyName);
+  await expect(page.locator("tbody")).toContainText(paidStatus);
+  await expect(page.locator("tbody")).toContainText(paymentMethod);
+  await page.locator(`tbody a[href="${contractPath}"]`).first().click();
+
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(contractPath)}$`));
+  await expect(page.locator("body")).toContainText(marker);
+  await expect(page.locator("body")).toContainText(paidStatus);
+
+  await page.goto(`/companies/${companyId}`);
+  await expect(page.locator(`main a[href="${contractPath}"]`).first()).toBeVisible();
+  await strict.expectClean();
+});
+
 test("usage and billing relation tables link to their contract and trial records", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
 
@@ -1005,6 +1272,18 @@ test("dashboards, reports, and settings expose operational decision signals", as
   const riskyCompanyHref = await page.getByTestId("dashboard-risky-company-link").first().getAttribute("href");
   expect(riskyCompanyHref).toMatch(/^\/companies\/[^/\s]+$/);
   expect(riskyCompanyHref).not.toContain("undefined");
+  const riskyCompanyPath = riskyCompanyHref ?? "";
+  const riskyCompanyId = riskyCompanyPath.split("/").at(-1) ?? "";
+  expect(riskyCompanyId).toBeTruthy();
+
+  await page.getByTestId("dashboard-risky-company-link").first().click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(riskyCompanyPath)}$`));
+  await expect(page.locator("main")).toContainText("ID:");
+  const taskCreateLink = page.locator(`main a[href="/tasks/new?company_id=${riskyCompanyId}"]`).first();
+  await expect(taskCreateLink).toBeVisible();
+  await taskCreateLink.click();
+  await expect(page).toHaveURL(new RegExp(`/tasks/new\\?company_id=${escapeRegExp(riskyCompanyId)}$`));
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(riskyCompanyId);
 
   await page.goto("/reports");
   await expect(page.locator("main")).toContainText("ARR");
