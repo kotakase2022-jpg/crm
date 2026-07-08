@@ -23,6 +23,7 @@ export default async function LoginPage({
   const next = safeInternalRedirectPath(first(params.next));
   const error = first(params.error);
   const notice = first(params.notice);
+  const shouldPrefillDemoCredentials = !error;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
@@ -74,7 +75,7 @@ export default async function LoginPage({
                 required
                 autoComplete="email"
                 placeholder="admin@example.com"
-                defaultValue={demoCredentials.email}
+                defaultValue={shouldPrefillDemoCredentials ? demoCredentials.email : undefined}
               />
             </div>
             <div>
@@ -87,7 +88,7 @@ export default async function LoginPage({
                 type="password"
                 required
                 autoComplete="current-password"
-                defaultValue={demoCredentials.password}
+                defaultValue={shouldPrefillDemoCredentials ? demoCredentials.password : undefined}
               />
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
