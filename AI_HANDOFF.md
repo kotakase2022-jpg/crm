@@ -22,7 +22,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Last known good code commit: `a2fcf62` after focused integration tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 head `a2fcf62` after pushing the latest-health-score CS risk fix.
+- CodeRabbit OSS review status: passed on the latest pushed PR #4 head after the latest-health-score CS risk fix and handoff update. Confirm exact head with `gh pr view 4`.
 
 ## 3. What Was Done
 
@@ -156,7 +156,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval, most recently at 2026-07-08 18:17 JST.
 - The latest code change is a focused Supabase data-consistency implementation/test update and does not change DB schema, migrations, Supabase secrets, or production data.
 - PR #4 is still open and `REVIEW_REQUIRED`.
-- PR #4 latest pushed head `a2fcf62` has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments after the latest-health-score CS risk fix.
+- PR #4 latest pushed head has green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments after the latest-health-score CS risk fix and handoff update.
 - Supabase preview branch `acceptance-crm-20260708` may still exist and may continue billing until deleted. Delete it only with explicit user approval.
 
 ## 6. Known Issues
@@ -168,7 +168,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 head `a2fcf62`.
+- Review status: Passed on the latest pushed PR #4 head after the latest-health-score CS risk fix and handoff update.
 - Critical findings: none known.
 - Resolved findings: Earlier PR-description warning was addressed in a prior Loop 11 update.
 - Deferred findings: none.
