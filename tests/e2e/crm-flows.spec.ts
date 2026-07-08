@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { contractStatuses, paymentMethods, priorities, ticketStatuses, ticketTypes } from "../../src/lib/crm/options";
+import { contractStatuses, leadStatuses, paymentMethods, priorities, ticketStatuses, ticketTypes } from "../../src/lib/crm/options";
 import { attachStrictPageChecks } from "./strict-page";
 
 async function selectFirstRealOption(page: Page, name: string) {
@@ -153,6 +153,9 @@ test("lead creation persists to the detail page and converts into a deal", async
   const contactName = `E2E Contact ${unique}`;
 
   await page.goto("/leads/new");
+  const leadStatusSelect = page.locator('select[name="status"]');
+  await expect(leadStatusSelect).toHaveValue(leadStatuses[2]);
+  await expect(leadStatusSelect.locator("option")).toHaveText([...leadStatuses]);
   await page.locator('input[name="name"]').fill(leadName);
   await page.locator('input[name="company_name"]').fill(companyName);
   await page.locator('input[name="contact_name"]').fill(contactName);
@@ -165,6 +168,7 @@ test("lead creation persists to the detail page and converts into a deal", async
   await expect(page).toHaveURL(/\/leads\/[^/]+\?toast=created$/);
   await expect(page.locator("body")).toContainText(leadName);
   await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText(leadStatuses[2]);
   await expect(page.locator("body")).toContainText("初回架電");
   const leadPath = new URL(page.url()).pathname;
 
@@ -462,7 +466,9 @@ test("lead spreadsheet import settings can be opened from leads and saved", asyn
   await page.getByRole("link", { name: "スプレッドシート取込設定" }).click();
 
   await expect(page).toHaveURL(/\/leads\/import-settings$/);
-  await expect(page.locator('select[name="default_status"]')).toHaveValue("新規（広告経由）");
+  const importStatusSelect = page.locator('select[name="default_status"]');
+  await expect(importStatusSelect).toHaveValue(leadStatuses[1]);
+  await expect(importStatusSelect.locator("option")).toHaveText([...leadStatuses]);
 
   await page.locator('input[name="spreadsheet_url"]').fill("https://docs.google.com/spreadsheets/d/e2e-sheet-id/edit#gid=0");
   await page.getByRole("button", { name: "設定を保存" }).click();
