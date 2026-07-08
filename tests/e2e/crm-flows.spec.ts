@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { priorities, ticketStatuses, ticketTypes } from "../../src/lib/crm/options";
+import { contractStatuses, paymentMethods, priorities, ticketStatuses, ticketTypes } from "../../src/lib/crm/options";
 import { attachStrictPageChecks } from "./strict-page";
 
 async function selectFirstRealOption(page: Page, name: string) {
@@ -1088,6 +1088,64 @@ test("contract creation calculates ARR from MRR", async ({ page }) => {
   await expect(page.locator("body")).toContainText(marker);
   await expect(page.locator("body")).toContainText("￥50,000");
   await expect(page.locator("body")).toContainText("￥600,000");
+  await strict.expectClean();
+});
+
+test("contract lifecycle keeps renewal and payment updates searchable from the account", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const companyName = `E2E Contract Account ${unique}`;
+  const marker = `E2E Contract Lifecycle ${unique}`;
+  const paidStatus = contractStatuses[1];
+  const paymentMethod = paymentMethods[1];
+
+  await page.goto("/companies/new");
+  await page.locator('input[name="name"]').fill(companyName);
+  await page.locator("form button").last().click();
+  await expect(page).toHaveURL(/\/companies\/[^/]+\?toast=created$/);
+  const companyId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  expect(companyId).toBeTruthy();
+
+  await page.goto(`/contracts/new?company_id=${companyId}`);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await selectFirstRealOption(page, "plan");
+  await page.locator('input[name="mrr"]').fill("75000");
+  await page.locator('input[name="started_on"]').fill("2026-07-01");
+  await page.locator('textarea[name="notes"]').fill(marker);
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/contracts\/[^/]+\?toast=created$/);
+  const contractPath = new URL(page.url()).pathname;
+  await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText(marker);
+
+  await page.locator('main a[href$="/edit"]').first().click();
+  await expect(page).toHaveURL(/\/contracts\/[^/]+\/edit$/);
+  await expect(page.locator('select[name="company_id"]')).toHaveValue(companyId);
+  await expect(page.locator('textarea[name="notes"]')).toHaveValue(marker);
+  await page.locator('select[name="status"]').selectOption({ label: paidStatus });
+  await page.locator('select[name="payment_method"]').selectOption({ label: paymentMethod });
+  await page.locator('input[name="renewal_on"]').fill("2027-07-01");
+  await page.locator("form button").last().click();
+
+  await expect(page).toHaveURL(/\/contracts\/[^/]+\?toast=updated$/);
+  await expect(page.locator("body")).toContainText(companyName);
+  await expect(page.locator("body")).toContainText(paidStatus);
+  await expect(page.locator("body")).toContainText(paymentMethod);
+
+  await page.goto(`/contracts?q=${encodeURIComponent(marker)}&filter=${encodeURIComponent(paidStatus)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(companyName);
+  await expect(page.locator("tbody")).toContainText(paidStatus);
+  await expect(page.locator("tbody")).toContainText(paymentMethod);
+  await page.locator(`tbody a[href="${contractPath}"]`).first().click();
+
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(contractPath)}$`));
+  await expect(page.locator("body")).toContainText(marker);
+  await expect(page.locator("body")).toContainText(paidStatus);
+
+  await page.goto(`/companies/${companyId}`);
+  await expect(page.locator(`main a[href="${contractPath}"]`).first()).toBeVisible();
   await strict.expectClean();
 });
 
