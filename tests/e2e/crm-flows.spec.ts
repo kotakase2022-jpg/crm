@@ -377,6 +377,50 @@ test("completed tasks leave actionable today view but remain searchable", async 
   await strict.expectClean();
 });
 
+test("dashboard actionable tasks show overdue work and hide completed or future work", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const marker = `E2E Dashboard Tasks ${unique}`;
+  const overdueTask = `${marker} Overdue`;
+  const completedOverdueTask = `${marker} Done`;
+  const futureTask = `${marker} Future`;
+  const yesterdayDate = localDateInputValue(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const futureDate = localDateInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+
+  await page.goto("/tasks/new");
+  await page.locator('input[name="title"]').fill(futureTask);
+  await page.locator('input[name="due_date"]').fill(futureDate);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+
+  await page.goto("/tasks/new");
+  await page.locator('input[name="title"]').fill(completedOverdueTask);
+  await page.locator('input[name="due_date"]').fill(yesterdayDate);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  await page.locator("main form button").first().click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=completed$/);
+
+  await page.goto("/tasks/new");
+  await page.locator('input[name="title"]').fill(overdueTask);
+  await page.locator('input[name="due_date"]').fill(yesterdayDate);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  const overdueTaskPath = new URL(page.url()).pathname;
+
+  await page.goto("/dashboard");
+  const overdueLink = page.locator(`main a[href="${overdueTaskPath}"]`);
+  await expect(overdueLink).toBeVisible();
+  await expect(overdueLink).toContainText(overdueTask);
+  await expect(page.locator("main")).not.toContainText(completedOverdueTask);
+  await expect(page.locator("main")).not.toContainText(futureTask);
+
+  await overdueLink.click();
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(overdueTaskPath)}$`));
+  await expect(page.locator("body")).toContainText(overdueTask);
+  await strict.expectClean();
+});
+
 test("task quick links preserve the parent company scope", async ({ page }) => {
   const strict = attachStrictPageChecks(page);
   const unique = Date.now();
