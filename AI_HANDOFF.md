@@ -7,22 +7,22 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 16:09 JST
+- Last updated: 2026-07-08 16:27 JST
 
 ## 1. Current Goal
 
-Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, spreadsheet redirect safety, failed-import data consistency, and live non-production Supabase CRUD/RLS acceptance.
+Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, spreadsheet redirect safety, failed-import data consistency, manual lead creation data consistency, and live non-production Supabase CRUD/RLS acceptance.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
-- Latest local code commit: `da5b588` (`Clean up failed import leads`)
-- Latest remote head checked before this handoff update: `65cb97f` (`Record spreadsheet redirect safety handoff`)
-- Last known good code commit: `da5b588` after focused unit test and full `npm.cmd run quality`; live non-production Supabase acceptance passed earlier in Loop 11
+- Latest local code commit: `d983b3d` (`Clean up failed lead creation`)
+- Latest remote head checked before this handoff update: `3f09207` (`Record failed import cleanup handoff`)
+- Last known good code commit: `d983b3d` after focused unit test and full `npm.cmd run quality`; live non-production Supabase acceptance passed earlier in Loop 11
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `65cb97f`; re-check after pushing `da5b588` plus this handoff update.
+- CodeRabbit OSS review status: passed on PR #4 remote head `3f09207`; re-check after pushing `d983b3d` plus this handoff update.
 
 ## 3. What Was Done
 
@@ -59,6 +59,14 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Added a unit/integration regression test proving the cleanup query is scoped by `organization_id`, lead id, and `deleted_at is null`, and that the run is not counted as a successful import.
 - Re-ran the focused import unit test and full local quality gate; both passed.
 - Committed the data-consistency fix as `da5b588`.
+- Confirmed PR #4 remote head `3f09207` had green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments.
+- Added a manual lead creation data consistency fix:
+  - if a Supabase lead insert succeeds but automatic first-call task creation fails, the newly inserted lead is soft-deleted before the action fails;
+  - the original task-insert error remains visible unless cleanup itself also fails.
+- Added a unit/integration regression test proving the cleanup query is scoped by `organization_id`, lead id, and `deleted_at is null`.
+- Re-ran the focused Supabase data test and full local quality gate; both passed.
+- Committed the manual lead-creation cleanup fix as `d983b3d`.
+- Re-ran live non-production Supabase CRUD/RLS acceptance after the user's explicit approval for paid non-production Supabase Preview Branch usage and acceptance execution; it passed again.
 
 ## 4. Files Changed
 
@@ -69,15 +77,19 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
   - Imports `runLeadImportSetting` and `getDemoRows` to verify the real demo persistence path rather than only CSV parsing.
 - `src/lib/crm/lead-imports.ts`
   - Soft-deletes a just-created Supabase lead if linked first-call task insertion fails during spreadsheet import.
+- `src/lib/crm/data.ts`
+  - Soft-deletes a just-created Supabase lead if automatic first-call task insertion fails during manual lead creation.
+- `tests/unit/data-supabase.test.ts`
+  - Added `soft deletes a Supabase lead when its automatic first-call task creation fails`.
 
 ## 5. Current Status
 
-- Local focused unit test is green at `da5b588`.
-- Local full `npm.cmd run quality` is green at `da5b588`.
+- Local focused unit tests are green at `d983b3d`.
+- Local full `npm.cmd run quality` is green at `d983b3d`.
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval.
-- The latest code change is test-only and does not change DB schema, migrations, Supabase secrets, production data, or app runtime behavior.
+- The latest code change is a focused Supabase data-consistency implementation/test update and does not change DB schema, migrations, Supabase secrets, or production data.
 - PR #4 is still open and `REVIEW_REQUIRED`.
-- PR #4 checks must be re-run after pushing `da5b588` and this handoff update.
+- PR #4 checks must be re-run after pushing `d983b3d` and this handoff update.
 - Supabase preview branch `acceptance-crm-20260708` may still exist and may continue billing until deleted. Delete it only with explicit user approval.
 
 ## 6. Known Issues
@@ -89,7 +101,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `65cb97f`; pending re-review after pushing `da5b588` and this handoff update.
+- Review status: Passed on PR #4 remote head `3f09207`; pending re-review after pushing `d983b3d` and this handoff update.
 - Critical findings: none known.
 - Resolved findings: Earlier PR-description warning was addressed in a prior Loop 11 update.
 - Deferred findings: none.
@@ -120,6 +132,10 @@ npm.cmd run test -- --run tests/unit/lead-imports.test.ts
 # Failed once after adding the failed-import cleanup regression test, proving the partial lead cleanup was missing.
 # Re-run passed after the implementation fix: 1 file / 18 tests.
 
+npm.cmd run test -- --run tests/unit/data-supabase.test.ts
+# Failed once after adding the manual lead-creation cleanup regression test, proving the partial lead cleanup was missing.
+# Re-run passed after the implementation fix: 1 file / 5 tests.
+
 git diff --check
 # Passed.
 
@@ -127,7 +143,7 @@ npm.cmd run quality
 # Passed.
 # typecheck: passed
 # lint: passed
-# test: passed (31 files / 211 tests)
+# test: passed (31 files / 212 tests)
 # coverage: passed
 #   statements 93.69%
 #   branches 86.54%
@@ -137,7 +153,7 @@ npm.cmd run quality
 # build: passed (Next.js 16.2.10 production build)
 
 npm.cmd run acceptance:supabase
-# Passed after explicit user approval for paid non-production Supabase preview-branch use and acceptance execution.
+# Passed again at 2026-07-08 16:27 JST after explicit user approval for paid non-production Supabase Preview Branch use and acceptance execution.
 # Supabase acceptance passed: auth, profile bootstrap, anonymous/optional cross-organization read isolation,
 # lead create/read/update/soft-delete, and organization scoping.
 
@@ -152,6 +168,10 @@ git commit -m "Cover spreadsheet redirect rejection"
 git commit -m "Clean up failed import leads"
 # Passed. Commit: da5b588.
 # Pre-commit test guard also passed.
+
+git commit -m "Clean up failed lead creation"
+# Passed. Commit: d983b3d.
+# Pre-commit test guard also passed.
 ```
 
 ## 10. Next Recommended Action
@@ -159,8 +179,8 @@ git commit -m "Clean up failed import leads"
 For Claude Code:
 
 1. After Codex pushes, run `gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10` and confirm CodeRabbit, GitHub Actions, Vercel, and Vercel Preview Comments are green on the newest remote head.
-2. Review `src/lib/crm/lead-imports.ts` and `tests/unit/lead-imports.test.ts`, especially the failed-import cleanup path, for correctness and brittleness.
-3. Confirm the tests prove the intended import behavior, redirect safety, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
+2. Review `src/lib/crm/data.ts`, `src/lib/crm/lead-imports.ts`, `tests/unit/data-supabase.test.ts`, and `tests/unit/lead-imports.test.ts`, especially the failed automatic-task cleanup paths, for correctness and brittleness.
+3. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
 4. Review whether future work should add a route/action-level test seam for a UI-triggered import run, while keeping the current diff test-only and focused.
 5. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
 
@@ -170,6 +190,7 @@ For Claude Code:
 - Does it verify lead creation, default-status fallback, source-id persistence, first-call task automation, and duplicate skip behavior?
 - Does the redirect-rejection test prove an untrusted redirect is persisted as a failed run without creating leads?
 - Does the failed-import cleanup logic avoid leaving a lead without its first-call task when Supabase task insertion fails?
+- Does the manual lead creation cleanup logic avoid leaving a lead without its automatic first-call task when Supabase task insertion fails?
 - Does it avoid brittle localized text assertions and external network dependencies?
 - Confirm no secrets or `.env.acceptance.local` values were committed or printed.
 - Confirm PR #4 remains reviewable despite the accumulated Loop 11 E2E/test additions.
@@ -196,4 +217,4 @@ For Claude Code:
 - Current self-assessment after this loop:
   - Function/screen-transition defect-free score: 99 / 100
   - Daily CRM experience value score: 99 / 100
-- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, spreadsheet import persistence proof, spreadsheet redirect safety proof, and failed-import data consistency improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
+- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, spreadsheet import persistence proof, spreadsheet redirect safety proof, failed-import data consistency, and manual lead creation data consistency improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
