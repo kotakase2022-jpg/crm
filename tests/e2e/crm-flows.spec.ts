@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { contractStatuses, leadStatuses, paymentMethods, priorities, ticketStatuses, ticketTypes } from "../../src/lib/crm/options";
+import { contractStatuses, leadStatuses, paymentMethods, priorities, taskStatuses, ticketStatuses, ticketTypes } from "../../src/lib/crm/options";
 import { attachStrictPageChecks } from "./strict-page";
 
 async function selectFirstRealOption(page: Page, name: string) {
@@ -284,6 +284,41 @@ test("list search filters results and can be cleared", async ({ page }) => {
   await page.getByRole("link", { name: "条件クリア" }).click();
   await expect(page).toHaveURL(/\/leads$/);
   await expect(page.locator("tbody tr").first()).toBeVisible();
+  await strict.expectClean();
+});
+
+test("list status filter narrows searched task results", async ({ page }) => {
+  const strict = attachStrictPageChecks(page);
+  const unique = Date.now();
+  const marker = `E2E Status Filter ${unique}`;
+  const openTask = `${marker} Open`;
+  const doneTask = `${marker} Done`;
+
+  await page.goto("/tasks/new");
+  await page.locator('input[name="title"]').fill(openTask);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+
+  await page.goto("/tasks/new");
+  await page.locator('input[name="title"]').fill(doneTask);
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=created$/);
+  await page.locator("main form button").first().click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\?toast=completed$/);
+
+  await page.goto(`/tasks?q=${encodeURIComponent(marker)}`);
+  await expect(page.locator("tbody tr")).toHaveCount(2);
+
+  await page.locator('select[name="filter"]').selectOption(taskStatuses[1]);
+  await page.getByTestId("entity-filter-form").locator("button").click();
+
+  const url = new URL(page.url());
+  expect(url.pathname).toBe("/tasks");
+  expect(url.searchParams.get("q")).toBe(marker);
+  expect(url.searchParams.get("filter")).toBe(taskStatuses[1]);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText(doneTask);
+  await expect(page.locator("tbody")).not.toContainText(openTask);
   await strict.expectClean();
 });
 
