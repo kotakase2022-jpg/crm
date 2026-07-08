@@ -7,22 +7,22 @@
 - Loop: 11
 - Loop number inferred from: Previous handoff recorded Loop 10 for PR #3; PR #3 is merged into `main`, and `codex/loop11-crm-quality-sweep` started from `origin/main` after merge commit `51a4a42`.
 - Phase: Development / Autonomous Improvement / Handoff
-- Last updated: 2026-07-08 16:41 JST
+- Last updated: 2026-07-08 16:58 JST
 
 ## 1. Current Goal
 
-Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, spreadsheet redirect safety, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, and live non-production Supabase CRUD/RLS acceptance.
+Continue the CRM quality sweep for PR #4 by strengthening mechanical proof around daily CRM workflows. This loop focuses on task triage, filters, alert resolution, automation, relation recovery, invalid-input recovery, CS health-score drill-down, tablet layout safety, spreadsheet lead import persistence, spreadsheet redirect safety, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, lead conversion activity/task cleanup, and live non-production Supabase CRUD/RLS acceptance.
 
 ## 2. Current Branch / Commit / PR
 
 - Branch: `codex/loop11-crm-quality-sweep`
 - Base: `origin/main` at `51a4a42` (`Merge pull request #3 from kotakase2022-jpg/codex/loop10-crm-ux-hardening`)
-- Latest local code commit: `439c447` (`Clean up failed lead conversions`)
-- Latest remote head checked before this handoff update: `8e311c9` (`Record failed lead creation cleanup handoff`)
-- Last known good code commit: `439c447` after focused unit tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
+- Latest local code commit: `023ab6a` (`Clean up failed conversion activities`)
+- Latest remote head checked before this handoff update: `6876353` (`Record lead conversion cleanup handoff`)
+- Last known good code commit: `023ab6a` after focused unit tests, full `npm.cmd run quality`, and live non-production Supabase acceptance
 - PR: https://github.com/kotakase2022-jpg/crm/pull/4
 - PR title: `Cover CRM task triage and automation flow`
-- CodeRabbit OSS review status: passed on PR #4 remote head `8e311c9`; re-check after pushing `439c447` plus this handoff update.
+- CodeRabbit OSS review status: passed on PR #4 remote head `6876353`; re-check after pushing `023ab6a` plus this handoff update.
 
 ## 3. What Was Done
 
@@ -75,6 +75,13 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - Added a unit/integration regression test proving mid-conversion contact creation failure cleans up the just-created company and avoids a second Supabase profile bootstrap.
 - Re-ran focused conversion/data tests, the full local quality gate, and live non-production Supabase CRUD/RLS acceptance; all passed.
 - Committed the conversion cleanup fix as `439c447`.
+- Confirmed PR #4 remote head `6876353` had green CodeRabbit, GitHub Actions `quality-gate`, Vercel, and Vercel Preview Comments.
+- Added a second Supabase lead conversion consistency fix for failures after the conversion activity is written:
+  - the conversion activity is now tracked as a created conversion row and soft-deleted if follow-up task creation fails;
+  - the lead conversion fields are rolled back to the original lead values before cleaning up created conversion rows.
+- Added a unit/integration regression test proving task-insert failure after conversion activity creation rolls back the lead and soft-deletes activity/deal/contact/company rows.
+- Re-ran focused Supabase data tests, the full local quality gate, and live non-production Supabase CRUD/RLS acceptance; all passed.
+- Committed the conversion activity cleanup fix as `023ab6a`.
 
 ## 4. Files Changed
 
@@ -88,18 +95,20 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 - `src/lib/crm/data.ts`
   - Soft-deletes a just-created Supabase lead if automatic first-call task insertion fails during manual lead creation.
   - Reuses the active CRM context during Supabase lead conversion and soft-deletes rows created by a failed conversion attempt.
+  - Tracks the conversion activity as part of the conversion attempt so it is also soft-deleted if the follow-up task step fails.
 - `tests/unit/data-supabase.test.ts`
   - Added `soft deletes a Supabase lead when its automatic first-call task creation fails`.
   - Added `soft deletes created Supabase conversion rows when lead conversion fails mid-flow`.
+  - Added `rolls back converted leads and activities when conversion follow-up task creation fails`.
 
 ## 5. Current Status
 
-- Local focused unit tests are green at `439c447`.
-- Local full `npm.cmd run quality` is green at `439c447`.
+- Local focused unit tests are green at `023ab6a`.
+- Local full `npm.cmd run quality` is green at `023ab6a`.
 - Live non-production Supabase CRUD/RLS acceptance is green after explicit user approval.
 - The latest code change is a focused Supabase data-consistency implementation/test update and does not change DB schema, migrations, Supabase secrets, or production data.
 - PR #4 is still open and `REVIEW_REQUIRED`.
-- PR #4 checks must be re-run after pushing `439c447` and this handoff update.
+- PR #4 checks must be re-run after pushing `023ab6a` and this handoff update.
 - Supabase preview branch `acceptance-crm-20260708` may still exist and may continue billing until deleted. Delete it only with explicit user approval.
 
 ## 6. Known Issues
@@ -111,7 +120,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 
 ## 7. CodeRabbit Review
 
-- Review status: Passed on PR #4 remote head `8e311c9`; pending re-review after pushing `439c447` and this handoff update.
+- Review status: Passed on PR #4 remote head `6876353`; pending re-review after pushing `023ab6a` and this handoff update.
 - Critical findings: none known.
 - Resolved findings: Earlier PR-description warning was addressed in a prior Loop 11 update.
 - Deferred findings: none.
@@ -120,7 +129,7 @@ Continue the CRM quality sweep for PR #4 by strengthening mechanical proof aroun
 ## 8. Optional Bugbot Findings
 
 - Status: Not intentionally run by Codex.
-- Reason: CodeRabbit OSS is the standard reviewer, local quality is green, and the latest change is a small test-only diff.
+- Reason: CodeRabbit OSS is the standard reviewer, local quality is green, and the latest change is a focused data-consistency implementation/test diff.
 - Findings: None from an intentional Codex-run Bugbot review.
 - Actions taken: None.
 
@@ -147,6 +156,8 @@ npm.cmd run test -- --run tests/unit/data-supabase.test.ts
 # Re-run passed after the implementation fix: 1 file / 5 tests.
 # Failed once after adding the lead-conversion cleanup regression test, proving Supabase conversion bootstrapped context twice and did not clean up partial conversion rows.
 # Re-run passed after the implementation fix: 1 file / 6 tests.
+# Failed once after adding the conversion follow-up task failure regression test, proving the conversion activity was not cleaned up.
+# Re-run passed after the implementation fix: 1 file / 7 tests.
 
 npm.cmd run test -- --run tests/unit/data-conversion.test.ts tests/unit/data-supabase.test.ts
 # Passed after the lead-conversion cleanup fix: 2 files / 9 tests.
@@ -160,6 +171,7 @@ npm.cmd run quality
 # lint: passed
 # test: passed (31 files / 212 tests)
 # Later re-run after the lead-conversion cleanup fix passed with 31 files / 213 tests.
+# Later re-run after the conversion activity cleanup fix passed with 31 files / 214 tests.
 # coverage: passed
 #   statements 93.69%
 #   branches 86.54%
@@ -173,6 +185,7 @@ npm.cmd run acceptance:supabase
 # Supabase acceptance passed: auth, profile bootstrap, anonymous/optional cross-organization read isolation,
 # lead create/read/update/soft-delete, and organization scoping.
 # Passed again at 2026-07-08 16:39 JST after the lead-conversion cleanup fix.
+# Passed again at 2026-07-08 16:57 JST after the conversion activity cleanup fix.
 
 git commit -m "Cover demo lead import persistence"
 # Passed. Commit: d3d8b02.
@@ -193,6 +206,10 @@ git commit -m "Clean up failed lead creation"
 git commit -m "Clean up failed lead conversions"
 # Passed. Commit: 439c447.
 # Pre-commit test guard also passed.
+
+git commit -m "Clean up failed conversion activities"
+# Passed. Commit: 023ab6a.
+# Pre-commit test guard also passed.
 ```
 
 ## 10. Next Recommended Action
@@ -201,7 +218,7 @@ For Claude Code:
 
 1. After Codex pushes, run `gh pr checks 4 --repo kotakase2022-jpg/crm --watch --interval 10` and confirm CodeRabbit, GitHub Actions, Vercel, and Vercel Preview Comments are green on the newest remote head.
 2. Review `src/lib/crm/data.ts`, `src/lib/crm/lead-imports.ts`, `tests/unit/data-supabase.test.ts`, and `tests/unit/lead-imports.test.ts`, especially the failed automatic-task and lead-conversion cleanup paths, for correctness and brittleness.
-3. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, lead conversion cleanup, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
+3. Confirm the tests prove the intended import behavior, redirect safety, manual lead creation cleanup, lead conversion cleanup including the activity/task tail, and partial-failure cleanup without using production data, real customer data, or Supabase service-role bypasses.
 4. Review whether future work should add a route/action-level test seam for a UI-triggered import run, while keeping the current diff test-only and focused.
 5. Ask the user whether to delete Supabase preview branch `acceptance-crm-20260708` to stop hourly billing; delete it only with explicit approval.
 
@@ -214,6 +231,7 @@ For Claude Code:
 - Does the manual lead creation cleanup logic avoid leaving a lead without its automatic first-call task when Supabase task insertion fails?
 - Does the lead conversion cleanup logic avoid leaving a partial company/contact/deal trail when Supabase conversion fails mid-flow?
 - Is the lead rollback behavior acceptable if a failure occurs after conversion fields were written but before activity/task creation finishes?
+- Does the conversion activity cleanup logic avoid leaving a misleading activity record when the final follow-up task creation fails?
 - Does it avoid brittle localized text assertions and external network dependencies?
 - Confirm no secrets or `.env.acceptance.local` values were committed or printed.
 - Confirm PR #4 remains reviewable despite the accumulated Loop 11 E2E/test additions.
@@ -240,4 +258,4 @@ For Claude Code:
 - Current self-assessment after this loop:
   - Function/screen-transition defect-free score: 99 / 100
   - Daily CRM experience value score: 99 / 100
-- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, spreadsheet import persistence proof, spreadsheet redirect safety proof, failed-import data consistency, manual lead creation data consistency, and lead conversion data consistency improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
+- Rationale: local quality and live non-production acceptance are green, and task/dashboard triage, filtering, empty-search recovery, alert resolution, automation-task proof, CS health-score drill-down, tablet-width layout proof, invalid-input recovery proof, relation-validation recovery proof, spreadsheet import persistence proof, spreadsheet redirect safety proof, failed-import data consistency, manual lead creation data consistency, lead conversion data consistency, and lead conversion activity cleanup improved. Still not claiming 100/100 because PR #4 must be rechecked after the latest push, still needs human/Claude review before merge, and the Supabase preview-branch cost cleanup decision remains open.
