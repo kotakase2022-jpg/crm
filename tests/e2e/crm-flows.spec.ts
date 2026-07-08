@@ -1504,6 +1504,15 @@ test("dashboards, reports, and settings expose operational decision signals", as
   await page.getByTestId("dashboard-risky-company-link").first().click();
   await expect(page).toHaveURL(new RegExp(`${escapeRegExp(riskyCompanyPath)}$`));
   await expect(page.locator("main")).toContainText("ID:");
+  await expect(page.locator("main")).toContainText("ヘルススコア");
+  await expect(page.locator("main")).toContainText("解約リスク");
+  await expect(page.locator("main")).toContainText("ログイン頻度");
+  await expect(page.locator("main")).toContainText("帳票作成数");
+  await expect(page.locator("main")).toContainText("利用ユーザー数");
+  await expect(page.locator("main")).toContainText("初期設定");
+  await expect(page.locator("main")).toContainText("サポート状況");
+  await expect(page.locator("main")).toContainText("契約継続");
+  await expect(page.locator("main")).toContainText("CS評価");
   const taskCreateLink = page.locator(`main a[href="/tasks/new?company_id=${riskyCompanyId}"]`).first();
   await expect(taskCreateLink).toBeVisible();
   await taskCreateLink.click();

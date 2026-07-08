@@ -30,7 +30,22 @@ function sectionFields(section: RelatedSection) {
   if (section.entity === "contracts") return ["plan", "mrr", "status", "renewal_on"];
   if (section.entity === "tickets") return ["title", "type", "priority", "status"];
   if (section.title === "利用状況") return ["subscription_id", "trial_id", "period_start", "period_end", "login_count", "documents_created", "active_users_count"];
-  if (section.title === "ヘルススコア") return ["measured_on", "total_score", "health_status", "churn_risk", "upsell_candidate"];
+  if (section.title === "ヘルススコア") {
+    return [
+      "measured_on",
+      "total_score",
+      "health_status",
+      "churn_risk",
+      "login_frequency_score",
+      "document_count_score",
+      "active_users_score",
+      "setup_score",
+      "support_score",
+      "renewal_score",
+      "cs_subjective_score",
+      "upsell_candidate",
+    ];
+  }
   if (section.title === "請求履歴") return ["subscription_id", "billing_month", "amount", "status", "due_on"];
   if (section.title === "ステージ履歴") return ["from_stage", "to_stage", "changed_at"];
   return ["type", "subject", "occurred_at", "has_next_action"];
@@ -54,6 +69,13 @@ const relatedFieldLabels: Record<string, string> = {
   total_score: "ヘルススコア",
   health_status: "状態",
   churn_risk: "解約リスク",
+  login_frequency_score: "ログイン頻度",
+  document_count_score: "帳票作成数",
+  active_users_score: "利用ユーザー数",
+  setup_score: "初期設定",
+  support_score: "サポート状況",
+  renewal_score: "契約継続",
+  cs_subjective_score: "CS評価",
   upsell_candidate: "アップセル候補",
   billing_month: "請求月",
   amount: "金額",
